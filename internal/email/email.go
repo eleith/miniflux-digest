@@ -55,7 +55,7 @@ func Send(cfg *config.Config, file *os.File, data *category.CategoryData) error 
 	subject := fmt.Sprintf("[miniflux digest] %s", data.Category.Title)
 	filename := filepath.Base(file.Name())
 	dir := filepath.Base(filepath.Dir(file.Name()))
-	url := fmt.Sprintf("%s/%s/%s", cfg.MinifluxHost, dir, filename)
+	url := fmt.Sprintf("%s/%s/%s", cfg.DigestHost, dir, filename)
 	textData := TextTemplateData{
 		CategoryData: *data,
 		URL:           url,

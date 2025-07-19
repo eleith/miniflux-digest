@@ -18,6 +18,7 @@ type Config struct {
 	DigestEmailTo    string
 	DigestEmailFrom  string
 	DigestSchedule   string
+	DigestHost       string
 }
 
 var k = koanf.New(".")
@@ -39,7 +40,8 @@ func Load() (*Config, error) {
 		SmtpPassword:     k.String("smtp.password"),
 		DigestEmailTo:    k.String("digest.email.to"),
 		DigestEmailFrom:  k.String("digest.email.from"),
-		DigestSchedule:		k.String("digest.schedule"),
+		DigestSchedule:   k.String("digest.schedule"),
+		DigestHost:       k.String("digest.host"),
 	}
 
 	return cfg, nil
