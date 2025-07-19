@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{{.Category.Title}}</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			background-color: #f3f4f6;
+			color: #374151;
+			line-height: 1.6;
+			margin: 0;
+			padding: 0;
+		}
+
+		.container {
+			max-width: 800px;
+			margin: 2rem auto;
+			padding: 1.5rem;
+		}
+
+		section.header {
+			margin-bottom: 1.5rem;
+			text-align: center;
+		}
+
+		section.header h1.title {
+			font-size: 1.875rem;
+			font-weight: 700;
+			color: #1f2937;
+			margin: 0.5rem;
+		}
+
+		section.header .date {
+			font-size: 0.875rem;
+			color: #6b7280;
+			margin-top: 0.25rem;
+		}
+
+		section.entry {
+			background-color: #f9fafb;
+			border-radius: 0.5rem;
+			padding: 0.5rem;
+			margin-bottom: 1rem;
+			border: 1px solid #e5e7eb;
+		}
+
+		section.entry:focus-within {
+			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+			border-color: #3b82f6;
+		}
+
+		summary.entry {
+			font-size: 1.25rem;
+			font-weight: 600;
+			margin-bottom: 0.5rem;
+			cursor: pointer;
+			color: #1d4ed8;
+			text-decoration: none;
+			list-style: none;
+			position: relative;
+		}
+
+		summary.entry:focus {
+			outline: none;
+		}
+
+		section.entry:has(details[open]) {
+			background-color: #e0f2fe;
+			border-color: #bfdbfe;
+		}
+
+		section.entry.active {
+			box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.7);
+			border-color: #ea580c;
+			background-color: #fff7ed;
+		}
+
+		.entry-meta {
+			font-size: 0.875rem;
+			color: #6b7280;
+			display: flex;
+			flex-direction: row;
+			gap: 0.25rem;
+			align-items: center;
+			justify-content: start;
+		}
+
+		.entry-content {
+			font-size: 1rem;
+			color: #4b5563;
+			margin-top: 0.75rem;
+			overflow-wrap: break-word;
+		}
+
+		.entry-content img {
+			max-width: 100%;
+			height: auto;
+			border-radius: 0.25rem;
+			margin-top: 0.5rem;
+		}
+
+		.no-entries {
+			text-align: center;
+			font-style: italic;
+			color: #6b7280;
+			padding: 2rem;
+		}
+
+		a.entry-link {
+			color: #3b82f6;
+			text-decoration: none;
+		}
+
+		a.entry-link:hover {
+			text-decoration: underline;
+		}
+
+		a.entry-link:focus {
+			outline: 2px solid #3b82f6;
+			outline-offset: 2px;
+			border-radius: 0.25rem;
+			background-color: rgba(59, 130, 246, 0.1);
+		}
+
+		details.entry h1 {
+			font-size: 1.5rem;
+			margin-top: 1rem;
+			margin-bottom: 0.5rem;
+		}
+
+		{{range .FeedIcons}}
+		div.feed-icon-{{.FeedID}} {
+			background-image: url("data:{{.Data}}");
+			background-size: contain;
+			width: 16px;
+			height: 16px;
+		}
+		{{end}}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<section class="header">
+			<h1 class="title">{{.Category.Title}}</h1>
+			<span class="date">generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
+		</section>
+
+		<section class="entries">
+			{{if .Entries}}
+			{{range .Entries}}
+			<section class="entry">
+				<details class="entry">
+					<summary class="entry">
+						{{.Title}}
+					</summary>
+					<div class="entry-content">
+						{{ htmlEscape .Content}}
+					</div>
+				</details>
+				<div class="entry-meta">
+					<div class="feed-icon-{{.FeedID}}"></div>
+					<div>
+						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer" class="entry-link">{{.Feed.Title}}</a>
+					</div>
+					<div>
+						| {{.Date.Format "Jan 2, 2006"}}
+					</div>
+				</div>
+			</section>
+			{{end}}
+			{{else}}
+			<div class="no-entries">No unread entries in this category.</div>
+			{{end}}
+		</section>
+	</div>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			const entries = Array.from(document.querySelectorAll('section.entry'));
+			let activeEntryIndex = -1;
+
+			function setActiveEntry(index) {
+				if (entries.length === 0) return;
+
+				if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
+					const activeEntry = entries[activeEntryIndex];
+					activeEntry?.classList.remove('active');
+				}
+
+				activeEntryIndex = index;
+
+				if (activeEntryIndex >= 0 && activeEntryIndex < entries.length) {
+					const activeEntry = entries[activeEntryIndex];
+					const summary = activeEntry?.querySelector('summary');
+
+					activeEntry?.classList.add('active');
+					summary?.focus()
+				}
+			}
+
+			if (entries.length > 0) {
+				setActiveEntry(0);
+			}
+
+			document.addEventListener('keydown', (event) => {
+				if (['j', 'k', 'v', 'J', 'K', 'V'].includes(event.key)) {
+					event.preventDefault();
+
+					switch (event.key) {
+						case 'j':
+							if (activeEntryIndex < entries.length - 1) {
+								setActiveEntry(activeEntryIndex + 1);
+							}
+							break;
+						case 'J':
+							setActiveEntry(entries.length - 1);
+							break;
+						case 'k':
+							if (activeEntryIndex > 0) {
+								setActiveEntry(activeEntryIndex - 1);
+							}
+							break;
+						case 'K':
+							setActiveEntry(0);
+							break;
+						case 'v':
+							if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
+								const currentEntry = entries[activeEntryIndex];
+								const link = currentEntry.querySelector('a.entry-link');
+
+								if (link && link.href) {
+									window.open(link.href, '_blank');
+								}
+							}
+							break;
+					}
+				}
+			});
+		});
+	</script>
+</body>
+
+</html>

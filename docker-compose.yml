@@ -1,0 +1,10 @@
+services:
+  miniflux-digest:
+    build: .
+    container_name: miniflux-digest
+    user: "1000:1000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./web/miniflux-archive:/app/web
+      
+    restart: unless-stopped

@@ -1,0 +1,7 @@
+{{ len .Entries }} entrie(s) were found in the category: "{{ .Category.Title }}".
+
+{{ if .URL }}
+The entries are attached and you can also find them at: {{ .URL }}
+{{ else }}
+The entries are attached.
+{{ end }}

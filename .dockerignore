@@ -1,0 +1,7 @@
+config.yml
+.prettierrc
+.tool-versions
+README.md
+.dockerignore
+docker-compose.yml
+Dockerfile
