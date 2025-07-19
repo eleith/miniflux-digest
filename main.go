@@ -32,19 +32,19 @@ func checkAndSendDigests() {
 					return
 				}
 
-				err = email.Send(cfg, file, data)
-
 				defer func() {
 					if err := file.Close(); err != nil {
 						log.Printf("Error closing file for category '%s': %v", data.Category.Title, err)
 					}
-
-					category.MarkAsRead(client, data.Category)
 				}()
 
+				err = email.Send(cfg, file, data)
+
 				if err != nil {
-					log.Fatalf("Error sending email for category '%s': %v", data.Category.Title, err)
+					log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
 				}
+
+				category.MarkAsRead(client, data.Category)
 			}
 		}()
 	}

@@ -23,7 +23,7 @@ func MarkAsRead(client *miniflux.Client, category *miniflux.Category) {
 	err := client.MarkCategoryAsRead(category.ID)
 
 	if err != nil {
-		log.Printf("Failed to mark category %q as read: %v", category.Title, err)
+		log.Printf("Failed to mark category %q (%d) as read: %v", category.Title, category.ID, err)
 	}
 }
 
