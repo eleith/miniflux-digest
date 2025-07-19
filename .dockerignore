@@ -5,3 +5,4 @@ README.md
 .dockerignore
 docker-compose.yml
 Dockerfile
+.woodpecker
