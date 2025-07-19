@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"miniflux-digest/internal/category"
 	"miniflux-digest/internal/utils"
 	"os"
+	"path/filepath"
+	"time"
 )
 
 var tmpl *template.Template
+var archivePath = "./web/miniflux-archive"
 
 func init() {
 	var err error
@@ -42,7 +46,7 @@ func getHTML(data *category.CategoryData) (string, error) {
 
 func makeArchiveFile(data *category.CategoryData) (*os.File, error) {
 	categorySlug := utils.Slugify(data.Category.Title)
-	categoryFolderPath := fmt.Sprintf("./web/miniflux-archive/%s", categorySlug)
+	categoryFolderPath := fmt.Sprintf("%s/%s", archivePath, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
 	err := os.MkdirAll(fmt.Sprintf("./%s", categoryFolderPath), os.ModePerm)
 
@@ -76,4 +80,36 @@ func MakeArchiveHTML(data *category.CategoryData) (*os.File, error) {
 	}
 
 	return file, err
+}
+
+func CleanArchive(maxAge time.Duration) {
+	cutoffTime := time.Now().Add(-maxAge)
+
+	err := filepath.WalkDir(archivePath, func(path string, dir fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if dir.IsDir() {
+			return nil
+		}
+
+		info, err := dir.Info()
+		if err != nil {
+			log.Printf("Warning: could not get info for file %s: %v", path, err)
+			return nil
+		}
+
+		if info.ModTime().Before(cutoffTime) {
+			if err := os.Remove(path); err != nil {
+				log.Printf("Warning: failed to delete file %s: %v", path, err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Fatalf("Error cleaning archive: %v", err)
+	}
 }
