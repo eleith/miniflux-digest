@@ -2,17 +2,18 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/go-co-op/gocron/v2"
 	miniflux "miniflux.app/v2/client"
 
 	"miniflux-digest/config"
-	"miniflux-digest/internal/email"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/category"
+	"miniflux-digest/internal/email"
 )
 
-func categoryEntryCheck() {
+func checkAndSendDigests() {
 	cfg, err := config.Load()
 
 	if err != nil {
@@ -49,6 +50,26 @@ func categoryEntryCheck() {
 	}
 }
 
+func registerDigestsJob(cfg *config.Config, scheduler gocron.Scheduler) {
+	_, err := scheduler.NewJob(gocron.CronJob(cfg.DigestSchedule, true), gocron.NewTask(func() {
+		checkAndSendDigests()
+	}))
+
+	if err != nil {
+		log.Fatalf("Error creating job: %v", err)
+	}
+}
+
+func registerArchiveCleanupJob(scheduler gocron.Scheduler) {
+	_, err := scheduler.NewJob(gocron.DurationJob(time.Hour*24), gocron.NewTask(func() {
+		archive.CleanArchive(time.Hour * 24 * 21)
+	}))
+
+	if err != nil {
+		log.Fatalf("Error creating job: %v", err)
+  }
+}
+
 func main() {
 	cfg, err := config.Load()
 
@@ -68,15 +89,8 @@ func main() {
 		log.Fatalf("Error creating scheduler: %v", err)
 	}
 
-	_, err = scheduler.NewJob(gocron.CronJob(cfg.DigestSchedule, true), gocron.NewTask(func() {
-		log.Println("Starting digest job...")
-		categoryEntryCheck()
-		log.Println("Digest job completed.")
-	}))
-
-	if err != nil {
-		log.Fatalf("Error creating job: %v", err)
-	}
+	registerDigestsJob(cfg, scheduler)
+	registerArchiveCleanupJob(scheduler)
 
 	scheduler.Start()
 
