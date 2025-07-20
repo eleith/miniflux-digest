@@ -67,7 +67,7 @@ func registerArchiveCleanupJob(scheduler gocron.Scheduler) {
 
 	if err != nil {
 		log.Fatalf("Error creating job: %v", err)
-  }
+	}
 }
 
 func main() {
