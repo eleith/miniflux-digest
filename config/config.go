@@ -19,6 +19,7 @@ type Config struct {
 	DigestEmailFrom  string
 	DigestSchedule   string
 	DigestHost       string
+	DigestDryRun     bool
 }
 
 var k = koanf.New(".")
@@ -42,6 +43,7 @@ func Load() (*Config, error) {
 		DigestEmailFrom:  k.String("digest.email.from"),
 		DigestSchedule:   k.String("digest.schedule"),
 		DigestHost:       k.String("digest.host"),
+		DigestDryRun:			k.Bool("digest.dryrun"),
 	}
 
 	return cfg, nil

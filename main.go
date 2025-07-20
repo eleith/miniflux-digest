@@ -38,13 +38,17 @@ func checkAndSendDigests() {
 					}
 				}()
 
-				err = email.Send(cfg, file, data)
+				if !cfg.DigestDryRun {
+					if false {
+						err = email.Send(cfg, file, data)
+					}
 
-				if err != nil {
-					log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
+					if err != nil {
+						log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
+					}
+
+					category.MarkAsRead(client, data.Category)
 				}
-
-				category.MarkAsRead(client, data.Category)
 			}
 		}()
 	}
