@@ -164,10 +164,19 @@
 				<div class="entry-meta">
 					<div class="feed-icon-{{.FeedID}}"></div>
 					<div>
-						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer" class="entry-link">{{.Feed.Title}}</a>
+						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer"
+							class="entry-link" data-link-external>external</a> | 
 					</div>
 					<div>
-						| {{.Date.Format "Jan 2, 2006"}}
+						<a href="/feed/{{.FeedID}}/entry/{{.ID}}" target="_blank"
+							rel="noopener noreferrer" class="entry-link"
+							data-link-internal>internal</a> | 
+					</div>
+					<div>
+						<button class="entry-link" data-button-mark>mark as read</button> | 
+					</div>
+					<div>
+						| {{.Date.Format "Jan 2"}}
 					</div>
 				</div>
 			</section>
@@ -202,35 +211,70 @@
 				}
 			}
 
+			function removeEntry(index) {
+				if (index >= 0 && index < entries.length) {
+					const entry = entries[index];
+					entry.remove();
+					entries.splice(index, 1);
+					setActiveEntry(index);
+				}
+			}
+
 			if (entries.length > 0) {
 				setActiveEntry(0);
 			}
 
+			
+			document.addEventListener('click', (event) => {
+				if (event.target.matches('button[data-button-mark]')) {
+					const entry = event.target.closest('section.entry');
+					const index = entries.indexOf(entry);
+
+					removeEntry(index);
+				} else if (event.target.closest('section.entry')) {
+					const entry = event.target.closest('section.entry');
+					const index = entries.indexOf(entry);
+
+					if (index !== -1) {
+						setActiveEntry(index);
+					}
+				}
+			});
+
 			document.addEventListener('keydown', (event) => {
-				if (['j', 'k', 'v', 'J', 'K', 'V'].includes(event.key)) {
+				if (['j', 'k', 'v', 'D', 'U', 'V', 'm'].includes(event.key)) {
 					event.preventDefault();
 
 					switch (event.key) {
-						case 'j':
-							if (activeEntryIndex < entries.length - 1) {
-								setActiveEntry(activeEntryIndex + 1);
-							}
+						case 'm':
+							removeEntry(activeEntryIndex);
 							break;
-						case 'J':
+						case 'j':
+							setActiveEntry(activeEntryIndex + 1);
+							break;
+						case 'U':
 							setActiveEntry(entries.length - 1);
 							break;
 						case 'k':
-							if (activeEntryIndex > 0) {
-								setActiveEntry(activeEntryIndex - 1);
-							}
+							setActiveEntry(activeEntryIndex - 1);
 							break;
-						case 'K':
+						case 'D':
 							setActiveEntry(0);
+							break;
+						case 'V':
+							if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
+								const currentEntry = entries[activeEntryIndex];
+								const link = currentEntry.querySelector('a[data-link-internal]');
+
+								if (link && link.href) {
+									window.open(link.href, '_blank');
+								}
+							}
 							break;
 						case 'v':
 							if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
 								const currentEntry = entries[activeEntryIndex];
-								const link = currentEntry.querySelector('a.entry-link');
+								const link = currentEntry.querySelector('a[data-link-external]');
 
 								if (link && link.href) {
 									window.open(link.href, '_blank');
