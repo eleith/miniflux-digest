@@ -39,9 +39,7 @@ func checkAndSendDigests() {
 				}()
 
 				if !cfg.DigestDryRun {
-					if false {
-						err = email.Send(cfg, file, data)
-					}
+					err = email.Send(cfg, file, data)
 
 					if err != nil {
 						log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
