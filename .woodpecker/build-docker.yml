@@ -7,6 +7,14 @@ when:
     branch: main
 
 steps:
+  lint:
+    image: golangci/golangci-lint:v1.59.1-alpine
+    commands:
+      - golangci-lint run -v
+  test:
+    image: golang:1.24.5-alpine
+    commands:
+      - go test ./...
   build-docker:
     image: woodpeckerci/plugin-docker-buildx:6.0.1
     settings:

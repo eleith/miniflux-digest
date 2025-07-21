@@ -2,33 +2,19 @@ package email
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
-	"text/template"
 
 	"miniflux-digest/config"
 	"miniflux-digest/internal/category"
+	"miniflux-digest/internal/templates"
 
 	"github.com/wneessen/go-mail"
 )
 
-var tmpl *template.Template
-
 type TextTemplateData struct {
-	category.CategoryData 
+	category.CategoryData
 	URL string
-}
-
-func init() {
-	var err error
-	templateName := "email.gotxt"
-
-	tmpl, err = template.New(templateName).ParseFiles("./templates/" + templateName)
-
-	if err != nil {
-		log.Fatalf("Error parsing template: %v", err)
-	}
 }
 
 func Send(cfg *config.Config, file *os.File, data *category.CategoryData) error {
@@ -58,13 +44,13 @@ func Send(cfg *config.Config, file *os.File, data *category.CategoryData) error 
 	url := fmt.Sprintf("%s/%s/%s", cfg.DigestHost, dir, filename)
 	textData := TextTemplateData{
 		CategoryData: *data,
-		URL:           url,
+		URL:          url,
 	}
 
 	message.Subject(subject)
 	message.AttachFile(file.Name(), mail.WithFileContentType("text/html"))
 
-	err = message.SetBodyTextTemplate(tmpl, textData)
+	err = message.SetBodyTextTemplate(templates.EmailTemplate, textData)
 
 	if err != nil {
 		return err
