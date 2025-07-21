@@ -14,6 +14,4 @@ FROM alpine:3.22.1
 WORKDIR /app
 
 COPY --from=builder /app/main /app/main
-COPY templates ./templates
-
 ENTRYPOINT ["/app/main"]

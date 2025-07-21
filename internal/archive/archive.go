@@ -3,40 +3,24 @@ package archive
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"io"
 	"io/fs"
 	"log"
 	"miniflux-digest/internal/category"
+	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/utils"
 	"os"
 	"path/filepath"
 	"time"
 )
 
-var tmpl *template.Template
 var archivePath = "./web/miniflux-archive"
-
-func init() {
-	var err error
-	templateName := "entries.gohtml"
-
-	tmpl, err = template.New(templateName).Funcs(template.FuncMap{
-		"htmlEscape": func(s string) template.HTML {
-			return template.HTML(s)
-		},
-	}).ParseFiles("./templates/" + templateName)
-
-	if err != nil {
-		log.Fatalf("Error parsing template: %v", err)
-	}
-}
 
 func getHTML(data *category.CategoryData) (string, error) {
 	var buf bytes.Buffer
 	var htmlOutput string
 
-	err := tmpl.Execute(&buf, data)
+	err := templates.ArchiveTemplate.Execute(&buf, data)
 
 	if err == nil {
 		htmlOutput = buf.String()
@@ -49,7 +33,7 @@ func makeArchiveFile(data *category.CategoryData) (*os.File, error) {
 	categorySlug := utils.Slugify(data.Category.Title)
 	categoryFolderPath := fmt.Sprintf("%s/%s", archivePath, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
-	err := os.MkdirAll(fmt.Sprintf("./%s", categoryFolderPath), os.ModePerm)
+	err := os.MkdirAll(categoryFolderPath, os.ModePerm)
 
 	if err == nil {
 		file, err := os.Create(filename)
