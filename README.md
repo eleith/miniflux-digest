@@ -11,5 +11,5 @@
 [] second order organize by date  
 [] update readme with goals  
 [] update readme with documentation  
-[] add tests and run them in ci  
-[] add lint and run them in ci  
+[x] add tests and run them in ci  
+[x] add lint and run them in ci  
