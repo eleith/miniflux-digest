@@ -3,3 +3,4 @@ web/miniflux-archive
 miniflux-digest
 .gemini
 .env
+vendor/
