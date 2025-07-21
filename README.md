@@ -2,7 +2,7 @@
 
 [] one time job for each archiving to reduce chances of smtp rate limiting  
 [] dark mode support  
-[] remove category folders if they are empty during cleanup  
+[x] remove category folders if they are empty during cleanup  
 [] click anywhere on entry to trigger active selection  
 [] change make 'mark as read' to a link, rename it to 'hide'  
 [] show comment link if it exists  

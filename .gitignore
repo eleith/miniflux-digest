@@ -1,3 +1,5 @@
 config.yaml
 web/miniflux-archive
 miniflux-digest
+.gemini
+.env

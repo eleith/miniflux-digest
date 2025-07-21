@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"log"
 	"miniflux-digest/internal/category"
@@ -82,7 +83,7 @@ func MakeArchiveHTML(data *category.CategoryData) (*os.File, error) {
 	return file, err
 }
 
-func CleanArchive(maxAge time.Duration) {
+func removeOldArchiveFiles(maxAge time.Duration) {
 	cutoffTime := time.Now().Add(-maxAge)
 
 	err := filepath.WalkDir(archivePath, func(path string, dir fs.DirEntry, err error) error {
@@ -110,6 +111,54 @@ func CleanArchive(maxAge time.Duration) {
 	})
 
 	if err != nil {
-		log.Fatalf("Error cleaning archive: %v", err)
+		log.Printf("Error cleaning archive files: %v", err)
 	}
+}
+
+func isDirEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+
+	defer func() {
+		if err = f.Close(); err != nil {
+			log.Printf("Warning: failed to close directory %s: %v", name, err)
+		}
+	}()
+
+	_, err = f.Readdirnames(1)
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
+}
+
+func removeEmptyCategoryFolders() {
+	dirs, err := os.ReadDir(archivePath)
+	if err != nil {
+		log.Printf("Warning: could not read archive directory %s: %v", archivePath, err)
+		return
+	}
+
+	for _, dir := range dirs {
+		if dir.IsDir() {
+			categoryPath := filepath.Join(archivePath, dir.Name())
+			empty, err := isDirEmpty(categoryPath)
+			if err != nil {
+				log.Printf("Warning: could not check if directory %s is empty: %v", categoryPath, err)
+				continue
+			}
+			if empty {
+				if err := os.Remove(categoryPath); err != nil {
+					log.Printf("Warning: failed to delete empty directory %s: %v", categoryPath, err)
+				}
+			}
+		}
+	}
+}
+
+func CleanArchive(maxAge time.Duration) {
+	removeOldArchiveFiles(maxAge)
+	removeEmptyCategoryFolders()
 }
