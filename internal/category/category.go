@@ -4,20 +4,11 @@ import (
 	"log"
 	"time"
 
+	"miniflux-digest/internal/models"
 	miniflux "miniflux.app/v2/client"
 )
 
-type FeedIcon struct {
-	FeedID int64
-	Data   string
-}
 
-type CategoryData struct {
-	Category      *miniflux.Category
-	Entries       *miniflux.Entries
-	GeneratedDate time.Time
-	FeedIcons     []*FeedIcon
-}
 
 func MarkAsRead(client *miniflux.Client, category *miniflux.Category) {
 	err := client.MarkCategoryAsRead(category.ID)
@@ -27,19 +18,19 @@ func MarkAsRead(client *miniflux.Client, category *miniflux.Category) {
 	}
 }
 
-func fetchData(client *miniflux.Client, category *miniflux.Category) (CategoryData, error) {
+func fetchData(client *miniflux.Client, category *miniflux.Category) (models.CategoryData, error) {
 	entriesResult, err := client.CategoryEntries(category.ID, &miniflux.Filter{Status: miniflux.EntryStatusUnread})
 
 	if err != nil {
-		return CategoryData{}, err
+		return models.CategoryData{}, err
 	}
 
 	entries := entriesResult.Entries
 	feeds, err := client.CategoryFeeds(category.ID)
-	feedIcons := []*FeedIcon{}
+	feedIcons := []*models.FeedIcon{}
 
 	if err != nil {
-		return CategoryData{}, err
+		return models.CategoryData{}, err
 	}
 
 	for _, feed := range feeds {
@@ -49,14 +40,14 @@ func fetchData(client *miniflux.Client, category *miniflux.Category) (CategoryDa
 			continue
 		}
 
-		feedIconForTemplate := &FeedIcon{
+		feedIconForTemplate := &models.FeedIcon{
 			FeedID: feed.ID,
 			Data:   feedIcon.Data,
 		}
 		feedIcons = append(feedIcons, feedIconForTemplate)
 	}
 
-	return CategoryData{
+	return models.CategoryData{
 		Category:      category,
 		Entries:       &entries,
 		GeneratedDate: time.Now(),
@@ -64,8 +55,8 @@ func fetchData(client *miniflux.Client, category *miniflux.Category) (CategoryDa
 	}, nil
 }
 
-func StreamData(client *miniflux.Client) <-chan *CategoryData {
-	out := make(chan *CategoryData)
+func StreamData(client *miniflux.Client) <-chan *models.CategoryData {
+	out := make(chan *models.CategoryData)
 
 	go func() {
 		defer close(out)

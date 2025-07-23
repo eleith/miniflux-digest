@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"miniflux-digest/internal/category"
+	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/utils"
 	"os"
@@ -14,7 +14,9 @@ import (
 	"time"
 )
 
-func getHTML(data *category.CategoryData) (string, error) {
+type ArchiveServiceImpl struct{}
+
+func getHTML(data *models.CategoryData) (string, error) {
 	var buf bytes.Buffer
 	var htmlOutput string
 
@@ -27,7 +29,7 @@ func getHTML(data *category.CategoryData) (string, error) {
 	return htmlOutput, err
 }
 
-func makeArchiveFile(archivePath string, data *category.CategoryData) (*os.File, error) {
+func makeArchiveFile(archivePath string, data *models.CategoryData) (*os.File, error) {
 	categorySlug := utils.Slugify(data.Category.Title)
 	categoryFolderPath := fmt.Sprintf("%s/%s", archivePath, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
@@ -41,7 +43,7 @@ func makeArchiveFile(archivePath string, data *category.CategoryData) (*os.File,
 	return nil, err
 }
 
-func MakeArchiveHTML(archivePath string, data *category.CategoryData) (*os.File, error) {
+func (s *ArchiveServiceImpl) MakeArchiveHTML(archivePath string, data *models.CategoryData) (*os.File, error) {
 	file, err := makeArchiveFile(archivePath, data)
 
 	if err != nil {

@@ -4,15 +4,13 @@ import (
 	"log"
 
 	"miniflux-digest/config"
-	"miniflux-digest/internal/archive"
-	"miniflux-digest/internal/category"
-	"miniflux-digest/internal/email"
-	miniflux "miniflux.app/v2/client"
+	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/models"
 )
 
-func ProcessCategory(cfg *config.Config, client *miniflux.Client, data *category.CategoryData, archivePath string, markAsRead bool) {
+func ProcessCategory(cfg *config.Config, client app.MinifluxClientService, data *models.CategoryData, archiveService app.ArchiveService, emailService app.EmailService, archivePath string, markAsRead bool) {
 	if len(*data.Entries) > 0 {
-		file, err := archive.MakeArchiveHTML(archivePath, data)
+		file, err := archiveService.MakeArchiveHTML(archivePath, data)
 
 		if err != nil {
 			log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
@@ -25,14 +23,16 @@ func ProcessCategory(cfg *config.Config, client *miniflux.Client, data *category
 			}
 		}()
 
-		err = email.Send(cfg, file, data)
+		err = emailService.Send(cfg, file, data)
 
 		if err != nil {
 			log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
 		}
 
 		if markAsRead {
-			category.MarkAsRead(client, data.Category)
+			if err := client.MarkCategoryAsRead(data.Category.ID); err != nil {
+				log.Printf("Error marking category as read for category '%s': %v", data.Category.Title, err)
+			}
 		}
 	}
 }
