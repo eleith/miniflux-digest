@@ -1,6 +1,10 @@
 build:
 	go build -mod=vendor -o miniflux-digest .
 
+preview:
+	go run -mod=vendor ./scripts/preview/main.go
+	./scripts/open-preview.sh
+
 test:
 	go test -mod=vendor ./...
 
@@ -13,7 +17,5 @@ lint:
 
 vendor:
 	go mod vendor
-
-ci: vendor lint test-coverage
 
 all: ci build
