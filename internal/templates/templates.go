@@ -4,8 +4,14 @@ import (
 	"embed"
 	htmlTemplate "html/template"
 	"log"
+	"miniflux-digest/internal/category"
 	textTemplate "text/template"
 )
+
+type EmailTemplateData struct {
+	category.CategoryData
+	URL string
+}
 
 //go:embed *.gohtml *.gotxt
 var embedFS embed.FS

@@ -13,19 +13,14 @@ import (
 	"miniflux-digest/internal/email"
 )
 
-func checkAndSendDigests() {
-	cfg, err := config.Load()
-
-	if err != nil {
-		log.Fatalf("Error loading configuration: %v", err)
-	}
+func checkAndSendDigests(cfg *config.Config, archivePath string) {
 
 	client := miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken)
 
 	for data := range category.StreamData(client) {
 		func() {
 			if len(*data.Entries) > 0 {
-				file, err := archive.MakeArchiveHTML(data)
+				file, err := archive.MakeArchiveHTML(archivePath, data)
 
 				if err != nil {
 					log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
@@ -52,9 +47,9 @@ func checkAndSendDigests() {
 	}
 }
 
-func registerDigestsJob(cfg *config.Config, scheduler gocron.Scheduler) {
+func registerDigestsJob(cfg *config.Config, scheduler gocron.Scheduler, archivePath string) {
 	_, err := scheduler.NewJob(gocron.CronJob(cfg.DigestSchedule, true), gocron.NewTask(func() {
-		checkAndSendDigests()
+		checkAndSendDigests(cfg, archivePath)
 	}))
 
 	if err != nil {
@@ -62,9 +57,9 @@ func registerDigestsJob(cfg *config.Config, scheduler gocron.Scheduler) {
 	}
 }
 
-func registerArchiveCleanupJob(scheduler gocron.Scheduler) {
+func registerArchiveCleanupJob(scheduler gocron.Scheduler, archivePath string) {
 	_, err := scheduler.NewJob(gocron.DurationJob(time.Hour*24), gocron.NewTask(func() {
-		archive.CleanArchive(time.Hour * 24 * 21)
+		archive.CleanArchive(archivePath, time.Hour*24*21)
 	}))
 
 	if err != nil {
@@ -73,11 +68,13 @@ func registerArchiveCleanupJob(scheduler gocron.Scheduler) {
 }
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.Load("./config.yaml")
 
 	if err != nil {
 		log.Fatalf("Error loading configuration: %v", err)
 	}
+
+	archivePath := "./web/miniflux-archive"
 
 	scheduler, err := gocron.NewScheduler()
 
@@ -91,8 +88,8 @@ func main() {
 		log.Fatalf("Error creating scheduler: %v", err)
 	}
 
-	registerDigestsJob(cfg, scheduler)
-	registerArchiveCleanupJob(scheduler)
+	registerDigestsJob(cfg, scheduler, archivePath)
+	registerArchiveCleanupJob(scheduler, archivePath)
 
 	scheduler.Start()
 

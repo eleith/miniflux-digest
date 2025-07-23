@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-var archivePath = "./web/miniflux-archive"
-
 func getHTML(data *category.CategoryData) (string, error) {
 	var buf bytes.Buffer
 	var htmlOutput string
@@ -29,7 +27,7 @@ func getHTML(data *category.CategoryData) (string, error) {
 	return htmlOutput, err
 }
 
-func makeArchiveFile(data *category.CategoryData) (*os.File, error) {
+func makeArchiveFile(archivePath string, data *category.CategoryData) (*os.File, error) {
 	categorySlug := utils.Slugify(data.Category.Title)
 	categoryFolderPath := fmt.Sprintf("%s/%s", archivePath, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
@@ -43,8 +41,8 @@ func makeArchiveFile(data *category.CategoryData) (*os.File, error) {
 	return nil, err
 }
 
-func MakeArchiveHTML(data *category.CategoryData) (*os.File, error) {
-	file, err := makeArchiveFile(data)
+func MakeArchiveHTML(archivePath string, data *category.CategoryData) (*os.File, error) {
+	file, err := makeArchiveFile(archivePath, data)
 
 	if err != nil {
 		log.Printf("Error creating HTML file for category '%s': %v", data.Category.Title, err)
@@ -67,7 +65,7 @@ func MakeArchiveHTML(data *category.CategoryData) (*os.File, error) {
 	return file, err
 }
 
-func removeOldArchiveFiles(maxAge time.Duration) {
+func removeOldArchiveFiles(archivePath string, maxAge time.Duration) {
 	cutoffTime := time.Now().Add(-maxAge)
 
 	err := filepath.WalkDir(archivePath, func(path string, dir fs.DirEntry, err error) error {
@@ -118,7 +116,7 @@ func isDirEmpty(name string) (bool, error) {
 	return false, err
 }
 
-func removeEmptyCategoryFolders() {
+func removeEmptyCategoryFolders(archivePath string) {
 	dirs, err := os.ReadDir(archivePath)
 	if err != nil {
 		log.Printf("Warning: could not read archive directory %s: %v", archivePath, err)
@@ -142,7 +140,7 @@ func removeEmptyCategoryFolders() {
 	}
 }
 
-func CleanArchive(maxAge time.Duration) {
-	removeOldArchiveFiles(maxAge)
-	removeEmptyCategoryFolders()
+func CleanArchive(archivePath string, maxAge time.Duration) {
+	removeOldArchiveFiles(archivePath, maxAge)
+	removeEmptyCategoryFolders(archivePath)
 }

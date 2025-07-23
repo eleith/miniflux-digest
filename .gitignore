@@ -4,3 +4,4 @@ miniflux-digest
 .gemini
 .env
 vendor/
+coverage.out

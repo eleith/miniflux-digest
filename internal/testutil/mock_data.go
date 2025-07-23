@@ -7,7 +7,6 @@ import (
 	miniflux "miniflux.app/v2/client"
 )
 
-// NewMockCategoryData creates a standardized CategoryData object for testing.
 func NewMockCategoryData() *category.CategoryData {
 	return &category.CategoryData{
 		Category: &miniflux.Category{
@@ -21,7 +20,6 @@ func NewMockCategoryData() *category.CategoryData {
 				Content: "Test Content",
 			},
 		},
-		// Use a fixed time for deterministic test results
 		GeneratedDate: time.Date(2025, 7, 21, 12, 0, 0, 0, time.UTC),
 	}
 }

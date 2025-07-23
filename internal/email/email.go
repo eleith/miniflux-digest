@@ -12,10 +12,6 @@ import (
 	"github.com/wneessen/go-mail"
 )
 
-type TextTemplateData struct {
-	category.CategoryData
-	URL string
-}
 
 func Send(cfg *config.Config, file *os.File, data *category.CategoryData) error {
 	message := mail.NewMsg()
@@ -42,7 +38,7 @@ func Send(cfg *config.Config, file *os.File, data *category.CategoryData) error 
 	filename := filepath.Base(file.Name())
 	dir := filepath.Base(filepath.Dir(file.Name()))
 	url := fmt.Sprintf("%s/%s/%s", cfg.DigestHost, dir, filename)
-	textData := TextTemplateData{
+	textData := templates.EmailTemplateData{
 		CategoryData: *data,
 		URL:          url,
 	}

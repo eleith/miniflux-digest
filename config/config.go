@@ -24,12 +24,13 @@ type Config struct {
 
 var k = koanf.New(".")
 
-func Load() (*Config, error) {
+func Load(path string) (*Config, error) {
 
-	err := k.Load(file.Provider("./config.yaml"), yaml.Parser())
+	err := k.Load(file.Provider(path), yaml.Parser())
 
 	if err != nil {
-		log.Fatalf("error loading config file: %v", err)
+		log.Printf("error loading config file: %v", err)
+		return nil, err
 	}
 
 	cfg := &Config{
