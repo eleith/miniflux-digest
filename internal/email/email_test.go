@@ -51,7 +51,8 @@ func TestSend(t *testing.T) {
 	// In a real scenario, you would use a mock SMTP server.
 	// For this test, we are just checking if the function executes without error.
 	// The go-mail library does not make it easy to mock the SMTP client.
-	err = Send(cfg, file, data)
+	emailService := &EmailServiceImpl{}
+	err = emailService.Send(cfg, file, data)
 	if err != nil {
 		// We expect an error because we are not running a real SMTP server.
 		// The important part is that the function attempts to connect.

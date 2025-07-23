@@ -3,12 +3,12 @@ package testutil
 import (
 	"encoding/base64"
 	"log"
-	"miniflux-digest/internal/category"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"miniflux-digest/internal/models"
 	miniflux "miniflux.app/v2/client"
 )
 
@@ -25,12 +25,12 @@ func loadImageAsBase64(path string) string {
 	return base64.StdEncoding.EncodeToString(file)
 }
 
-func NewMockCategoryData() *category.CategoryData {
+func NewMockCategoryData() *models.CategoryData {
 	redSquare := loadImageAsBase64("internal/testutil/images/red.png")
 	yellowSquare := loadImageAsBase64("internal/testutil/images/yellow.png")
 	greenSquare := loadImageAsBase64("internal/testutil/images/green.png")
 
-	return &category.CategoryData{
+	return &models.CategoryData{
 		Category: &miniflux.Category{
 			ID:	1,
 			Title: "Test Category",
@@ -76,7 +76,7 @@ func NewMockCategoryData() *category.CategoryData {
 			},
 		},
 		GeneratedDate: time.Date(2025, 7, 21, 12, 0, 0, 0, time.UTC),
-		FeedIcons: []*category.FeedIcon{
+		FeedIcons: []*models.FeedIcon{
 			{FeedID: 1, Data: "image/png;base64," + redSquare},
 			{FeedID: 2, Data: "image/png;base64," + yellowSquare},
 			{FeedID: 3, Data: "image/png;base64," + greenSquare},

@@ -6,14 +6,16 @@ import (
 	"path/filepath"
 
 	"miniflux-digest/config"
-	"miniflux-digest/internal/category"
+	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 
 	"github.com/wneessen/go-mail"
 )
 
 
-func Send(cfg *config.Config, file *os.File, data *category.CategoryData) error {
+type EmailServiceImpl struct{}
+
+func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.CategoryData) error {
 	message := mail.NewMsg()
 	client, err := mail.NewClient(
 		cfg.SmtpHost,

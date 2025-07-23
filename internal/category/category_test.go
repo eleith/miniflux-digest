@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"miniflux-digest/internal/models"
 	miniflux "miniflux.app/v2/client"
 )
 
@@ -106,7 +107,7 @@ func TestStreamData(t *testing.T) {
 	client := miniflux.NewClient(server.URL, "testUser", "testPassword")
 	ch := StreamData(client)
 
-	var results []*CategoryData
+	var results []*models.CategoryData
 	for data := range ch {
 		results = append(results, data)
 	}
@@ -121,7 +122,7 @@ func TestStreamData(t *testing.T) {
 }
 
 func TestFeedIcon(t *testing.T) {
-	icon := &FeedIcon{
+	icon := &models.FeedIcon{
 		FeedID: 1,
 		Data:   "test",
 	}
@@ -139,9 +140,9 @@ func TestCategoryData(t *testing.T) {
 	now := time.Now()
 	category := &miniflux.Category{ID: 1, Title: "Test"}
 	entries := &miniflux.Entries{}
-	icons := []*FeedIcon{}
+	icons := []*models.FeedIcon{}
 
-	data := &CategoryData{
+	data := &models.CategoryData{
 		Category:      category,
 		Entries:       entries,
 		GeneratedDate: now,

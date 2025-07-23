@@ -4,12 +4,12 @@ import (
 	"embed"
 	htmlTemplate "html/template"
 	"log"
-	"miniflux-digest/internal/category"
+	"miniflux-digest/internal/models"
 	textTemplate "text/template"
 )
 
 type EmailTemplateData struct {
-	category.CategoryData
+	models.CategoryData
 	URL string
 }
 

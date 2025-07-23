@@ -37,7 +37,8 @@ func TestMakeArchiveFile(t *testing.T) {
 func TestMakeArchiveHTML(t *testing.T) {
 	tmpDir := t.TempDir()
 	data := testutil.NewMockCategoryData()
-	file, err := MakeArchiveHTML(tmpDir, data)
+	archiveService := &ArchiveServiceImpl{}
+	file, err := archiveService.MakeArchiveHTML(tmpDir, data)
 	if err != nil {
 		t.Fatalf("MakeArchiveHTML failed: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"miniflux-digest/config"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/category"
+	"miniflux-digest/internal/email"
 	"miniflux-digest/internal/processor"
 )
 
@@ -20,7 +21,7 @@ func checkAndSendDigests(cfg *config.Config, archivePath string) {
 	client := miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken)
 
 	for data := range category.StreamData(client) {
-		processor.ProcessCategory(cfg, client, data, archivePath, true)
+		processor.ProcessCategory(cfg, client, data, &archive.ArchiveServiceImpl{}, &email.EmailServiceImpl{}, archivePath, true)
 	}
 }
 
