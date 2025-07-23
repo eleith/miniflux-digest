@@ -19,7 +19,7 @@ steps:
   test:
     image: golang:1.24.5-alpine
     commands:
-      - go test -mod=vendor ./...
+      - ./scripts/check-coverage.sh 60
   build-docker:
     image: woodpeckerci/plugin-docker-buildx:6.0.1
     settings:
