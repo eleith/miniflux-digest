@@ -14,8 +14,10 @@ import (
 func mockHandler(response string, statusCode int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(statusCode)
-		if _, err := fmt.Fprintln(w, response); err != nil {
-			panic(err)
+		if statusCode != http.StatusNoContent {
+			if _, err := fmt.Fprintln(w, response); err != nil {
+				panic(err)
+			}
 		}
 	}
 }
@@ -42,7 +44,7 @@ func TestFetchData(t *testing.T) {
 				panic(err)
 			}
 		case "/v1/feeds/1/icon":
-			if _, err := fmt.Fprintln(w, `{"data": "icon-data", "mime_type": "image/png"}`); err != nil {
+			if _, err := fmt.Fprintln(w, `{"data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4T2Nksr/85wADGGYw4oBMAHkAAAD//wMA/wEAP2D3e/gAAAAASUVORK5CYII=", "mime_type": "image/png"}`); err != nil {
 				panic(err)
 			}
 		}
@@ -73,8 +75,8 @@ func TestFetchData(t *testing.T) {
 		t.Errorf("Expected 1 feed icon, got %d", len(data.FeedIcons))
 	}
 
-	if data.FeedIcons[0].Data != "icon-data" {
-		t.Errorf("Expected feed icon data 'icon-data', got %s", data.FeedIcons[0].Data)
+	if data.FeedIcons[0].Data != "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4T2Nksr/85wADGGYw4oBMAHkAAAD//wMA/wEAP2D3e/gAAAAASUVORK5CYII=" {
+		t.Errorf("Expected feed icon data 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4T2Nksr/85wADGGYw4oBMAHkAAAD//wMA/wEAP2D3e/gAAAAASUVORK5CYII=', got %s", data.FeedIcons[0].Data)
 	}
 }
 
@@ -94,7 +96,7 @@ func TestStreamData(t *testing.T) {
 				panic(err)
 			}
 		case "/v1/feeds/1/icon":
-			if _, err := fmt.Fprintln(w, `{"data": "icon-data", "mime_type": "image/png"}`); err != nil {
+			if _, err := fmt.Fprintln(w, `{"data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4T2Nksr/85wADGGYw4oBMAHkAAAD//wMA/wEAP2D3e/gAAAAASUVORK5CYII=", "mime_type": "image/png"}`); err != nil {
 				panic(err)
 			}
 		}
