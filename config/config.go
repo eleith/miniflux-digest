@@ -44,7 +44,6 @@ func Load(path string) (*Config, error) {
 		DigestEmailFrom:  k.String("digest.email.from"),
 		DigestSchedule:   k.String("digest.schedule"),
 		DigestHost:       k.String("digest.host"),
-		DigestDryRun:			k.Bool("digest.dryrun"),
 	}
 
 	return cfg, nil
