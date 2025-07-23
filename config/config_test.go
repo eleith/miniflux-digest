@@ -30,7 +30,6 @@ digest:
     from: "from@example.com"
   schedule: "@daily"
   host: "https://example.com"
-  dryrun: true
 `,
 			want: &Config{
 				MinifluxHost:     "miniflux.example.com",
@@ -43,7 +42,6 @@ digest:
 				DigestEmailFrom:  "from@example.com",
 				DigestSchedule:   "@daily",
 				DigestHost:       "https://example.com",
-				DigestDryRun:     true,
 			},
 			wantErr: false,
 		},

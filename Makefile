@@ -1,9 +1,12 @@
 build:
 	go build -mod=vendor -o miniflux-digest .
 
-preview:
-	go run -mod=vendor ./scripts/preview/main.go
+preview-html:
+	go run -mod=vendor ./scripts/preview-html/main.go
 	./scripts/open-preview.sh
+
+preview-miniflux-email:
+	go run -mod=vendor ./scripts/preview-miniflux-email/main.go
 
 test:
 	go test -mod=vendor ./...

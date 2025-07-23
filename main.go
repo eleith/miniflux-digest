@@ -10,40 +10,17 @@ import (
 	"miniflux-digest/config"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/category"
-	"miniflux-digest/internal/email"
+	"miniflux-digest/internal/processor"
 )
+
+
 
 func checkAndSendDigests(cfg *config.Config, archivePath string) {
 
 	client := miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken)
 
 	for data := range category.StreamData(client) {
-		func() {
-			if len(*data.Entries) > 0 {
-				file, err := archive.MakeArchiveHTML(archivePath, data)
-
-				if err != nil {
-					log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
-					return
-				}
-
-				defer func() {
-					if err := file.Close(); err != nil {
-						log.Printf("Error closing file for category '%s': %v", data.Category.Title, err)
-					}
-				}()
-
-				if !cfg.DigestDryRun {
-					err = email.Send(cfg, file, data)
-
-					if err != nil {
-						log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
-					}
-
-					category.MarkAsRead(client, data.Category)
-				}
-			}
-		}()
+		processor.ProcessCategory(cfg, client, data, archivePath, true)
 	}
 }
 
