@@ -42,7 +42,7 @@
 		section.entry {
 			background-color: #f9fafb;
 			border-radius: 0.5rem;
-			padding: 0.5rem;
+			padding: 0;
 			margin-bottom: 1rem;
 			border: 1px solid #e5e7eb;
 		}
@@ -55,7 +55,7 @@
 		summary.entry {
 			font-size: 1.25rem;
 			font-weight: 600;
-			margin-bottom: 0.5rem;
+			padding: 0.5rem;
 			cursor: pointer;
 			color: #1d4ed8;
 			text-decoration: none;
@@ -86,6 +86,23 @@
 			gap: 0.25rem;
 			align-items: center;
 			justify-content: start;
+			border-top: 1px solid #e5e7eb;
+		}
+
+		.entry-meta-tab {
+			padding: 0.25rem 0.5rem;
+			border-right: 1px solid #e5e7eb;
+			display: flex;
+		}
+
+		.entry-meta-tab-feed {
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+		}
+
+		.entry-meta-tab:last-child {
+			border-right: none;
 		}
 
 		.entry-content {
@@ -125,14 +142,25 @@
 			background-color: rgba(59, 130, 246, 0.1);
 		}
 
+		details.entry {
+		}
+
 		details.entry h1 {
 			font-size: 1.5rem;
 			margin-top: 1rem;
 			margin-bottom: 0.5rem;
 		}
 
+		details summary {
+			cursor: pointer;
+		}
+
+		details summary > * {
+			display: inline;
+		}
+
 		{{range .FeedIcons}}
-		div.feed-icon-{{.FeedID}} {
+				div.feed-icon-{{.FeedID}} {
 			background-image: url("data:{{.Data}}");
 			background-size: contain;
 			width: 16px;
@@ -162,21 +190,22 @@
 					</div>
 				</details>
 				<div class="entry-meta">
-					<div class="feed-icon-{{.FeedID}}"></div>
-					<div>
-						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer"
-							class="entry-link" data-link-external>external</a> | 
+					<div class="entry-meta-tab entry-meta-tab-feed">
+						<div class="feed-icon-{{.FeedID}}"></div>
+						<div>{{.Feed.Title}}</div>
 					</div>
-					<div>
+					<div class="entry-meta-tab">{{.Date.Format "2 Jan"}}</div>
+					<div class="entry-meta-tab" style="margin-left: auto;">
+						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer"
+							class="entry-link" data-link-external>permalink</a>
+					</div>
+					<div class="entry-meta-tab">
 						<a href="/feed/{{.FeedID}}/entry/{{.ID}}" target="_blank"
 							rel="noopener noreferrer" class="entry-link"
-							data-link-internal>internal</a> | 
+							data-link-internal>source</a>
 					</div>
-					<div>
-						<button class="entry-link" data-button-mark>mark as read</button> | 
-					</div>
-					<div>
-						| {{.Date.Format "Jan 2"}}
+					<div class="entry-meta-tab">
+						<a href="#" class="entry-link" data-button-mark>hide</a>
 					</div>
 				</div>
 			</section>
@@ -226,7 +255,7 @@
 
 			
 			document.addEventListener('click', (event) => {
-				if (event.target.matches('button[data-button-mark]')) {
+				if (event.target.matches('a[data-button-mark]')) {
 					const entry = event.target.closest('section.entry');
 					const index = entries.indexOf(entry);
 
