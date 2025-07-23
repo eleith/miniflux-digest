@@ -5,6 +5,13 @@ workspace:
 when:
   - event: [push, tag]
     branch: main
+    path:
+      include:
+        - "**/*.go"
+        - ".woodpecker/build-docker.yml"
+      exclude:
+        - "**/*.md"
+      on_empty: true
 
 steps:
   vendor:
