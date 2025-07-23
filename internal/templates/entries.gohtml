@@ -199,6 +199,12 @@
 						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer"
 							class="entry-link" data-link-external>permalink</a>
 					</div>
+					{{if .CommentsURL}}
+					<div class="entry-meta-tab">
+						<a href="{{.CommentsURL}}" target="_blank" rel="noopener noreferrer"
+							class="entry-link" data-link-comments>comments</a>
+					</div>
+					{{end}}
 					<div class="entry-meta-tab">
 						<a href="/feed/{{.FeedID}}/entry/{{.ID}}" target="_blank"
 							rel="noopener noreferrer" class="entry-link"
