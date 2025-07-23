@@ -14,7 +14,7 @@ steps:
   lint:
     image: golang:1.24.5-alpine
     commands:
-      - go install github.com/golangci/golangci-lint/cmd/golangci-lint
+      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.3.0
       - golangci-lint run -v
   test:
     image: golang:1.24.5-alpine
