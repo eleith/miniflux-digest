@@ -5,13 +5,19 @@ import (
 	"log"
 	"miniflux-digest/internal/category"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	miniflux "miniflux.app/v2/client"
 )
 
 func loadImageAsBase64(path string) string {
-	file, err := os.ReadFile(path)
+	_, b, _, _ := runtime.Caller(0)
+	basepath := filepath.Dir(b)
+	imagePath := filepath.Join(basepath, "images", filepath.Base(path))
+
+	file, err := os.ReadFile(imagePath)
 	if err != nil {
 		log.Fatalf("Failed to read image file: %v", err)
 	}
