@@ -2,16 +2,16 @@ package testutil
 
 import (
 	"encoding/base64"
-	"io/ioutil"
 	"log"
 	"miniflux-digest/internal/category"
+	"os"
 	"time"
 
 	miniflux "miniflux.app/v2/client"
 )
 
 func loadImageAsBase64(path string) string {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalf("Failed to read image file: %v", err)
 	}
