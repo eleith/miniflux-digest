@@ -5,3 +5,4 @@ miniflux-digest
 .env
 vendor/
 coverage.out
+web/preview.html
