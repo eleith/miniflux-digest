@@ -9,7 +9,11 @@ fi
 
 COVERAGE_THRESHOLD=$1
 
-go test -mod=vendor -coverprofile=coverage.out ./...
+EXCLUDED_PACKAGES="miniflux-digest/internal/testutil miniflux-digest/scripts"
+
+COVERAGE_PACKAGES=$(./scripts/list-packages.sh $EXCLUDED_PACKAGES)
+
+go test -mod=vendor -coverprofile=coverage.out -coverpkg=$COVERAGE_PACKAGES ./... ./cmd/miniflux-digest
 
 COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
 
