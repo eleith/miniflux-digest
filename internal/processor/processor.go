@@ -9,7 +9,7 @@ import (
 
 func ProcessCategory(application *app.App, data *models.CategoryData, markAsRead bool) {
 	if len(*data.Entries) > 0 {
-		file, err := application.ArchiveService.MakeArchiveHTML(application.Config.ArchivePath, data)
+				file, err := application.ArchiveService.MakeArchiveHTML(data)
 
 		if err != nil {
 			log.Printf("Error generating File for category %s: %v", data.Category.Title, err)

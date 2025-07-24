@@ -6,7 +6,6 @@ import (
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/email"
-	"miniflux-digest/internal/category"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -41,19 +40,17 @@ func TestCheckAndSendDigests(t *testing.T) {
 	cfg := &config.Config{
 		MinifluxHost: server.URL,
 		MinifluxApiToken: "test-token",
-		ArchivePath: t.TempDir(),
 	}
 	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken))
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	categorySvc := &category.CategoryServiceImpl{}
-	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc, categorySvc)
+	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc)
 
 	checkAndSendDigests(application)
 }
 
 func TestJobRegistration(t *testing.T) {
-	cfg := &config.Config{DigestSchedule: "@daily", ArchivePath: t.TempDir()}
+	cfg := &config.Config{DigestSchedule: "@daily"}
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		t.Fatalf("Failed to create scheduler: %v", err)
@@ -62,8 +59,7 @@ func TestJobRegistration(t *testing.T) {
 	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient("http://localhost", "test-token"))
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	categorySvc := &category.CategoryServiceImpl{}
-	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc, categorySvc)
+	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc)
 
 	registerDigestsJob(application, scheduler)
 	registerArchiveCleanupJob(application, scheduler)

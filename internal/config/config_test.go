@@ -53,7 +53,7 @@ digest:
 		},
 		{
 			name:    "invalid yaml",
-			content: `miniflux: {`,
+			content: "invalid-yaml",
 			want:    nil,
 			wantErr: true,
 		},
@@ -70,7 +70,7 @@ digest:
 					t.Errorf("Failed to remove temp dir: %v", err)
 				}
 			}()
-
+			
 			configPath := filepath.Join(tmpDir, "config.yaml")
 			if tt.content != "" {
 				if err := os.WriteFile(configPath, []byte(tt.content), 0644); err != nil {
@@ -79,7 +79,6 @@ digest:
 			} else {
 				configPath = "non-existent-file.yaml"
 			}
-
 			cfg, err := Load(configPath)
 
 			if (err != nil) != tt.wantErr {
@@ -93,5 +92,36 @@ digest:
 				}
 			}
 		})
+	}
+}
+
+func TestLoad_fileNotFound(t *testing.T) {
+	_, err := Load("non-existent-file.yaml")
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected IsNotExist error, got: %v", err)
+	}
+}
+
+func TestLoad_invalidYaml(t *testing.T) {
+	content := "invalid-yaml"
+	tmpFile, err := os.CreateTemp("", "config.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			t.Errorf("Failed to remove temp file: %v", err)
+		}
+	}()
+	if _, err := tmpFile.WriteString(content); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	_, err = Load(tmpFile.Name())
+	if err == nil {
+		t.Error("Expected error for invalid YAML, got nil")
 	}
 }

@@ -9,8 +9,8 @@ import (
 )
 
 type ArchiveService interface {
-	MakeArchiveHTML(archivePath string, data *models.CategoryData) (*os.File, error)
-	CleanArchive(archivePath string, maxAge time.Duration)
+	MakeArchiveHTML(data *models.CategoryData) (*os.File, error)
+	CleanArchive(maxAge time.Duration)
 }
 
 type EmailService interface {
@@ -19,12 +19,9 @@ type EmailService interface {
 
 type MinifluxClientService interface {
 	MarkCategoryAsRead(categoryID int64) error
-	Categories() ([]*miniflux.Category, error)
 	CategoryEntries(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error)
 	CategoryFeeds(categoryID int64) ([]*miniflux.Feed, error)
 	FeedIcon(feedID int64) (*miniflux.FeedIcon, error)
-}
-
-type CategoryService interface {
-	StreamData(client MinifluxClientService) <-chan *models.CategoryData
+	FetchCategoryData(categoryID int64) (*models.CategoryData, error)
+	StreamAllCategoryData() <-chan *models.CategoryData
 }

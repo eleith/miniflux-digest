@@ -9,15 +9,13 @@ type App struct {
 	ArchiveService ArchiveService
 	EmailService EmailService
 	MinifluxClientService MinifluxClientService
-	CategoryService CategoryService
 }
 
-func NewApp(cfg *config.Config, client MinifluxClientService, archiveSvc ArchiveService, emailSvc EmailService, categorySvc CategoryService) *App {
+func NewApp(cfg *config.Config, client MinifluxClientService, archiveSvc ArchiveService, emailSvc EmailService) *App {
 	return &App{
 		Config: cfg,
 		ArchiveService: archiveSvc,
 		EmailService: emailSvc,
 		MinifluxClientService: client,
-		CategoryService: categorySvc,
 	}
 }

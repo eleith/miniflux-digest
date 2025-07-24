@@ -34,13 +34,13 @@ func TestProcessCategory(t *testing.T) {
 
 	t.Run("error making archive html", func(t *testing.T) {
 		mockApp := &app.App{
-			Config: &config.Config{ArchivePath: "/tmp/archive"},
+			Config: &config.Config{},
 			MinifluxClientService: &testutil.MockMinifluxClient{
 				MarkAsReadFunc: func(categoryID int64) error { return nil },
 			},
 			EmailService: &testutil.MockEmailService{},
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(archivePath string, data *models.CategoryData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.CategoryData) (*os.File, error) {
 					return nil, errors.New("failed to make archive html")
 				},
 			},
@@ -59,14 +59,14 @@ func TestProcessCategory(t *testing.T) {
 
 	t.Run("error sending email", func(t *testing.T) {
 		mockApp := &app.App{
-			Config: &config.Config{ArchivePath: "/tmp/archive"},
+			Config: &config.Config{},
 			MinifluxClientService: &testutil.MockMinifluxClient{
 				MarkAsReadFunc: func(categoryID int64) error {
 					return nil // No-op for this test case
 				},
 			},
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(archivePath string, data *models.CategoryData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.CategoryData) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
 			},
@@ -97,10 +97,10 @@ func TestProcessCategory(t *testing.T) {
 			},
 		}
 		mockApp := &app.App{
-			Config:                &config.Config{ArchivePath: "/tmp/archive"},
+			Config:                &config.Config{},
 			MinifluxClientService: mockMinifluxClient,
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(archivePath string, data *models.CategoryData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.CategoryData) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
 			},
@@ -129,10 +129,10 @@ func TestProcessCategory(t *testing.T) {
 			},
 		}
 		mockApp := &app.App{
-			Config:                &config.Config{ArchivePath: "/tmp/archive"},
+			Config:                &config.Config{},
 			MinifluxClientService: mockMinifluxClient,
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(archivePath string, data *models.CategoryData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.CategoryData) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
 			},
