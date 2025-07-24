@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/utils"
@@ -15,6 +16,8 @@ import (
 )
 
 type ArchiveServiceImpl struct{}
+
+var _ app.ArchiveService = (*ArchiveServiceImpl)(nil)
 
 func getHTML(data *models.CategoryData) (string, error) {
 	var buf bytes.Buffer
@@ -142,7 +145,7 @@ func removeEmptyCategoryFolders(archivePath string) {
 	}
 }
 
-func CleanArchive(archivePath string, maxAge time.Duration) {
+func (s *ArchiveServiceImpl) CleanArchive(archivePath string, maxAge time.Duration) {
 	removeOldArchiveFiles(archivePath, maxAge)
 	removeEmptyCategoryFolders(archivePath)
 }

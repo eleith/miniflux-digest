@@ -5,7 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"miniflux-digest/config"
+	"miniflux-digest/internal/config"
+	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 
@@ -14,6 +15,8 @@ import (
 
 
 type EmailServiceImpl struct{}
+
+var _ app.EmailService = (*EmailServiceImpl)(nil)
 
 func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.CategoryData) error {
 	message := mail.NewMsg()

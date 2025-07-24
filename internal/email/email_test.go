@@ -1,7 +1,7 @@
 package email
 
 import (
-	"miniflux-digest/config"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
 	"os"

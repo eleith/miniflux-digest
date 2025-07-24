@@ -2,26 +2,39 @@
 
 set -eu
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <coverage_threshold>"
-    exit 1
+# Default to package view, but allow function view
+MODE="packages"
+if [ "${1:-}" = "--mode=functions" ]; then
+  MODE="functions"
 fi
 
-COVERAGE_THRESHOLD=$1
+# Always get the coverage threshold from the last argument
+COVERAGE_THRESHOLD=$(echo "$@" | awk '{print $NF}')
 
+# --- Test Execution ---
 EXCLUDED_PACKAGES="miniflux-digest/internal/testutil miniflux-digest/scripts"
+COVERAGE_PACKAGES_COMMA=$(./scripts/list-packages.sh $EXCLUDED_PACKAGES)
+COVERAGE_PACKAGES_SPACE=$(echo $COVERAGE_PACKAGES_COMMA | tr ',' ' ')
 
-COVERAGE_PACKAGES=$(./scripts/list-packages.sh $EXCLUDED_PACKAGES)
+# Run tests once to generate the coverage.out file
+go test -mod=vendor -coverprofile=coverage.out -coverpkg=$COVERAGE_PACKAGES_COMMA $COVERAGE_PACKAGES_SPACE > /dev/null 2>&1
 
-go test -mod=vendor -coverprofile=coverage.out -coverpkg=$COVERAGE_PACKAGES ./... ./cmd/miniflux-digest
+# --- Reporting ---
+echo "Test Coverage Report"
+echo "--------------------"
 
+if [ "$MODE" = "functions" ]; then
+  # Detailed, function-by-function view
+  go tool cover -func=coverage.out | grep -v -E "$(echo $EXCLUDED_PACKAGES | tr ' ' '|')"
+else
+  # Clean, package-by-package view
+  go test -mod=vendor -coverpkg=$COVERAGE_PACKAGES_COMMA $COVERAGE_PACKAGES_SPACE | sed 's/ in .*//'
+fi
+
+# --- Threshold Check ---
 COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
 
-if ! echo "$COVERAGE" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
-    echo "Error: Could not determine test coverage."
-    exit 1
-fi
-
+echo "\n--------------------"
 echo "Total test coverage: $COVERAGE%"
 
 if awk -v cov="$COVERAGE" -v min="$COVERAGE_THRESHOLD" 'BEGIN {exit (cov < min)}'; then

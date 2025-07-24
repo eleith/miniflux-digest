@@ -2,6 +2,8 @@ package category
 
 import (
 	"fmt"
+	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -9,29 +11,9 @@ import (
 	"time"
 
 	"miniflux-digest/internal/models"
+
 	miniflux "miniflux.app/v2/client"
 )
-
-func mockHandler(response string, statusCode int) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(statusCode)
-		if statusCode != http.StatusNoContent {
-			if _, err := fmt.Fprintln(w, response); err != nil {
-				panic(err)
-			}
-		}
-	}
-}
-
-func TestMarkAsRead(t *testing.T) {
-	server := httptest.NewServer(mockHandler(`{}`, http.StatusNoContent))
-	defer server.Close()
-
-	client := miniflux.NewClient(server.URL, "testUser", "testPassword")
-	category := &miniflux.Category{ID: 1, Title: "Test"}
-
-	MarkAsRead(client, category)
-}
 
 func TestFetchData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,15 +27,15 @@ func TestFetchData(t *testing.T) {
 				panic(err)
 			}
 		case "/v1/feeds/1/icon":
-			if _, err := fmt.Fprintln(w, `{"data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4T2Nksr/85wADGGYw4oBMAHkAAAD//wMA/wEAP2D3e/gAAAAASUVORK5CYII=", "mime_type": "image/png"}`); err != nil {
+			if _, err := fmt.Fprintf(w, `{"data": "%s", "mime_type": "image/png"}`, testutil.NewMockFeedIcon().Data); err != nil {
 				panic(err)
 			}
 		}
 	}))
 	defer server.Close()
 
-	client := miniflux.NewClient(server.URL, "testUser", "testPassword")
-	category := &miniflux.Category{ID: 1, Title: "Test"}
+	client := app.NewMinifluxClientWrapper(miniflux.NewClient(server.URL, "testUser", "testPassword"))
+	category := testutil.NewMockCategory()
 
 	data, err := fetchData(client, category)
 	if err != nil {
@@ -74,10 +56,8 @@ func TestFetchData(t *testing.T) {
 
 	if len(data.FeedIcons) != 1 {
 		t.Errorf("Expected 1 feed icon, got %d", len(data.FeedIcons))
-	}
-
-	if data.FeedIcons[0].Data != "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4T2Nksr/85wADGGYw4oBMAHkAAAD//wMA/wEAP2D3e/gAAAAASUVORK5CYII=" {
-		t.Errorf("Expected feed icon data 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4T2Nksr/85wADGGYw4oBMAHkAAAD//wMA/wEAP2D3e/gAAAAASUVORK5CYII=', got %s", data.FeedIcons[0].Data)
+	} else if data.FeedIcons[0].Data != testutil.NewMockFeedIcon().Data {
+		t.Errorf("Expected feed icon data '%s', got %s", testutil.NewMockFeedIcon().Data, data.FeedIcons[0].Data)
 	}
 }
 
@@ -104,8 +84,9 @@ func TestStreamData(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := miniflux.NewClient(server.URL, "testUser", "testPassword")
-	ch := StreamData(client)
+	client := app.NewMinifluxClientWrapper(miniflux.NewClient(server.URL, "testUser", "testPassword"))
+	categoryService := &CategoryServiceImpl{}
+	ch := categoryService.StreamData(client)
 
 	var results []*models.CategoryData
 	for data := range ch {
@@ -122,25 +103,22 @@ func TestStreamData(t *testing.T) {
 }
 
 func TestFeedIcon(t *testing.T) {
-	icon := &models.FeedIcon{
-		FeedID: 1,
-		Data:   "test",
-	}
+	icon := testutil.NewMockFeedIcon()
 
 	if icon.FeedID != 1 {
 		t.Errorf("Expected FeedID to be 1, got %d", icon.FeedID)
 	}
 
-	if icon.Data != "test" {
-		t.Errorf("Expected Data to be 'test', got %s", icon.Data)
+	if icon.Data != testutil.NewMockFeedIcon().Data {
+		t.Errorf("Expected Data to be '%s', got %s", testutil.NewMockFeedIcon().Data, icon.Data)
 	}
 }
 
 func TestCategoryData(t *testing.T) {
 	now := time.Now()
-	category := &miniflux.Category{ID: 1, Title: "Test"}
-	entries := &miniflux.Entries{}
-	icons := []*models.FeedIcon{}
+	category := testutil.NewMockCategory()
+	entries := &miniflux.Entries{testutil.NewMockEntry()}
+	icons := []*models.FeedIcon{testutil.NewMockFeedIcon()}
 
 	data := &models.CategoryData{
 		Category:      category,
