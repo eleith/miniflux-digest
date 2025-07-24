@@ -19,6 +19,7 @@ web/preview.html
 config.yaml
 coverage.out
 coverage.html
+config.yaml.example
 
 # Scripts not needed in the final image
 scripts/
