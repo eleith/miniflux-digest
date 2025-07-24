@@ -7,3 +7,26 @@ docker-compose.yml
 Dockerfile
 .woodpecker
 web/miniflux-archive
+
+# Git
+.git
+.gitignore
+.gemini
+
+# Documentation
+*.md
+
+# Local development
+.env
+config.local.yaml
+coverage.out
+coverage.html
+
+# Scripts not needed in the final image
+scripts/
+
+# OS-specific files
+.DS_Store
+
+# Vendored dependencies
+vendor/

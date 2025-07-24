@@ -10,6 +10,7 @@ when:
         - "**/*.go"
         - "**/*.gohtml"
         - ".woodpecker/build-docker.yml"
+        - "Dockerfile"
       exclude:
         - "**/*.md"
       on_empty: true
