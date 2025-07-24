@@ -1,12 +1,11 @@
-config.yml
 .prettierrc
 .tool-versions
-README.md
 .dockerignore
 docker-compose.yml
 Dockerfile
 .woodpecker
 web/miniflux-archive
+web/preview.html
 
 # Git
 .git
@@ -17,16 +16,9 @@ web/miniflux-archive
 *.md
 
 # Local development
-.env
-config.local.yaml
+config.yaml
 coverage.out
 coverage.html
 
 # Scripts not needed in the final image
 scripts/
-
-# OS-specific files
-.DS_Store
-
-# Vendored dependencies
-vendor/
