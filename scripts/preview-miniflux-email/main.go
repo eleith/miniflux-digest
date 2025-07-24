@@ -3,7 +3,8 @@ package main
 import (
 	"log"
 
-	"miniflux-digest/config"
+	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/category"
 	"miniflux-digest/internal/email"
@@ -17,10 +18,17 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	client := miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken)
+	minifluxClient := miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken)
+	clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
 
-	for data := range category.StreamData(client) {
-		processor.ProcessCategory(cfg, client, data, &archive.ArchiveServiceImpl{}, &email.EmailServiceImpl{}, "./web/miniflux-archive", false)
+	archiveSvc := &archive.ArchiveServiceImpl{}
+	emailSvc := &email.EmailServiceImpl{}
+	categorySvc := &category.CategoryServiceImpl{}
+
+	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc, categorySvc)
+
+	for data := range application.CategoryService.StreamData(application.MinifluxClientService) {
+		processor.ProcessCategory(application, data, false)
 		break
 	}
 }

@@ -77,7 +77,8 @@ func TestCleanArchive(t *testing.T) {
 		t.Fatalf("Failed to create new file: %v", err)
 	}
 
-	CleanArchive(tmpDir, 24*time.Hour)
+		archiveService := &ArchiveServiceImpl{}
+	archiveService.CleanArchive(tmpDir, 24*time.Hour)
 
 	if _, err := os.Stat(oldFilePath); !os.IsNotExist(err) {
 		t.Error("Expected old file to be deleted")
