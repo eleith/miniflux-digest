@@ -3,10 +3,10 @@ FROM golang:1.24.5-alpine AS builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod vendor
 
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
+COPY vendor/ ./vendor/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -installsuffix cgo -o /app/miniflux-digest ./cmd/miniflux-digest
 
