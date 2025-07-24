@@ -1,0 +1,16 @@
+miniflux:
+  host: "YOUR_MINIFLUX_URL"
+  api_token: "YOUR_MINIFLUX_API_API_KEY" # Use your Miniflux API Key
+
+smtp:
+  host: "YOUR_SMTP_HOST"
+  port: 587 # Or your SMTP port
+  user: "YOUR_SMTP_USERNAME"
+  password: "YOUR_SMTP_PASSWORD"
+
+digest:
+  email:
+    to: "RECIPIENT_EMAIL@example.com"
+    from: "SENDER_EMAIL@example.com"
+  schedule: "@every 24h" # Cron schedule for digest generation
+  host: "https://your-digest-host.com" # URL where HTML archives will be served
