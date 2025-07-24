@@ -1,8 +1,18 @@
+# Configuration
 config.yaml
-web/miniflux-archive
-miniflux-digest
-.gemini
 .env
-vendor/
+
+# Build artifacts
+miniflux-digest
 coverage.out
+coverage.html
+
+# Vendored dependencies
+vendor/
+
+# Web archive
+web/miniflux-archive
 web/preview.html
+
+# Gemini CLI state
+.gemini/
