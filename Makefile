@@ -6,7 +6,7 @@ preview-html:
 	./scripts/open-preview.sh
 
 preview-miniflux-email:
-	go run -mod=vendor ./scripts/preview-miniflux-email/main.go
+	go run -mod=vendor ./scripts/preview-miniflux-email/main.go ${id}
 
 test:
 	go test -mod=vendor ./... ./cmd/miniflux-digest

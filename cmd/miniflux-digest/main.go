@@ -12,11 +12,10 @@ import (
 	"miniflux-digest/internal/processor"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/email"
-	"miniflux-digest/internal/category"
 )
 
 func checkAndSendDigests(application *app.App) {
-	for data := range application.CategoryService.StreamData(application.MinifluxClientService) {
+	for data := range application.MinifluxClientService.StreamAllCategoryData() {
 		processor.ProcessCategory(application, data, true)
 	}
 }
@@ -33,7 +32,7 @@ func registerDigestsJob(application *app.App, scheduler gocron.Scheduler) {
 
 func registerArchiveCleanupJob(application *app.App, scheduler gocron.Scheduler) {
 	_, err := scheduler.NewJob(gocron.DurationJob(time.Hour*24), gocron.NewTask(func() {
-		application.ArchiveService.CleanArchive(application.Config.ArchivePath, time.Hour*24*21)
+		application.ArchiveService.CleanArchive(time.Hour*24*21)
 	}))
 
 	if err != nil {
@@ -52,9 +51,8 @@ func main() {
 
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	categorySvc := &category.CategoryServiceImpl{}
 
-	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc, categorySvc)
+	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc)
 
 	scheduler, err := gocron.NewScheduler()
 

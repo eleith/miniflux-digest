@@ -2,6 +2,7 @@ package archive
 
 import (
 	"miniflux-digest/internal/testutil"
+	"miniflux-digest/internal/utils"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,25 +21,45 @@ func TestGetHTML(t *testing.T) {
 }
 
 func TestMakeArchiveFile(t *testing.T) {
-	tmpDir := t.TempDir()
+	// Save original archiveBaseDir and restore it after the test
+	oldArchiveBaseDir := archiveBaseDir
+	archiveBaseDir = t.TempDir()
+	defer func() {
+		archiveBaseDir = oldArchiveBaseDir
+		if err := os.RemoveAll(archiveBaseDir); err != nil {
+			t.Errorf("Failed to clean up original archive directory: %v", err)
+		}
+	}()
+
 	data := testutil.NewMockCategoryData()
-	file, err := makeArchiveFile(tmpDir, data)
+	file, err := makeArchiveFile(data)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
 	}
 	if file == nil {
 		t.Fatal("Expected file to be non-nil")
 	}
-	if _, err := os.Stat(file.Name()); os.IsNotExist(err) {
-		t.Errorf("Expected file %s to exist", file.Name())
+	// Check if the file was created in the correct hardcoded path
+	expectedPath := filepath.Join(archiveBaseDir, utils.Slugify(data.Category.Title), data.GeneratedDate.Format("2006-01-02")+".html")
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Errorf("Expected file %s to exist", expectedPath)
 	}
 }
 
 func TestMakeArchiveHTML(t *testing.T) {
-	tmpDir := t.TempDir()
+	// Save original archiveBaseDir and restore it after the test
+	oldArchiveBaseDir := archiveBaseDir
+	archiveBaseDir = t.TempDir()
+	defer func() {
+		archiveBaseDir = oldArchiveBaseDir
+		if err := os.RemoveAll(archiveBaseDir); err != nil {
+			t.Errorf("Failed to clean up original archive directory: %v", err)
+		}
+	}()
+
 	data := testutil.NewMockCategoryData()
 	archiveService := &ArchiveServiceImpl{}
-	file, err := archiveService.MakeArchiveHTML(tmpDir, data)
+	file, err := archiveService.MakeArchiveHTML(data)
 	if err != nil {
 		t.Fatalf("MakeArchiveHTML failed: %v", err)
 	}
@@ -55,10 +76,18 @@ func TestMakeArchiveHTML(t *testing.T) {
 }
 
 func TestCleanArchive(t *testing.T) {
-	tmpDir := t.TempDir()
+	// Save original archiveBaseDir and restore it after the test
+	oldArchiveBaseDir := archiveBaseDir
+	archiveBaseDir = t.TempDir()
+	defer func() {
+		archiveBaseDir = oldArchiveBaseDir
+		if err := os.RemoveAll(archiveBaseDir); err != nil {
+			t.Errorf("Failed to clean up original archive directory: %v", err)
+		}
+	}()
 
 	categorySlug := "test-category"
-	categoryPath := filepath.Join(tmpDir, categorySlug)
+	categoryPath := filepath.Join(archiveBaseDir, categorySlug)
 	if err := os.MkdirAll(categoryPath, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
@@ -77,8 +106,8 @@ func TestCleanArchive(t *testing.T) {
 		t.Fatalf("Failed to create new file: %v", err)
 	}
 
-		archiveService := &ArchiveServiceImpl{}
-	archiveService.CleanArchive(tmpDir, 24*time.Hour)
+	archiveService := &ArchiveServiceImpl{}
+	archiveService.CleanArchive(24*time.Hour)
 
 	if _, err := os.Stat(oldFilePath); !os.IsNotExist(err) {
 		t.Error("Expected old file to be deleted")
@@ -92,9 +121,14 @@ func TestCleanArchive(t *testing.T) {
 		t.Fatalf("Failed to remove new file: %v", err)
 	}
 
-	removeEmptyCategoryFolders(tmpDir)
+	// Test removeEmptyCategoryFolders separately
+	emptyCategoryPath := filepath.Join(archiveBaseDir, "empty-category")
+	if err := os.MkdirAll(emptyCategoryPath, 0755); err != nil {
+		t.Fatalf("Failed to create empty test directory: %v", err)
+	}
+	removeEmptyCategoryFolders(archiveBaseDir)
 
-	if _, err := os.Stat(categoryPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(emptyCategoryPath); !os.IsNotExist(err) {
 		t.Error("Expected empty category directory to be deleted")
 	}
 }
