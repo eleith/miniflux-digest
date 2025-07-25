@@ -15,7 +15,7 @@ import (
 	miniflux "miniflux.app/v2/client"
 )
 
-func TestProcessCategory(t *testing.T) {
+func TestCategoryDigestJob(t *testing.T) {
 	log.SetOutput(io.Discard)
 	defer log.SetOutput(os.Stderr)
 
@@ -29,7 +29,7 @@ func TestProcessCategory(t *testing.T) {
 			EmailService: &testutil.MockEmailService{},
 		}
 		data := &models.CategoryData{Entries: &miniflux.Entries{}}
-		ProcessCategory(mockApp, data, true)
+		CategoryDigestJob(mockApp, data, true)
 	})
 
 	t.Run("error making archive html", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestProcessCategory(t *testing.T) {
 		var buf bytes.Buffer
 		log.SetOutput(&buf)
 
-		ProcessCategory(mockApp, data, true)
+		CategoryDigestJob(mockApp, data, true)
 
 		if !bytes.Contains(buf.Bytes(), []byte("Error generating File")) {
 			t.Error("Expected error log for archive generation, but not found")
@@ -81,7 +81,7 @@ func TestProcessCategory(t *testing.T) {
 		var buf bytes.Buffer
 		log.SetOutput(&buf)
 
-		ProcessCategory(mockApp, data, true)
+		CategoryDigestJob(mockApp, data, true)
 
 		if !bytes.Contains(buf.Bytes(), []byte("Error sending email")) {
 			t.Error("Expected error log for email sending, but not found")
@@ -112,7 +112,7 @@ func TestProcessCategory(t *testing.T) {
 		}
 		data := testutil.NewMockCategoryData()
 
-		ProcessCategory(mockApp, data, true)
+		CategoryDigestJob(mockApp, data, true)
 
 		if !markAsReadCalled {
 			t.Error("Expected MarkCategoryAsRead to be called, but it was not")
@@ -144,7 +144,7 @@ func TestProcessCategory(t *testing.T) {
 		}
 		data := testutil.NewMockCategoryData()
 
-		ProcessCategory(mockApp, data, true)
+		CategoryDigestJob(mockApp, data, true)
 
 		if !bytes.Contains(buf.Bytes(), []byte("Error marking category as read")) {
 			t.Error("Expected error log for marking as read, but not found")

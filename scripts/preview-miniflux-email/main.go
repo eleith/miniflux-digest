@@ -41,5 +41,5 @@ func main() {
 		log.Fatalf("Failed to fetch category data for preview: %v", err)
 	}
 
-	processor.ProcessCategory(application, data, false)
+	processor.CategoryDigestJob(application, data, false)
 }

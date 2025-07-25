@@ -1,52 +1,47 @@
 package main
 
 import (
-	"fmt"
 	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/email"
-	"net/http"
-	"net/http/httptest"
+	"miniflux-digest/internal/testutil"
+	"miniflux-digest/internal/models"
 	"testing"
 
 	"github.com/go-co-op/gocron/v2"
 	miniflux "miniflux.app/v2/client"
 )
 
-func TestCheckAndSendDigests(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/categories":
-			if _, err := fmt.Fprintln(w, `[{"id": 1, "title": "Test Category"}]`); err != nil {
-				panic(err)
-			}
-		case "/v1/categories/1/entries":
-			if _, err := fmt.Fprintln(w, `{"entries": [{"id": 1, "title": "Test Entry"}], "total": 1}`); err != nil {
-				panic(err)
-			}
-		case "/v1/categories/1/feeds":
-			if _, err := fmt.Fprintln(w, `[{"id": 1, "title": "Test Feed"}]`); err != nil {
-				panic(err)
-			}
-		case "/v1/feeds/1/icon":
-			if _, err := fmt.Fprintln(w, `{"data": "icon-data", "mime_type": "image/png"}`); err != nil {
-				panic(err)
-			}
-		}
-	}))
-	defer server.Close()
-
-	cfg := &config.Config{
-		MinifluxHost: server.URL,
-		MinifluxApiToken: "test-token",
+func TestCategoriesCheckJob(t *testing.T) {
+	mockMinifluxClient := &testutil.MockMinifluxClient{
+		StreamAllCategoryDataFunc: func() <-chan *models.CategoryData {
+			out := make(chan *models.CategoryData)
+			go func() {
+				defer close(out)
+				out <- &models.CategoryData{Category: &miniflux.Category{ID: 1, Title: "Test 1"}, Entries: &miniflux.Entries{}}
+				out <- &models.CategoryData{Category: &miniflux.Category{ID: 2, Title: "Test 2"}, Entries: &miniflux.Entries{}}
+				out <- &models.CategoryData{Category: &miniflux.Category{ID: 3, Title: "Test 3"}, Entries: &miniflux.Entries{}}
+			}()
+			return out
+		},
 	}
-	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken))
+
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc)
+	application := app.NewApp(&config.Config{}, mockMinifluxClient, archiveSvc, emailSvc)
 
-	checkAndSendDigests(application)
+	scheduler, err := gocron.NewScheduler()
+	if err != nil {
+		t.Fatalf("Failed to create scheduler: %v", err)
+	}
+
+	categoriesCheckJob(application, scheduler)
+
+	jobs := scheduler.Jobs()
+	if len(jobs) != 3 {
+		t.Errorf("Expected 3 jobs to be scheduled, got %d", len(jobs))
+	}
 }
 
 func TestJobRegistration(t *testing.T) {
@@ -61,7 +56,7 @@ func TestJobRegistration(t *testing.T) {
 	emailSvc := &email.EmailServiceImpl{}
 	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc)
 
-	registerDigestsJob(application, scheduler)
+	registerCategoriesCheckJob(application, scheduler)
 	registerArchiveCleanupJob(application, scheduler)
 
 	jobs := scheduler.Jobs()
