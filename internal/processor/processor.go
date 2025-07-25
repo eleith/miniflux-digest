@@ -7,7 +7,7 @@ import (
 	"miniflux-digest/internal/models"
 )
 
-func ProcessCategory(application *app.App, data *models.CategoryData, markAsRead bool) {
+func CategoryDigestJob(application *app.App, data *models.CategoryData, markAsRead bool) {
 	if len(*data.Entries) > 0 {
 				file, err := application.ArchiveService.MakeArchiveHTML(data)
 

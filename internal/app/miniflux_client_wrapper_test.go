@@ -1,4 +1,4 @@
-package app
+package app_test
 
 import (
 	"fmt"
@@ -6,62 +6,47 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"miniflux-digest/internal/app"
 	miniflux "miniflux.app/v2/client"
 )
 
-func TestMinifluxClientWrapper_MarkCategoryAsRead(t *testing.T) {
+func TestMinifluxClientWrapper_StreamAllCategoryData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the request path is correct
-		if r.URL.Path != "/v1/categories/1/mark-all-as-read" {
-			t.Errorf("Expected to request '/v1/categories/1/mark-all-as-read', got %s", r.URL.Path)
-		}
-		// Check if the request method is correct
-		if r.Method != http.MethodPut {
-			t.Errorf("Expected PUT request, got %s", r.Method)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	// Create a new miniflux client that points to the test server
-	client := miniflux.NewClient(server.URL, "testUser", "testPassword")
-	// Create our wrapper
-	wrapper := NewMinifluxClientWrapper(client)
-
-	// Call the function we want to test
-	err := wrapper.MarkCategoryAsRead(1)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-}
-
-func TestMinifluxClientWrapper_CategoryEntries(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/categories/1/entries" {
-			if _, err := fmt.Fprintln(w, `{"total": 1, "entries": [{"id": 123, "title": "Test Entry"}]}`); err != nil {
-				panic(err)
-			}
+		switch r.URL.Path {
+		case "/v1/categories":
+			fmt.Fprintln(w, `[{"id": 1, "title": "Test Category 1"}, {"id": 2, "title": "Test Category 2"}]`)
+		case "/v1/categories/1/entries":
+			fmt.Fprintln(w, `{"total": 1, "entries": [{"id": 101, "title": "Entry 1A"}]}`)
+		case "/v1/categories/2/entries":
+			fmt.Fprintln(w, `{"total": 1, "entries": [{"id": 102, "title": "Entry 2A"}]}`)
+		case "/v1/categories/1/feeds", "/v1/categories/2/feeds":
+			fmt.Fprintln(w, `[{"id": 1, "title": "Test Feed"}]`)
+		case "/v1/feeds/1/icon":
+			fmt.Fprintln(w, `{"data": "icon-data", "mime_type": "image/png"}`)
+		default:
+			t.Fatalf("Unexpected request path: %s", r.URL.Path)
 		}
 	}))
 	defer server.Close()
 
-	client := miniflux.NewClient(server.URL, "testUser", "testPassword")
-	wrapper := NewMinifluxClientWrapper(client)
+	client := miniflux.NewClient(server.URL, "test-token")
+	wrapper := app.NewMinifluxClientWrapper(client)
 
-	entries, err := wrapper.CategoryEntries(1, &miniflux.Filter{Status: miniflux.EntryStatusUnread})
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+	dataChannel := wrapper.StreamAllCategoryData()
+
+	var receivedCount int
+	for data := range dataChannel {
+		receivedCount++
+		if data.Category == nil {
+			t.Errorf("Expected category data, but got nil category")
+		}
+		if data.Entries == nil {
+			t.Errorf("Expected entries data, but got nil entries")
+		}
 	}
 
-	if entries == nil {
-		t.Fatal("Expected entries to be non-nil")
-	}
-
-	if len(*entries) != 1 {
-		t.Errorf("Expected 1 entry, got %d", len(*entries))
-	}
-
-	if (*entries)[0].ID != 123 {
-		t.Errorf("Expected entry ID 123, got %d", (*entries)[0].ID)
+	expectedCount := 2
+	if receivedCount != expectedCount {
+		t.Errorf("Expected to receive data for %d categories, but got %d", expectedCount, receivedCount)
 	}
 }

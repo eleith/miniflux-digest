@@ -2,27 +2,46 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
 	miniflux "miniflux.app/v2/client"
 
 	"miniflux-digest/internal/app"
-	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/processor"
 	"miniflux-digest/internal/archive"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/email"
+	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/processor"
 )
 
-func checkAndSendDigests(application *app.App) {
-	for data := range application.MinifluxClientService.StreamAllCategoryData() {
-		processor.ProcessCategory(application, data, true)
+func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler, data *models.CategoryData) {
+	task := func(data *models.CategoryData) {
+		processor.CategoryDigestJob(application, data, true)
+	}
+
+	jitter := time.Duration(rand.Intn(30)) * time.Second
+	startTime := time.Now().Add(1*time.Minute + jitter)
+
+	_, err := scheduler.NewJob(
+		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(startTime)),
+		gocron.NewTask(task, data),
+	)
+	if err != nil {
+		log.Printf("Error creating one-time job for category %d: %v", data.Category.ID, err)
 	}
 }
 
-func registerDigestsJob(application *app.App, scheduler gocron.Scheduler) {
+func categoriesCheckJob(application *app.App, scheduler gocron.Scheduler) {
+	for data := range application.MinifluxClientService.StreamAllCategoryData() {
+		registerCategoryDigestJob(application, scheduler, data)
+	}
+}
+
+func registerCategoriesCheckJob(application *app.App, scheduler gocron.Scheduler) {
 	_, err := scheduler.NewJob(gocron.CronJob(application.Config.DigestSchedule, true), gocron.NewTask(func() {
-		checkAndSendDigests(application)
+		categoriesCheckJob(application, scheduler)
 	}))
 
 	if err != nil {
@@ -66,7 +85,7 @@ func main() {
 		log.Fatalf("Error creating scheduler: %v", err)
 	}
 
-	registerDigestsJob(application, scheduler)
+	registerCategoriesCheckJob(application, scheduler)
 	registerArchiveCleanupJob(application, scheduler)
 
 	scheduler.Start()
