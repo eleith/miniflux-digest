@@ -78,6 +78,15 @@
 			background-color: #fff7ed;
 		}
 
+		section.entry.viewed:not(.active) {
+			opacity: 0.8;
+			filter: grayscale(100%);
+		}
+
+		section.entry.viewed:not(.active) summary.entry {
+			font-weight: 400;
+		}
+
 		.entry-meta {
 			font-size: 0.875rem;
 			color: #6b7280;
@@ -233,6 +242,7 @@
 				if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
 					const activeEntry = entries[activeEntryIndex];
 					activeEntry?.classList.remove('active');
+					activeEntry?.classList.add('viewed');
 				}
 
 				activeEntryIndex = index;
