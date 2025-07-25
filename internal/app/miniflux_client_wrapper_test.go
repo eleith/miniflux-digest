@@ -14,15 +14,25 @@ func TestMinifluxClientWrapper_StreamAllCategoryData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/categories":
-			fmt.Fprintln(w, `[{"id": 1, "title": "Test Category 1"}, {"id": 2, "title": "Test Category 2"}]`)
+			if _, err := fmt.Fprintln(w, `[{"id": 1, "title": "Test Category 1"}, {"id": 2, "title": "Test Category 2"}]`); err != nil {
+				panic(err)
+			}
 		case "/v1/categories/1/entries":
-			fmt.Fprintln(w, `{"total": 1, "entries": [{"id": 101, "title": "Entry 1A"}]}`)
+			if _, err := fmt.Fprintln(w, `{"total": 1, "entries": [{"id": 101, "title": "Entry 1A"}]}`); err != nil {
+				panic(err)
+			}
 		case "/v1/categories/2/entries":
-			fmt.Fprintln(w, `{"total": 1, "entries": [{"id": 102, "title": "Entry 2A"}]}`)
+			if _, err := fmt.Fprintln(w, `{"total": 1, "entries": [{"id": 102, "title": "Entry 2A"}]}`); err != nil {
+				panic(err)
+			}
 		case "/v1/categories/1/feeds", "/v1/categories/2/feeds":
-			fmt.Fprintln(w, `[{"id": 1, "title": "Test Feed"}]`)
+			if _, err := fmt.Fprintln(w, `[{"id": 1, "title": "Test Feed"}]`); err != nil {
+				panic(err)
+			}
 		case "/v1/feeds/1/icon":
-			fmt.Fprintln(w, `{"data": "icon-data", "mime_type": "image/png"}`)
+			if _, err := fmt.Fprintln(w, `{"data": "icon-data", "mime_type": "image/png"}`); err != nil {
+				panic(err)
+			}
 		default:
 			t.Fatalf("Unexpected request path: %s", r.URL.Path)
 		}
