@@ -73,7 +73,13 @@ func main() {
 	emailSvc := &email.EmailServiceImpl{}
 	digestSvc := digest.NewDigestService()
 
-	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc, digestSvc)
+	application := app.NewApp(
+		app.WithConfig(cfg),
+		app.WithMinifluxClientService(clientWrapper),
+		app.WithArchiveService(archiveSvc),
+		app.WithEmailService(emailSvc),
+		app.WithDigestService(digestSvc),
+	)
 
 	scheduler, err := gocron.NewScheduler()
 

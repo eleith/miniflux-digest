@@ -20,17 +20,17 @@ func TestCategoryDigestJob(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	t.Run("no entries", func(t *testing.T) {
-		mockApp := &app.App{
-			Config:                &config.Config{},
-			MinifluxClientService: &testutil.MockMinifluxClient{},
-			DigestService: &testutil.MockDigestService{
+		mockApp := app.NewApp(
+			app.WithConfig(&config.Config{}),
+			app.WithMinifluxClientService(&testutil.MockMinifluxClient{}),
+			app.WithDigestService(&testutil.MockDigestService{
 				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{}}
 				},
-			},
-			ArchiveService: &testutil.MockArchiveService{},
-			EmailService:   &testutil.MockEmailService{},
-		}
+			}),
+			app.WithArchiveService(&testutil.MockArchiveService{}),
+			app.WithEmailService(&testutil.MockEmailService{}),
+		)
 		data := &app.RawCategoryData{Entries: &miniflux.Entries{}}
 		CategoryDigestJob(mockApp, data, true)
 	})
