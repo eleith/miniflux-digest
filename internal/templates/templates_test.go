@@ -17,7 +17,7 @@ func TestTemplates(t *testing.T) {
 }
 
 func TestArchiveTemplateExecution(t *testing.T) {
-	data := testutil.NewMockCategoryData()
+	data := testutil.NewMockHTMLTemplateData()
 	var buf bytes.Buffer
 	err := ArchiveTemplate.Execute(&buf, data)
 	if err != nil {
@@ -29,9 +29,9 @@ func TestArchiveTemplateExecution(t *testing.T) {
 }
 
 func TestEmailTemplateExecution(t *testing.T) {
-	data := testutil.NewMockCategoryData()
+	data := testutil.NewMockHTMLTemplateData()
 	textData := &EmailTemplateData{
-		CategoryData: *data,
+		HTMLTemplateData: *data,
 		URL:          "https://example.com",
 	}
 	var buf bytes.Buffer

@@ -46,7 +46,7 @@ func TestSend(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockCategoryData()
+	data := testutil.NewMockHTMLTemplateData()
 
 	// In a real scenario, you would use a mock SMTP server.
 	// For this test, we are just checking if the function executes without error.
@@ -63,11 +63,11 @@ func TestSend(t *testing.T) {
 }
 
 func TestTextTemplateData(t *testing.T) {
-	categoryData := *testutil.NewMockCategoryData()
+	htmlTemplateData := *testutil.NewMockHTMLTemplateData()
 	url := "https://example.com"
 
 	textData := templates.EmailTemplateData{
-		CategoryData: categoryData,
+		HTMLTemplateData: htmlTemplateData,
 		URL:          url,
 	}
 

@@ -39,6 +39,15 @@
 			margin-top: 0.25rem;
 		}
 
+		h2.group-entries-title {
+			font-size: 1.25rem;
+			font-weight: 500;
+			color: #6b7280; /* Lighter gray */
+			margin-top: 0.5rem;
+			margin-bottom: 0.5rem;
+			padding-left: 0.5rem; /* Align with entry content */
+		}
+
 		section.entry {
 			background-color: #f9fafb;
 			border-radius: 0.5rem;
@@ -187,7 +196,9 @@
 		</section>
 
 		<section class="entries">
-			{{if .Entries}}
+			{{if .EntryGroups}}
+			{{range .EntryGroups}}
+			<h2 class="group-entries-title">{{.Date.Format "Jan 2, 2006"}}</h2>
 			{{range .Entries}}
 			<section class="entry">
 				<details class="entry">
@@ -224,6 +235,7 @@
 					</div>
 				</div>
 			</section>
+			{{end}}
 			{{end}}
 			{{else}}
 			<div class="no-entries">No unread entries in this category.</div>

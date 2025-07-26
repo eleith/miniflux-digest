@@ -11,14 +11,15 @@ import (
 	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/config"
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/email"
-	"miniflux-digest/internal/models"
+	
 	"miniflux-digest/internal/processor"
 )
 
-func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler, data *models.CategoryData) {
-	task := func(data *models.CategoryData) {
-		processor.CategoryDigestJob(application, data, true)
+func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler, rawData *app.RawCategoryData) {
+	task := func(rawData *app.RawCategoryData) {
+		processor.CategoryDigestJob(application, rawData, true)
 	}
 
 	jitter := time.Duration(rand.Intn(30)) * time.Second
@@ -26,16 +27,16 @@ func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler,
 
 	_, err := scheduler.NewJob(
 		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(startTime)),
-		gocron.NewTask(task, data),
+		gocron.NewTask(task, rawData),
 	)
 	if err != nil {
-		log.Printf("Error creating one-time job for category %d: %v", data.Category.ID, err)
+		log.Printf("Error creating one-time job for category %d: %v", rawData.Category.ID, err)
 	}
 }
 
 func categoriesCheckJob(application *app.App, scheduler gocron.Scheduler) {
-	for data := range application.MinifluxClientService.StreamAllCategoryData() {
-		registerCategoryDigestJob(application, scheduler, data)
+	for rawData := range application.MinifluxClientService.StreamAllCategoryData() {
+		registerCategoryDigestJob(application, scheduler, rawData)
 	}
 }
 
@@ -70,8 +71,9 @@ func main() {
 
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
+	digestSvc := digest.NewDigestService()
 
-	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc)
+	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc, digestSvc)
 
 	scheduler, err := gocron.NewScheduler()
 

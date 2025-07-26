@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"miniflux-digest/internal/models"
 	miniflux "miniflux.app/v2/client"
@@ -41,7 +40,14 @@ func (m *MinifluxClientWrapper) FeedIcon(feedID int64) (*miniflux.FeedIcon, erro
 	return m.client.FeedIcon(feedID)
 }
 
-func (m *MinifluxClientWrapper) FetchCategoryData(categoryID int64) (*models.CategoryData, error) {
+type RawCategoryData struct {
+	Category *miniflux.Category
+	Entries  *miniflux.Entries
+	Feeds    []*miniflux.Feed
+	Icons    map[int64]*models.FeedIcon
+}
+
+func (m *MinifluxClientWrapper) FetchRawCategoryData(categoryID int64) (*RawCategoryData, error) {
 	categories, err := m.categories()
 	if err != nil {
 		return nil, err
@@ -65,7 +71,7 @@ func (m *MinifluxClientWrapper) FetchCategoryData(categoryID int64) (*models.Cat
 	}
 
 	feeds, err := m.client.CategoryFeeds(category.ID)
-	feedIcons := []*models.FeedIcon{}
+	feedIcons := make(map[int64]*models.FeedIcon)
 
 	if err != nil {
 		return nil, err
@@ -78,22 +84,22 @@ func (m *MinifluxClientWrapper) FetchCategoryData(categoryID int64) (*models.Cat
 			continue
 		}
 
-		feedIcons = append(feedIcons, &models.FeedIcon{
+		feedIcons[feed.ID] = &models.FeedIcon{
 			FeedID: feed.ID,
 			Data:   feedIcon.Data,
-		})
+		}
 	}
 
-	return &models.CategoryData{
-		Category:      category,
-		Entries:       &entriesResult.Entries,
-		GeneratedDate: time.Now(),
-		FeedIcons:     feedIcons,
+	return &RawCategoryData{
+		Category: category,
+		Entries:  &entriesResult.Entries,
+		Feeds:    feeds,
+		Icons:    feedIcons,
 	}, nil
 }
 
-func (m *MinifluxClientWrapper) StreamAllCategoryData() <-chan *models.CategoryData {
-	out := make(chan *models.CategoryData)
+func (m *MinifluxClientWrapper) StreamAllCategoryData() <-chan *RawCategoryData {
+	out := make(chan *RawCategoryData)
 
 	go func() {
 		defer close(out)
@@ -106,7 +112,7 @@ func (m *MinifluxClientWrapper) StreamAllCategoryData() <-chan *models.CategoryD
 		}
 
 		for _, category := range categories {
-			data, err := m.FetchCategoryData(category.ID)
+			data, err := m.FetchRawCategoryData(category.ID)
 			if err != nil {
 				log.Printf("Streamer failed to fetch data for category %q: %v", category.Title, err)
 				continue

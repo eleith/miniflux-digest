@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	data := testutil.NewMockCategoryData()
+	data := testutil.NewMockHTMLTemplateData()
 
 	file, err := os.Create("web/preview.html")
 	if err != nil {

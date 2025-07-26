@@ -18,7 +18,7 @@ type EmailServiceImpl struct{}
 
 var _ app.EmailService = (*EmailServiceImpl)(nil)
 
-func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.CategoryData) error {
+func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
 	message := mail.NewMsg()
 	client, err := mail.NewClient(
 		cfg.SmtpHost,
@@ -44,7 +44,7 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.
 	dir := filepath.Base(filepath.Dir(file.Name()))
 	url := fmt.Sprintf("%s/%s/%s", cfg.DigestHost, dir, filename)
 	textData := templates.EmailTemplateData{
-		CategoryData: *data,
+		HTMLTemplateData: *data,
 		URL:          url,
 	}
 
