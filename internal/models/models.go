@@ -10,9 +10,15 @@ type FeedIcon struct {
 	Data   string
 }
 
-type CategoryData struct {
+type HTMLTemplateData struct {
 	Category      *miniflux.Category
 	Entries       *miniflux.Entries
 	GeneratedDate time.Time
 	FeedIcons     []*FeedIcon
+	EntryGroups   []*EntryGroup
+}
+
+type EntryGroup struct {
+	Date    time.Time
+	Entries []*miniflux.Entry
 }

@@ -8,6 +8,7 @@ import (
 	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/archive"
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/email"
 	"miniflux-digest/internal/processor"
 	miniflux "miniflux.app/v2/client"
@@ -33,13 +34,14 @@ func main() {
 
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
+	digestSvc := digest.NewDigestService()
 
-	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc)
+	application := app.NewApp(cfg, clientWrapper, archiveSvc, emailSvc, digestSvc)
 
-	data, err := clientWrapper.FetchCategoryData(categoryID)
+	rawData, err := clientWrapper.FetchRawCategoryData(categoryID)
 	if err != nil {
 		log.Fatalf("Failed to fetch category data for preview: %v", err)
 	}
 
-	processor.CategoryDigestJob(application, data, false)
+	processor.CategoryDigestJob(application, rawData, false)
 }

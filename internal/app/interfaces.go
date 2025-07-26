@@ -9,12 +9,16 @@ import (
 )
 
 type ArchiveService interface {
-	MakeArchiveHTML(data *models.CategoryData) (*os.File, error)
+	MakeArchiveHTML(data *models.HTMLTemplateData) (*os.File, error)
 	CleanArchive(maxAge time.Duration)
 }
 
 type EmailService interface {
-		Send(cfg *config.Config, file *os.File, data *models.CategoryData) error
+		Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error
+}
+
+type DigestService interface {
+	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData
 }
 
 type MinifluxClientService interface {
@@ -22,6 +26,5 @@ type MinifluxClientService interface {
 	CategoryEntries(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error)
 	CategoryFeeds(categoryID int64) ([]*miniflux.Feed, error)
 	FeedIcon(feedID int64) (*miniflux.FeedIcon, error)
-	FetchCategoryData(categoryID int64) (*models.CategoryData, error)
-	StreamAllCategoryData() <-chan *models.CategoryData
+	StreamAllCategoryData() <-chan *RawCategoryData
 }

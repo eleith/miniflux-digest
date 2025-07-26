@@ -35,7 +35,7 @@ type ArchiveServiceImpl struct{}
 
 var _ app.ArchiveService = (*ArchiveServiceImpl)(nil)
 
-func getHTML(data *models.CategoryData) (string, error) {
+func getHTML(data *models.HTMLTemplateData) (string, error) {
 	var buf bytes.Buffer
 	var htmlOutput string
 
@@ -48,7 +48,7 @@ func getHTML(data *models.CategoryData) (string, error) {
 	return htmlOutput, err
 }
 
-func makeArchiveFile(data *models.CategoryData) (*os.File, error) {
+func makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
 	categorySlug := utils.Slugify(data.Category.Title)
 	categoryFolderPath := fmt.Sprintf("%s/%s", archiveBaseDir, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
@@ -62,7 +62,7 @@ func makeArchiveFile(data *models.CategoryData) (*os.File, error) {
 	return nil, err
 }
 
-func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.CategoryData) (*os.File, error) {
+func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData) (*os.File, error) {
 	file, err := makeArchiveFile(data)
 
 	if err != nil {

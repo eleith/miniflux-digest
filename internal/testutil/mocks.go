@@ -17,8 +17,7 @@ type MockMinifluxClient struct {
 	CategoryEntriesFunc func(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error)
 	CategoryFeedsFunc func(categoryID int64) ([]*miniflux.Feed, error)
 	FeedIconFunc func(feedID int64) (*miniflux.FeedIcon, error)
-	FetchCategoryDataFunc func(categoryID int64) (*models.CategoryData, error)
-	StreamAllCategoryDataFunc func() <-chan *models.CategoryData
+	StreamAllCategoryDataFunc func() <-chan *app.RawCategoryData
 }
 
 func (m *MockMinifluxClient) MarkCategoryAsRead(categoryID int64) error {
@@ -56,28 +55,23 @@ func (m *MockMinifluxClient) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) 
 	return nil, nil
 }
 
-func (m *MockMinifluxClient) FetchCategoryData(categoryID int64) (*models.CategoryData, error) {
-	if m.FetchCategoryDataFunc != nil {
-		return m.FetchCategoryDataFunc(categoryID)
-	}
-	return nil, nil
-}
 
-func (m *MockMinifluxClient) StreamAllCategoryData() <-chan *models.CategoryData {
+
+func (m *MockMinifluxClient) StreamAllCategoryData() <-chan *app.RawCategoryData {
 	if m.StreamAllCategoryDataFunc != nil {
 		return m.StreamAllCategoryDataFunc()
 	}
-	out := make(chan *models.CategoryData)
+	out := make(chan *app.RawCategoryData)
 	close(out)
 	return out
 }
 
 type MockArchiveService struct {
 	app.ArchiveService
-	MakeArchiveHTMLFunc func(data *models.CategoryData) (*os.File, error)
+	MakeArchiveHTMLFunc func(data *models.HTMLTemplateData) (*os.File, error)
 }
 
-func (m *MockArchiveService) MakeArchiveHTML(data *models.CategoryData) (*os.File, error) {
+func (m *MockArchiveService) MakeArchiveHTML(data *models.HTMLTemplateData) (*os.File, error) {
 	return m.MakeArchiveHTMLFunc(data)
 }
 
@@ -85,9 +79,21 @@ func (m *MockArchiveService) CleanArchive(maxAge time.Duration) {}
 
 type MockEmailService struct {
 	app.EmailService
-	SendFunc func(cfg *config.Config, file *os.File, data *models.CategoryData) error
+	SendFunc func(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error
 }
 
-func (m *MockEmailService) Send(cfg *config.Config, file *os.File, data *models.CategoryData) error {
+func (m *MockEmailService) Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
 	return m.SendFunc(cfg, file, data)
+}
+
+type MockDigestService struct {
+	app.DigestService
+	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData
+}
+
+func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+	if m.BuildDigestDataFunc != nil {
+		return m.BuildDigestDataFunc(category, entries, icons)
+	}
+	return nil
 }
