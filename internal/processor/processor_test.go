@@ -46,7 +46,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			},
 			EmailService: &testutil.MockEmailService{},
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
 					return nil, errors.New("failed to make archive html")
 				},
 			},
@@ -73,7 +73,7 @@ func TestCategoryDigestJob(t *testing.T) {
 				},
 			},
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
 			},
@@ -112,7 +112,7 @@ func TestCategoryDigestJob(t *testing.T) {
 				},
 			},
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
 			},
@@ -149,7 +149,7 @@ func TestCategoryDigestJob(t *testing.T) {
 				},
 			},
 			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData) (*os.File, error) {
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
 			},

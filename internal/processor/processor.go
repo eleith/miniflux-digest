@@ -11,7 +11,7 @@ func CategoryDigestJob(application *app.App, rawData *app.RawCategoryData, markA
 	data := application.DigestService.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons)
 
 	if len(*data.Entries) > 0 {
-		file, err := application.ArchiveService.MakeArchiveHTML(data)
+		file, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.DigestCompress)
 
 		if err != nil {
 			log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
