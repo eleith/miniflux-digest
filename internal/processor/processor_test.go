@@ -9,6 +9,7 @@ import (
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/testutil"
+	"miniflux-digest/internal/digest"
 	"os"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			app.WithConfig(&config.Config{}),
 			app.WithMinifluxClientService(&testutil.MockMinifluxClient{}),
 			app.WithDigestService(&testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, group_by digest.GroupingType) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{}}
 				},
 			}),
@@ -36,21 +37,21 @@ func TestCategoryDigestJob(t *testing.T) {
 	})
 
 	t.Run("error making archive html", func(t *testing.T) {
-		mockApp := &app.App{
-			Config:                &config.Config{},
-			MinifluxClientService: &testutil.MockMinifluxClient{},
-			DigestService: &testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+		mockApp := app.NewApp(
+			app.WithConfig(&config.Config{}),
+			app.WithMinifluxClientService(&testutil.MockMinifluxClient{}),
+			app.WithDigestService(&testutil.MockDigestService{
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}}
 				},
-			},
-			EmailService: &testutil.MockEmailService{},
-			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
+			}),
+			app.WithEmailService(&testutil.MockEmailService{}),
+			app.WithArchiveService(&testutil.MockArchiveService{
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
 					return nil, errors.New("failed to make archive html")
 				},
-			},
-		}
+			}),
+		)
 		data := &app.RawCategoryData{Entries: &miniflux.Entries{{ID: 1}}}
 
 		var buf bytes.Buffer
@@ -64,25 +65,25 @@ func TestCategoryDigestJob(t *testing.T) {
 	})
 
 	t.Run("error sending email", func(t *testing.T) {
-		mockApp := &app.App{
-			Config:                &config.Config{},
-			MinifluxClientService: &testutil.MockMinifluxClient{},
-			DigestService: &testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+		mockApp := app.NewApp(
+			app.WithConfig(&config.Config{}),
+			app.WithMinifluxClientService(&testutil.MockMinifluxClient{}),
+			app.WithDigestService(&testutil.MockDigestService{
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}, FeedIcons: []*models.FeedIcon{}}
 				},
-			},
-			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
+			}),
+			app.WithArchiveService(&testutil.MockArchiveService{
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
-			},
-			EmailService: &testutil.MockEmailService{
+			}),
+			app.WithEmailService(&testutil.MockEmailService{
 				SendFunc: func(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
 					return errors.New("failed to send email")
 				},
-			},
-		}
+			}),
+		)
 		data := &app.RawCategoryData{Entries: &miniflux.Entries{{ID: 1}}}
 
 		var buf bytes.Buffer
@@ -103,25 +104,25 @@ func TestCategoryDigestJob(t *testing.T) {
 				return nil
 			},
 		}
-		mockApp := &app.App{
-			Config:                &config.Config{},
-			MinifluxClientService: mockMinifluxClient,
-			DigestService: &testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+		mockApp := app.NewApp(
+			app.WithConfig(&config.Config{}),
+			app.WithMinifluxClientService(mockMinifluxClient),
+			app.WithDigestService(&testutil.MockDigestService{
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}, FeedIcons: []*models.FeedIcon{}}
 				},
-			},
-			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
+			}),
+			app.WithArchiveService(&testutil.MockArchiveService{
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
-			},
-			EmailService: &testutil.MockEmailService{
+			}),
+			app.WithEmailService(&testutil.MockEmailService{
 				SendFunc: func(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
 					return nil
 				},
-			},
-		}
+			}),
+		)
 		data := &app.RawCategoryData{Entries: &miniflux.Entries{{ID: 1}}}
 
 		CategoryDigestJob(mockApp, data, true)
@@ -140,25 +141,25 @@ func TestCategoryDigestJob(t *testing.T) {
 				return errors.New("failed to mark as read")
 			},
 		}
-		mockApp := &app.App{
-			Config:                &config.Config{},
-			MinifluxClientService: mockMinifluxClient,
-			DigestService: &testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+		mockApp := app.NewApp(
+			app.WithConfig(&config.Config{}),
+			app.WithMinifluxClientService(mockMinifluxClient),
+			app.WithDigestService(&testutil.MockDigestService{
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}, FeedIcons: []*models.FeedIcon{}}
 				},
-			},
-			ArchiveService: &testutil.MockArchiveService{
-				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
+			}),
+			app.WithArchiveService(&testutil.MockArchiveService{
+				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
 					return os.CreateTemp("", "test-archive-*.html")
 				},
-			},
-			EmailService: &testutil.MockEmailService{
+			}),
+			app.WithEmailService(&testutil.MockEmailService{
 				SendFunc: func(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
 					return nil
 				},
-			},
-		}
+			}),
+		)
 		data := &app.RawCategoryData{Entries: &miniflux.Entries{{ID: 1}}}
 
 		CategoryDigestJob(mockApp, data, true)

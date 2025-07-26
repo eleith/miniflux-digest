@@ -13,9 +13,10 @@ import (
 
 func main() {
 	minify := flag.Bool("minify", true, "Minify the HTML output")
+	groupBy := flag.String("group-by", "day", "Group entries by (day or feed)")
 	flag.Parse()
 
-	data := testutil.NewMockHTMLTemplateData()
+	data := testutil.NewMockHTMLTemplateDataWithGrouping(digest.GroupingType(*groupBy))
 
 	file, err := os.Create("web/preview.html")
 	if err != nil {

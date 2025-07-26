@@ -19,6 +19,6 @@ type HTMLTemplateData struct {
 }
 
 type EntryGroup struct {
-	Date    time.Time
+	Title   string
 	Entries []*miniflux.Entry
 }
