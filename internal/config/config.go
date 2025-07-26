@@ -24,9 +24,13 @@ type Config struct {
 var k = koanf.New(".")
 
 func Load(path string) (*Config, error) {
-	k.Load(confmap.Provider(map[string]interface{}{
+	projectDefaults := map[string]any{
 		"digest.compress": true,
-	}, "."), nil)
+	}
+
+	if err := k.Load(confmap.Provider(projectDefaults, "."), nil); err != nil {
+		return nil, err
+	}
 
 	if err := k.Load(file.Provider(path), yaml.Parser()); err != nil {
 		return nil, err
