@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 	miniflux "miniflux.app/v2/client"
+
+	"miniflux-digest/internal/digest"
 )
 
 type ArchiveService interface {
@@ -18,7 +20,7 @@ type EmailService interface {
 }
 
 type DigestService interface {
-	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData
+	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData
 }
 
 type MinifluxClientService interface {

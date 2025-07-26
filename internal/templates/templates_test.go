@@ -17,7 +17,7 @@ func TestTemplates(t *testing.T) {
 }
 
 func TestArchiveTemplateExecution(t *testing.T) {
-	data := testutil.NewMockHTMLTemplateData()
+	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
 	var buf bytes.Buffer
 	err := ArchiveTemplate.Execute(&buf, data)
 	if err != nil {
@@ -29,7 +29,7 @@ func TestArchiveTemplateExecution(t *testing.T) {
 }
 
 func TestEmailTemplateExecution(t *testing.T) {
-	data := testutil.NewMockHTMLTemplateData()
+	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
 	textData := &EmailTemplateData{
 		HTMLTemplateData: *data,
 		URL:          "https://example.com",

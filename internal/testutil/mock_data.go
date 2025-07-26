@@ -36,7 +36,21 @@ func NewMockCategory() *miniflux.Category {
 func NewMockFeed() *miniflux.Feed {
 	return &miniflux.Feed{
 		ID:    1,
-		Title: "Test Feed",
+		Title: "Feed A",
+	}
+}
+
+func NewMockFeedB() *miniflux.Feed {
+	return &miniflux.Feed{
+		ID:    2,
+		Title: "Feed B",
+	}
+}
+
+func NewMockFeedC() *miniflux.Feed {
+	return &miniflux.Feed{
+		ID:    3,
+		Title: "Feed C",
 	}
 }
 
@@ -57,7 +71,92 @@ func NewMockFeedIcon() *models.FeedIcon {
 	}
 }
 
-func NewMockHTMLTemplateData() *models.HTMLTemplateData {
+func NewMockEntry1() *miniflux.Entry {
+	return &miniflux.Entry{
+		ID:          1,
+		UserID:      1,
+		FeedID:      1,
+		Status:      miniflux.EntryStatusUnread,
+		Title:       "A Short and Sweet Title",
+		URL:         "https://example.com/1",
+		Date:        time.Now().Add(-1 * time.Hour),
+		Content:     "This is a short and sweet entry.",
+		Author:      "Test Author 1",
+		Feed:        NewMockFeed(),
+	}
+}
+
+func NewMockEntry2() *miniflux.Entry {
+	return &miniflux.Entry{
+		ID:          2,
+		FeedID:      2,
+		Title:       "A Longer Entry with a Paragraph of Text",
+		URL:         "https://example.com/2",
+		Date:        time.Now().Add(-3 * time.Hour),
+		Content:     "This is a longer entry that contains a full paragraph of text. It is meant to simulate a more realistic entry that a user might encounter in their feed. It has enough text to wrap to multiple lines and give a good sense of how the layout will look with a more substantial amount of content.",
+		Author:      "Test Author 2",
+		Feed:        NewMockFeedB(),
+	}
+}
+
+func NewMockEntry3() *miniflux.Entry {
+	return &miniflux.Entry{
+		ID:          3,
+		FeedID:      3,
+		Title:       "An Entry with HTML Content",
+		URL:         "https://example.com/3",
+		Date:        time.Now().Add(-4 * time.Hour),
+		Content:     "<h1>This is a heading</h1><p>This is a paragraph with <strong>strong</strong> text and a <a href=\"https://example.com\">link</a>.</p><ul><li>This is a list item</li><li>This is another list item</li></ul>",
+		Feed:        NewMockFeedC(),
+	}
+}
+
+func NewMockEntry4() *miniflux.Entry {
+	return &miniflux.Entry{
+		ID:          4,
+		UserID:      1,
+		FeedID:      1,
+		Status:      miniflux.EntryStatusUnread,
+		Title:       "Another Entry - Day 2",
+		URL:         "https://example.com/4",
+		Date:        time.Now().AddDate(0, 0, -1), // One day earlier
+		Content:     "This entry is from a different day.",
+		Author:      "Test Author 4",
+		Feed:        NewMockFeed(),
+	}
+}
+
+func NewMockEntry5() *miniflux.Entry {
+	return &miniflux.Entry{
+		ID:          5,
+		UserID:      1,
+		FeedID:      2,
+		Status:      miniflux.EntryStatusUnread,
+		Title:       "Fifth Entry - Day 2",
+		URL:         "https://example.com/5",
+		Date:        time.Now().AddDate(0, 0, -1).Add(-2 * time.Hour), // One day earlier, different time
+		Content:     "This is the fifth entry, also from day 2.",
+		Author:      "Test Author 5",
+		Feed:        NewMockFeedB(),
+	}
+}
+
+func NewMockEntry6() *miniflux.Entry {
+	return &miniflux.Entry{
+		ID:          6,
+		UserID:      1,
+		FeedID:      3,
+		Status:      miniflux.EntryStatusUnread,
+		Title:       "Sixth Entry - Day 2",
+		URL:         "https://example.com/6",
+		Date:        time.Now().AddDate(0, 0, -1).Add(-5 * time.Hour), // One day earlier, different time
+		Content:     "This is the sixth entry, also from day 2.",
+		Author:      "Test Author 6",
+		Feed:        NewMockFeedC(),
+	}
+}
+
+func NewMockHTMLTemplateDataWithGrouping(groupBy digest.GroupingType) *models.HTMLTemplateData {
 	redSquare := loadImageAsBase64("internal/testutil/images/red.png")
 	yellowSquare := loadImageAsBase64("internal/testutil/images/yellow.png")
 	greenSquare := loadImageAsBase64("internal/testutil/images/green.png")
@@ -65,78 +164,18 @@ func NewMockHTMLTemplateData() *models.HTMLTemplateData {
 	return digest.NewDigestService().BuildDigestData(
 		NewMockCategory(),
 		&miniflux.Entries{
-			{
-				ID:          1,
-				UserID:      1,
-				FeedID:      1,
-				Status:      miniflux.EntryStatusUnread,
-				Title:       "A Short and Sweet Title",
-				URL:         "https://example.com/1",
-				Date:        time.Now().Add(-1 * time.Hour),
-				Content:     "This is a short and sweet entry.",
-				Author:      "Test Author 1",
-				Feed:        NewMockFeed(),
-			},
-			{
-				ID:          2,
-				FeedID:      2,
-				Title:       "A Longer Entry with a Paragraph of Text",
-				URL:         "https://example.com/2",
-				Date:        time.Now().Add(-3 * time.Hour),
-				Content:     "This is a longer entry that contains a full paragraph of text. It is meant to simulate a more realistic entry that a user might encounter in their feed. It has enough text to wrap to multiple lines and give a good sense of how the layout will look with a more substantial amount of content.",
-				Author:      "Test Author 2",
-				Feed:        NewMockFeed(),
-			},
-			{
-				ID:          3,
-				FeedID:      3,
-				Title:       "An Entry with HTML Content",
-				URL:         "https://example.com/3",
-				Date:        time.Now().Add(-4 * time.Hour),
-				Content:     "<h1>This is a heading</h1><p>This is a paragraph with <strong>strong</strong> text and a <a href=\"https://example.com\">link</a>.</p><ul><li>This is a list item</li><li>This is another list item</li></ul>",
-				Feed:        NewMockFeed(),
-			},
-			{
-				ID:          4,
-				UserID:      1,
-				FeedID:      1,
-				Status:      miniflux.EntryStatusUnread,
-				Title:       "Another Entry - Day 2",
-				URL:         "https://example.com/4",
-				Date:        time.Now().AddDate(0, 0, -1), // One day earlier
-				Content:     "This entry is from a different day.",
-				Author:      "Test Author 4",
-				Feed:        NewMockFeed(),
-			},
-			{
-				ID:          5,
-				UserID:      1,
-				FeedID:      2,
-				Status:      miniflux.EntryStatusUnread,
-				Title:       "Fifth Entry - Day 2",
-				URL:         "https://example.com/5",
-				Date:        time.Now().AddDate(0, 0, -1).Add(-2 * time.Hour), // One day earlier, different time
-				Content:     "This is the fifth entry, also from day 2.",
-				Author:      "Test Author 5",
-				Feed:        NewMockFeed(),
-			},
-			{
-				ID:          6,
-				UserID:      1,
-				FeedID:      3,
-				Status:      miniflux.EntryStatusUnread,
-				Title:       "Sixth Entry - Day 2",
-				URL:         "https://example.com/6",
-				Date:        time.Now().AddDate(0, 0, -1).Add(-5 * time.Hour), // One day earlier, different time
-				Content:     "This is the sixth entry, also from day 2.",
-				Author:      "Test Author 6",
-				Feed:        NewMockFeed(),
-			},
+			NewMockEntry1(),
+			NewMockEntry2(),
+			NewMockEntry3(),
+			NewMockEntry4(),
+			NewMockEntry5(),
+			NewMockEntry6(),
 		},
 		map[int64]*models.FeedIcon{
 			1: {FeedID: 1, Data: "image/png;base64," + redSquare},
 			2: {FeedID: 2, Data: "image/png;base64," + yellowSquare},
 			3: {FeedID: 3, Data: "image/png;base64," + greenSquare},
 		},
+		groupBy,
 	)
 }

@@ -2,10 +2,21 @@ package digest
 
 import (
 	"miniflux-digest/internal/models"
-	"sort"
 	miniflux "miniflux.app/v2/client"
+	"sort"
 	"time"
 )
+
+type GroupingType string
+
+const (
+	GroupingTypeDay  GroupingType = "day"
+	GroupingTypeFeed GroupingType = "feed"
+)
+
+func (gt GroupingType) String() string {
+	return string(gt)
+}
 
 type DigestService struct{}
 
@@ -13,42 +24,103 @@ func NewDigestService() *DigestService {
 	return &DigestService{}
 }
 
-func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+func NewGrouper(groupBy GroupingType) Grouper {
+	switch groupBy {
+	case GroupingTypeFeed:
+		return &FeedGrouper{}
+	default:
+		return &DayGrouper{}
+	}
+}
+
+func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy GroupingType) *models.HTMLTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
 		iconsSlice = append(iconsSlice, icon)
 	}
 
-	// Group entries by day
-	entryGroups := make(map[string]*models.EntryGroup)
-	for _, entry := range *entries {
-		dateKey := entry.Date.Format("2006-01-02")
-		if _, ok := entryGroups[dateKey]; !ok {
-			entryGroups[dateKey] = &models.EntryGroup{
-				Date:  entry.Date,
-				Entries: []*miniflux.Entry{},
-			}
-		}
-		entryGroups[dateKey].Entries = append(entryGroups[dateKey].Entries, entry)
-	}
-
-	// Convert map to sorted slice of EntryGroups
-	sortedEntryGroups := make([]*models.EntryGroup, 0, len(entryGroups))
-	for _, group := range entryGroups {
-		sortedEntryGroups = append(sortedEntryGroups, group)
-	}
-
-	// Sort groups by date (most recent first)
-	sort.Slice(sortedEntryGroups, func(i, j int) bool {
-		return sortedEntryGroups[i].Date.After(sortedEntryGroups[j].Date)
-	})
+	// Group entries
+	grouper := NewGrouper(groupBy)
+	entryGroups := grouper.GroupEntries(entries)
 
 	return &models.HTMLTemplateData{
 		Category:      category,
 		Entries:       entries,
 		GeneratedDate: time.Now(),
 		FeedIcons:     iconsSlice,
-		EntryGroups:   sortedEntryGroups,
+		EntryGroups:   entryGroups,
 	}
+}
+
+type Grouper interface {
+	GroupEntries(entries *miniflux.Entries) []*models.EntryGroup
+}
+
+type DayGrouper struct{}
+
+func (g *DayGrouper) GroupEntries(entries *miniflux.Entries) []*models.EntryGroup {
+	entryGroupsMap := make(map[string]*models.EntryGroup)
+	for _, entry := range *entries {
+		dateKey := entry.Date.Format("2006-01-02")
+		if _, ok := entryGroupsMap[dateKey]; !ok {
+			entryGroupsMap[dateKey] = &models.EntryGroup{
+				Title:   entry.Date.Format("Jan 2, 2006"),
+				Entries: []*miniflux.Entry{},
+			}
+		}
+		entryGroupsMap[dateKey].Entries = append(entryGroupsMap[dateKey].Entries, entry)
+	}
+
+	// Convert map to sorted slice of EntryGroups
+	sortedEntryGroups := make([]*models.EntryGroup, 0, len(entryGroupsMap))
+	for _, group := range entryGroupsMap {
+		// Sort entries within each group by date (older to newer)
+		sort.Slice(group.Entries, func(i, j int) bool {
+			return group.Entries[i].Date.Before(group.Entries[j].Date)
+		})
+		sortedEntryGroups = append(sortedEntryGroups, group)
+	}
+
+	// Sort groups by date (older to newer)
+	sort.Slice(sortedEntryGroups, func(i, j int) bool {
+		// Dates are stored as strings, so we need to parse them back to time.Time
+		iDate, _ := time.Parse("Jan 2, 2006", sortedEntryGroups[i].Title)
+		jDate, _ := time.Parse("Jan 2, 2006", sortedEntryGroups[j].Title)
+		return iDate.Before(jDate)
+	})
+
+	return sortedEntryGroups
+}
+
+type FeedGrouper struct{}
+
+func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) []*models.EntryGroup {
+	entryGroupsMap := make(map[int64]*models.EntryGroup)
+	for _, entry := range *entries {
+		if _, ok := entryGroupsMap[entry.FeedID]; !ok {
+			entryGroupsMap[entry.FeedID] = &models.EntryGroup{
+				Title:   entry.Feed.Title,
+				Entries: []*miniflux.Entry{},
+			}
+		}
+		entryGroupsMap[entry.FeedID].Entries = append(entryGroupsMap[entry.FeedID].Entries, entry)
+	}
+
+	// Convert map to slice of EntryGroups
+	entryGroups := make([]*models.EntryGroup, 0, len(entryGroupsMap))
+	for _, group := range entryGroupsMap {
+		// Sort entries within each group by date (older to newer)
+		sort.Slice(group.Entries, func(i, j int) bool {
+			return group.Entries[i].Date.Before(group.Entries[j].Date)
+		})
+		entryGroups = append(entryGroups, group)
+	}
+
+	// Sort groups by feed title (alphabetically)
+	sort.Slice(entryGroups, func(i, j int) bool {
+		return entryGroups[i].Title < entryGroups[j].Title
+	})
+
+	return entryGroups
 }

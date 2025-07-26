@@ -5,6 +5,8 @@ import (
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
+
+	"miniflux-digest/internal/digest"
 )
 
 type Config struct {
@@ -19,6 +21,7 @@ type Config struct {
 	DigestSchedule   string
 	DigestHost       string
 	DigestCompress   bool
+	DigestGroupBy    digest.GroupingType
 }
 
 var k = koanf.New(".")
@@ -26,6 +29,7 @@ var k = koanf.New(".")
 func Load(path string) (*Config, error) {
 	projectDefaults := map[string]any{
 		"digest.compress": true,
+		"digest.group_by": digest.GroupingTypeDay.String(),
 	}
 
 	if err := k.Load(confmap.Provider(projectDefaults, "."), nil); err != nil {
@@ -48,6 +52,7 @@ func Load(path string) (*Config, error) {
 		DigestSchedule:   k.String("digest.schedule"),
 		DigestHost:       k.String("digest.host"),
 		DigestCompress:   k.Bool("digest.compress"),
+		DigestGroupBy:    digest.GroupingType(k.String("digest.group_by")),
 	}
 
 	return cfg, nil

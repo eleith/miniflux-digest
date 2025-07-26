@@ -3,6 +3,7 @@ package testutil
 import (
 	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/config"
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	"os"
 	"time"
@@ -87,13 +88,12 @@ func (m *MockEmailService) Send(cfg *config.Config, file *os.File, data *models.
 }
 
 type MockDigestService struct {
-	app.DigestService
-	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData
+	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData
 }
 
-func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon) *models.HTMLTemplateData {
+func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
 	if m.BuildDigestDataFunc != nil {
-		return m.BuildDigestDataFunc(category, entries, icons)
+		return m.BuildDigestDataFunc(category, entries, icons, groupBy)
 	}
 	return nil
 }

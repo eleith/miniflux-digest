@@ -10,7 +10,7 @@ import (
 )
 
 func TestGetHTML(t *testing.T) {
-	data := testutil.NewMockHTMLTemplateData()
+	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
 	html, err := getHTML(data, true)
 	if err != nil {
 		t.Fatalf("getHTML failed: %v", err)
@@ -31,7 +31,7 @@ func TestMakeArchiveFile(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateData()
+	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
 	file, err := makeArchiveFile(data)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
@@ -57,7 +57,7 @@ func TestMakeArchiveHTML(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateData()
+	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
 	archiveService := &ArchiveServiceImpl{}
 	file, err := archiveService.MakeArchiveHTML(data, true)
 	if err != nil {
