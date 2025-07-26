@@ -9,7 +9,7 @@ import (
 )
 
 type ArchiveService interface {
-	MakeArchiveHTML(data *models.HTMLTemplateData) (*os.File, error)
+	MakeArchiveHTML(data *models.HTMLTemplateData, compress bool) (*os.File, error)
 	CleanArchive(maxAge time.Duration)
 }
 

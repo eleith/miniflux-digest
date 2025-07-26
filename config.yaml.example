@@ -14,3 +14,4 @@ digest:
     from: "SENDER_EMAIL@example.com"
   schedule: "@every 24h" # Cron schedule for digest generation
   host: "https://your-digest-host.com" # URL where HTML archives will be served
+  compress: true # Compress HTML before sending

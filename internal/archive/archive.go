@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/utils"
@@ -35,17 +36,15 @@ type ArchiveServiceImpl struct{}
 
 var _ app.ArchiveService = (*ArchiveServiceImpl)(nil)
 
-func getHTML(data *models.HTMLTemplateData) (string, error) {
+func getHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
 	var buf bytes.Buffer
-	var htmlOutput string
 
 	err := templates.ArchiveTemplate.Execute(&buf, data)
-
-	if err == nil {
-		htmlOutput = buf.String()
+	if err != nil {
+		return nil, err
 	}
 
-	return htmlOutput, err
+	return digest.MinifyHTML(buf.Bytes(), compress)
 }
 
 func makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
@@ -62,7 +61,7 @@ func makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
 	return nil, err
 }
 
-func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData) (*os.File, error) {
+func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
 	file, err := makeArchiveFile(data)
 
 	if err != nil {
@@ -70,14 +69,14 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData) (*os
 		return nil, err
 	}
 
-	htmlOutput, err := getHTML(data)
+	htmlOutput, err := getHTML(data, compress)
 
 	if err != nil {
 		log.Printf("Error generating HTML for category %s: %v", data.Category.Title, err)
 		return file, err
 	}
 
-	_, err = file.WriteString(htmlOutput)
+	_, err = file.Write(htmlOutput)
 
 	if err != nil {
 		log.Printf("Error writing HTML to file for category '%s': %v", data.Category.Title, err)

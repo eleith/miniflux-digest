@@ -1,9 +1,8 @@
 package config
 
 import (
-	"log"
-
 	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 )
@@ -19,16 +18,17 @@ type Config struct {
 	DigestEmailFrom  string
 	DigestSchedule   string
 	DigestHost       string
+	DigestCompress   bool
 }
 
 var k = koanf.New(".")
 
 func Load(path string) (*Config, error) {
+	k.Load(confmap.Provider(map[string]interface{}{
+		"digest.compress": true,
+	}, "."), nil)
 
-	err := k.Load(file.Provider(path), yaml.Parser())
-
-	if err != nil {
-		log.Printf("error loading config file: %v", err)
+	if err := k.Load(file.Provider(path), yaml.Parser()); err != nil {
 		return nil, err
 	}
 
@@ -43,6 +43,7 @@ func Load(path string) (*Config, error) {
 		DigestEmailFrom:  k.String("digest.email.from"),
 		DigestSchedule:   k.String("digest.schedule"),
 		DigestHost:       k.String("digest.host"),
+		DigestCompress:   k.Bool("digest.compress"),
 	}
 
 	return cfg, nil

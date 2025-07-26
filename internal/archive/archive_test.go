@@ -11,7 +11,7 @@ import (
 
 func TestGetHTML(t *testing.T) {
 	data := testutil.NewMockHTMLTemplateData()
-	html, err := getHTML(data)
+	html, err := getHTML(data, true)
 	if err != nil {
 		t.Fatalf("getHTML failed: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestMakeArchiveHTML(t *testing.T) {
 
 	data := testutil.NewMockHTMLTemplateData()
 	archiveService := &ArchiveServiceImpl{}
-	file, err := archiveService.MakeArchiveHTML(data)
+	file, err := archiveService.MakeArchiveHTML(data, true)
 	if err != nil {
 		t.Fatalf("MakeArchiveHTML failed: %v", err)
 	}

@@ -68,11 +68,11 @@ func (m *MockMinifluxClient) StreamAllCategoryData() <-chan *app.RawCategoryData
 
 type MockArchiveService struct {
 	app.ArchiveService
-	MakeArchiveHTMLFunc func(data *models.HTMLTemplateData) (*os.File, error)
+	MakeArchiveHTMLFunc func(data *models.HTMLTemplateData, minify bool) (*os.File, error)
 }
 
-func (m *MockArchiveService) MakeArchiveHTML(data *models.HTMLTemplateData) (*os.File, error) {
-	return m.MakeArchiveHTMLFunc(data)
+func (m *MockArchiveService) MakeArchiveHTML(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
+	return m.MakeArchiveHTMLFunc(data, minify)
 }
 
 func (m *MockArchiveService) CleanArchive(maxAge time.Duration) {}
