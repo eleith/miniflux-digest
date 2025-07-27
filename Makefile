@@ -1,13 +1,8 @@
 build:
 	go build -mod=vendor -o miniflux-digest ./cmd/miniflux-digest
 
-# Define default values for preview flags using ?=
-# These values are used if not explicitly overridden on the 'make' command line.
-MINIFY ?= true
-GROUP_BY ?= day
-
 preview-html:
-	go run -mod=vendor ./scripts/preview-html/main.go -minify=$(MINIFY) -group-by=$(GROUP_BY)
+	go run -mod=vendor ./scripts/preview-html/main.go
 	./scripts/open-preview.sh
 
 preview-miniflux-email:

@@ -2,6 +2,7 @@ package email
 
 import (
 	"miniflux-digest/internal/config"
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
 	"os"
@@ -46,7 +47,7 @@ func TestSend(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
+	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
 
 	// In a real scenario, you would use a mock SMTP server.
 	// For this test, we are just checking if the function executes without error.
@@ -63,7 +64,7 @@ func TestSend(t *testing.T) {
 }
 
 func TestTextTemplateData(t *testing.T) {
-	htmlTemplateData := *testutil.NewMockHTMLTemplateDataWithGrouping("day")
+	htmlTemplateData := *testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
 	url := "https://example.com"
 
 	textData := templates.EmailTemplateData{
