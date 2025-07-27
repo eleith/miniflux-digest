@@ -2,21 +2,22 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"log"
 	"os"
 
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
 )
 
 func main() {
-	minify := flag.Bool("minify", true, "Minify the HTML output")
-	groupBy := flag.String("group-by", "day", "Group entries by (day or feed)")
-	flag.Parse()
+	cfg, err := config.Load("./config.yaml")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
 
-	data := testutil.NewMockHTMLTemplateDataWithGrouping(digest.GroupingType(*groupBy))
+	data := testutil.NewMockHTMLTemplateData(cfg.DigestGroupBy)
 
 	file, err := os.Create("web/preview.html")
 	if err != nil {
@@ -33,7 +34,7 @@ func main() {
 		log.Fatalf("Failed to execute template: %v", err)
 	}
 
-	html, err := digest.MinifyHTML(buf.Bytes(), *minify)
+	html, err := digest.MinifyHTML(buf.Bytes(), cfg.DigestCompress)
 	if err != nil {
 		log.Fatalf("Failed to minify HTML: %v", err)
 	}

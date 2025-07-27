@@ -156,7 +156,7 @@ func NewMockEntry6() *miniflux.Entry {
 	}
 }
 
-func NewMockHTMLTemplateDataWithGrouping(groupBy digest.GroupingType) *models.HTMLTemplateData {
+func NewMockHTMLTemplateData(groupBy digest.GroupingType) *models.HTMLTemplateData {
 	redSquare := loadImageAsBase64("internal/testutil/images/red.png")
 	yellowSquare := loadImageAsBase64("internal/testutil/images/yellow.png")
 	greenSquare := loadImageAsBase64("internal/testutil/images/green.png")

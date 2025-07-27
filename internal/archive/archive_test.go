@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/testutil"
 	"miniflux-digest/internal/utils"
 	"os"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestGetHTML(t *testing.T) {
-	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
+	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
 	html, err := getHTML(data, true)
 	if err != nil {
 		t.Fatalf("getHTML failed: %v", err)
@@ -31,7 +32,7 @@ func TestMakeArchiveFile(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
+	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
 	file, err := makeArchiveFile(data)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
@@ -57,7 +58,7 @@ func TestMakeArchiveHTML(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
+	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
 	archiveService := &ArchiveServiceImpl{}
 	file, err := archiveService.MakeArchiveHTML(data, true)
 	if err != nil {

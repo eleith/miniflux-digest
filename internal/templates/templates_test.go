@@ -2,6 +2,7 @@ package templates
 
 import (
 	"bytes"
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/testutil"
 	"testing"
 )
@@ -17,7 +18,7 @@ func TestTemplates(t *testing.T) {
 }
 
 func TestArchiveTemplateExecution(t *testing.T) {
-	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
+	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
 	var buf bytes.Buffer
 	err := ArchiveTemplate.Execute(&buf, data)
 	if err != nil {
@@ -29,7 +30,7 @@ func TestArchiveTemplateExecution(t *testing.T) {
 }
 
 func TestEmailTemplateExecution(t *testing.T) {
-	data := testutil.NewMockHTMLTemplateDataWithGrouping("day")
+	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
 	textData := &EmailTemplateData{
 		HTMLTemplateData: *data,
 		URL:          "https://example.com",
