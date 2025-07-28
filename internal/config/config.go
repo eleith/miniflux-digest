@@ -1,58 +1,106 @@
 package config
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
+	"github.com/robfig/cron/v3"
 
 	"miniflux-digest/internal/digest"
 )
 
-type Config struct {
-	MinifluxHost     string
-	MinifluxApiToken string
-	SmtpHost         string
-	SmtpPort         int
-	SmtpUser         string
-	SmtpPassword     string
-	DigestEmailTo    string
-	DigestEmailFrom  string
-	DigestSchedule   string
-	DigestHost       string
-	DigestCompress   bool
-	DigestGroupBy    digest.GroupingType
+// https://github.com/go-co-op/gocron/issues/826
+func IsValidGocronSchedule(s string) bool {
+	standardParser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	_, err := standardParser.Parse(s)
+	if err == nil {
+		return true
+	}
+
+	_, err = cron.ParseStandard(s)
+	return err == nil
 }
 
-var k = koanf.New(".")
+type ConfigMiniflux struct {
+	Host     string `koanf:"host" validate:"required"`
+	ApiToken string `koanf:"api_token" validate:"required"`
+}
+
+type ConfigSmtp struct {
+	Host     string `koanf:"host"`
+	Port     int    `koanf:"port" validate:"omitempty,min=1,max=65535"`
+	User     string `koanf:"user"`
+	Password string `koanf:"password"`
+}
+
+type ConfigDigest struct {
+	EmailTo   string              `koanf:"email.to" validate:"omitempty,email"`
+	EmailFrom string              `koanf:"email.from" validate:"omitempty,email"`
+	Schedule  string              `koanf:"schedule" validate:"gocron"`
+	Host      string              `koanf:"host"`
+	Compress  bool                `koanf:"compress"`
+	GroupBy   digest.GroupingType `koanf:"group_by"`
+}
+
+type ConfigAI struct {
+	ApiKey string `koanf:"api_key"`
+}
+
+type Config struct {
+	Miniflux ConfigMiniflux `koanf:"miniflux"`
+	Smtp     ConfigSmtp     `koanf:"smtp"`
+	Digest   ConfigDigest   `koanf:"digest"`
+	AI       ConfigAI       `koanf:"ai"`
+}
+
+func (c *Config) Validate() error {
+	validate := validator.New()
+	if err := validate.RegisterValidation("gocron", func(fl validator.FieldLevel) bool {
+		return IsValidGocronSchedule(fl.Field().String())
+	}); err != nil {
+		return fmt.Errorf("failed to register gocron validator: %w", err)
+	}
+	err := validate.Struct(c)
+	if err == nil {
+		return nil
+	}
+
+	var validationErrors validator.ValidationErrors
+	if errors.As(err, &validationErrors) {
+		return fmt.Errorf("configuration validation failed: %v", validationErrors)
+	}
+
+	return err
+}
 
 func Load(path string) (*Config, error) {
-	projectDefaults := map[string]any{
+	k := koanf.New(".")
+	parser := yaml.Parser()
+
+	if err := k.Load(confmap.Provider(map[string]any{
 		"digest.compress": true,
-		"digest.group_by": digest.GroupingTypeDay.String(),
-	}
-
-	if err := k.Load(confmap.Provider(projectDefaults, "."), nil); err != nil {
+		"digest.group_by": "day",
+		"digest.schedule": "@weekly",
+	}, "."), nil); err != nil {
 		return nil, err
 	}
 
-	if err := k.Load(file.Provider(path), yaml.Parser()); err != nil {
+	if err := k.Load(file.Provider(path), parser); err != nil {
 		return nil, err
 	}
 
-	cfg := &Config{
-		MinifluxHost:     k.String("miniflux.host"),
-		MinifluxApiToken: k.String("miniflux.api_token"),
-		SmtpHost:         k.String("smtp.host"),
-		SmtpPort:         k.Int("smtp.port"),
-		SmtpUser:         k.String("smtp.user"),
-		SmtpPassword:     k.String("smtp.password"),
-		DigestEmailTo:    k.String("digest.email.to"),
-		DigestEmailFrom:  k.String("digest.email.from"),
-		DigestSchedule:   k.String("digest.schedule"),
-		DigestHost:       k.String("digest.host"),
-		DigestCompress:   k.Bool("digest.compress"),
-		DigestGroupBy:    digest.GroupingType(k.String("digest.group_by")),
+	cfg := &Config{}
+	if err := k.Unmarshal("", &cfg); err != nil {
+		return nil, err
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil

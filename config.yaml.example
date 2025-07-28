@@ -15,4 +15,7 @@ digest:
   schedule: "@every 24h" # Cron schedule for digest generation
   host: "https://your-digest-host.com" # URL where HTML archives will be served
   compress: true # Compress HTML before sending
-  group_by: "day" # Group entries by "day" or "feed"
+  group_by: "day" # Group entries by "day" or "ai"
+
+ai:
+  api_key: "YOUR_GEMINI_API_KEY"

@@ -41,7 +41,7 @@ func categoriesCheckJob(application *app.App, scheduler gocron.Scheduler) {
 }
 
 func registerCategoriesCheckJob(application *app.App, scheduler gocron.Scheduler) {
-	_, err := scheduler.NewJob(gocron.CronJob(application.Config.DigestSchedule, true), gocron.NewTask(func() {
+	_, err := scheduler.NewJob(gocron.CronJob(application.Config.Digest.Schedule, true), gocron.NewTask(func() {
 		categoriesCheckJob(application, scheduler)
 	}))
 
@@ -67,7 +67,7 @@ func main() {
 		log.Fatalf("Error loading configuration: %v", err)
 	}
 
-	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken))
+	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken))
 
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}

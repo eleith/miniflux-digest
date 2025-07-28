@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	data := testutil.NewMockHTMLTemplateData(cfg.DigestGroupBy)
+	data := testutil.NewMockHTMLTemplateData(cfg.Digest.GroupBy)
 
 	file, err := os.Create("web/preview.html")
 	if err != nil {
@@ -34,7 +34,7 @@ func main() {
 		log.Fatalf("Failed to execute template: %v", err)
 	}
 
-	html, err := digest.MinifyHTML(buf.Bytes(), cfg.DigestCompress)
+	html, err := digest.MinifyHTML(buf.Bytes(), cfg.Digest.Compress)
 	if err != nil {
 		log.Fatalf("Failed to minify HTML: %v", err)
 	}
