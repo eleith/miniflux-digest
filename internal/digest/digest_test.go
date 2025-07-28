@@ -1,12 +1,34 @@
 package digest
 
 import (
+	"context"
+	"errors"
 	"miniflux-digest/internal/models"
 	"testing"
 	"time"
 
 	miniflux "miniflux.app/v2/client"
 )
+
+type mockLLMService struct {
+	GenerateContentFunc func(ctx context.Context, prompt string) (string, error)
+}
+
+func findGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
+	for _, group := range groups {
+		if group.Title == title {
+			return group
+		}
+	}
+	return nil
+}
+
+func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string) (string, error) {
+	if m.GenerateContentFunc != nil {
+		return m.GenerateContentFunc(ctx, prompt)
+	}
+	return "", nil
+}
 
 func TestDayGrouper_GroupEntries(t *testing.T) {
 	entries := &miniflux.Entries{
@@ -105,22 +127,127 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 }
 
 func TestNewGrouper(t *testing.T) {
-	if _, ok := NewGrouper(GroupingTypeDay, nil).(*DayGrouper); !ok {
+	mockLLM := &mockLLMService{}
+
+	if _, ok := NewGrouper(GroupingTypeDay, mockLLM).(*DayGrouper); !ok {
 		t.Error("Expected DayGrouper for 'day' grouping")
 	}
-	if _, ok := NewGrouper(GroupingTypeFeed, nil).(*FeedGrouper); !ok {
+	if _, ok := NewGrouper(GroupingTypeFeed, mockLLM).(*FeedGrouper); !ok {
 		t.Error("Expected FeedGrouper for 'feed' grouping")
 	}
-	if _, ok := NewGrouper("invalid", nil).(*DayGrouper); !ok {
+	if _, ok := NewGrouper("invalid", mockLLM).(*DayGrouper); !ok {
 		t.Error("Expected DayGrouper for invalid grouping")
+	}
+	if _, ok := NewGrouper("ai", mockLLM).(*LLMGrouper); !ok {
+		t.Error("Expected LLMGrouper for 'ai' grouping")
 	}
 }
 
-func findGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
-	for _, group := range groups {
-		if group.Title == title {
-			return group
-		}
+func TestLLMGrouper_GroupEntries(t *testing.T) {
+	entries := &miniflux.Entries{
+		{
+			ID:    1,
+			Title: "Entry 1",
+			Content: "Content of entry 1 about Go programming.",
+		},
+		{
+			ID:    2,
+			Title: "Entry 2",
+			Content: "Content of entry 2 about Go testing.",
+		},
+		{
+			ID:    3,
+			Title: "Entry 3",
+			Content: "Content of entry 3 about Python programming.",
+		},
+		{
+			ID:    4,
+			Title: "Entry 4",
+			Content: "Content of entry 4 about Go concurrency.",
+		},
 	}
-	return nil
+
+	expectedLLMResponse := `{
+	"summary": "This is a summary of all entries.",
+	"groups": [
+		{
+			"title": "Go Programming",
+			"entries": [1, 2, 4]
+		},
+		{
+			"title": "Python Programming",
+			"entries": [3]
+		}
+	]
+}`
+
+	mockLLM := &mockLLMService{
+		GenerateContentFunc: func(ctx context.Context, prompt string) (string, error) {
+			return expectedLLMResponse, nil
+		},
+	}
+
+	grouper := &LLMGrouper{LLMService: mockLLM}
+	groups, summary := grouper.GroupEntries(entries)
+
+	if summary != "This is a summary of all entries." {
+		t.Errorf("Expected summary \"This is a summary of all entries.\", got \"%s\"", summary)
+	}
+
+	if len(groups) != 2 {
+		t.Fatalf("Expected 2 groups, got %d", len(groups))
+	}
+
+	// Check group titles and entries
+	goGroup := findGroup(groups, "Go Programming")
+	if goGroup == nil || len(goGroup.Entries) != 3 || goGroup.Entries[0].ID != 1 || goGroup.Entries[1].ID != 2 || goGroup.Entries[2].ID != 4 {
+		t.Errorf("Incorrect Go Programming group: %+v", goGroup)
+	}
+
+	pythonGroup := findGroup(groups, "Python Programming")
+	if pythonGroup == nil || len(pythonGroup.Entries) != 1 || pythonGroup.Entries[0].ID != 3 {
+		t.Errorf("Incorrect Python Programming group: %+v", pythonGroup)
+	}
+
+	// Test fallback to DayGrouper on LLM error
+	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string) (string, error) {
+		return "", errors.New("LLM API error")
+	}
+	groups, summary = grouper.GroupEntries(entries)
+	if len(groups) == 0 || summary == "" {
+		t.Error("Expected fallback to DayGrouper on LLM error")
+	}
+
+	// Test fallback to DayGrouper on invalid JSON
+	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string) (string, error) {
+		return "invalid json", nil
+	}
+	groups, summary = grouper.GroupEntries(entries)
+	if len(groups) == 0 || summary == "" {
+		t.Error("Expected fallback to DayGrouper on invalid JSON")
+	}
+
+	// Test ungrouped entries
+	expectedLLMResponseWithMissingEntry := `{
+	"summary": "Summary with missing entry.",
+	"groups": [
+		{
+			"title": "Go Programming",
+			"entries": [1, 2]
+		}
+	]
+}`
+	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string) (string, error) {
+		return expectedLLMResponseWithMissingEntry, nil
+	}
+	groups, _ = grouper.GroupEntries(entries)
+
+	if len(groups) != 2 {
+		t.Fatalf("Expected 2 groups including uncategorized, got %d", len(groups))
+	}
+
+	uncategorizedGroup := findGroup(groups, "Uncategorized")
+	if uncategorizedGroup == nil || len(uncategorizedGroup.Entries) != 2 || uncategorizedGroup.Entries[0].ID != 3 || uncategorizedGroup.Entries[1].ID != 4 {
+		t.Errorf("Incorrect Uncategorized group: %+v", uncategorizedGroup)
+	}
 }
