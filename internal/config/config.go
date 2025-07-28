@@ -44,7 +44,7 @@ type ConfigDigest struct {
 	Schedule  string              `koanf:"schedule" validate:"gocron"`
 	Host      string              `koanf:"host"`
 	Compress  bool                `koanf:"compress"`
-	GroupBy   digest.GroupingType `koanf:"group_by"`
+	GroupBy   digest.GroupingType `koanf:"group_by" validate:"omitempty,oneof=day feed ai"`
 }
 
 type ConfigAI struct {
@@ -65,6 +65,14 @@ func (c *Config) Validate() error {
 	}); err != nil {
 		return fmt.Errorf("failed to register gocron validator: %w", err)
 	}
+
+	validate.RegisterStructValidation(func(sl validator.StructLevel) {
+		cfg := sl.Current().Interface().(Config)
+		if cfg.Digest.GroupBy == "ai" && cfg.AI.ApiKey == "" {
+			sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.GroupBy is 'ai'")
+		}
+	}, Config{})
+
 	err := validate.Struct(c)
 	if err == nil {
 		return nil

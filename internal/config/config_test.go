@@ -178,6 +178,34 @@ func TestLoad(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "invalid group_by value",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@daily",
+					"group_by": "magic",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing ai.api_key when group_by is ai",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@daily",
+					"group_by": "ai",
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
