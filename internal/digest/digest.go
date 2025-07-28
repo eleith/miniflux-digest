@@ -1,6 +1,8 @@
 package digest
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
@@ -137,14 +139,70 @@ type LLMGrouper struct {
 	LLMService llm.LLMService
 }
 
+type LLMResponse struct {
+	Summary string `json:"summary"`
+	Groups  []struct {
+		Title   string `json:"title"`
+		Entries []int  `json:"entries"`
+	} `json:"groups"`
+}
+
 func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string) {
-	// This is a simple prompt that will be optimized in a later branch.
-	prompt := "Please provide a summary of the following entries, and then group them by topic. For each group, provide a title and the IDs of the entries in that group.\n\n"
+	prompt := "Please provide a summary of the following entries, and then group them by topic. For each group, provide a title and the IDs of the entries in that group. Return the response as a JSON object with the following structure: {\"summary\": \"your summary\", \"groups\": [{\"title\": \"group title\", \"entries\": [entry_id_1, entry_id_2, ...]}]}\n\n"
 	for _, entry := range *entries {
 		prompt += fmt.Sprintf("- %s\n", entry.Title)
 	}
 
-	// In a real implementation, we would parse the LLM's response and create EntryGroups and a summary.
-	// For now, we'll just return the entries grouped by day as a fallback.
-	return (&DayGrouper{}).GroupEntries(entries)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	llmResponse, err := g.LLMService.GenerateContent(ctx, prompt)
+	if err != nil {
+		fmt.Printf("LLM service failed, falling back to day grouping: %v\n", err)
+		return (&DayGrouper{}).GroupEntries(entries)
+	}
+
+	var response LLMResponse
+	if err := json.Unmarshal([]byte(llmResponse), &response); err != nil {
+		fmt.Printf("Failed to parse LLM response, falling back to day grouping: %v\n", err)
+		return (&DayGrouper{}).GroupEntries(entries)
+	}
+
+	entryMap := make(map[int64]*miniflux.Entry)
+	for _, entry := range *entries {
+		entryMap[entry.ID] = entry
+	}
+
+	var entryGroups []*models.EntryGroup
+	groupedEntryIDs := make(map[int64]bool)
+
+	for _, groupData := range response.Groups {
+		var groupEntries []*miniflux.Entry
+		for _, entryID := range groupData.Entries {
+			if entry, ok := entryMap[int64(entryID)]; ok {
+				groupEntries = append(groupEntries, entry)
+				groupedEntryIDs[int64(entryID)] = true
+			}
+		}
+		entryGroups = append(entryGroups, &models.EntryGroup{
+			Title:   groupData.Title,
+			Entries: groupEntries,
+		})
+	}
+
+	var ungroupedEntries []*miniflux.Entry
+	for _, entry := range *entries {
+		if !groupedEntryIDs[entry.ID] {
+			ungroupedEntries = append(ungroupedEntries, entry)
+		}
+	}
+
+	if len(ungroupedEntries) > 0 {
+		entryGroups = append(entryGroups, &models.EntryGroup{
+			Title:   "Uncategorized",
+			Entries: ungroupedEntries,
+		})
+	}
+
+	return entryGroups, response.Summary
 }
