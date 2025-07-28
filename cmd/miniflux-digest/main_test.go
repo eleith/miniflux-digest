@@ -30,7 +30,7 @@ func TestCategoriesCheckJob(t *testing.T) {
 
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	digestSvc := digest.NewDigestService()
+	digestSvc := digest.NewDigestService(nil)
 	application := app.NewApp(
 		app.WithConfig(&config.Config{}),
 		app.WithMinifluxClientService(mockMinifluxClient),
@@ -66,7 +66,7 @@ func TestJobRegistration(t *testing.T) {
 	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient("http://localhost", "test-token"))
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	digestSvc := digest.NewDigestService()
+	digestSvc := digest.NewDigestService(nil)
 	application := app.NewApp(
 		app.WithConfig(cfg),
 		app.WithMinifluxClientService(clientWrapper),

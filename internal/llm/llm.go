@@ -7,10 +7,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-type LLMService interface {
-	GenerateContent(ctx context.Context, prompt string) (string, error)
-}
-
 type GeminiService struct {
 	client *genai.GenerativeModel
 }

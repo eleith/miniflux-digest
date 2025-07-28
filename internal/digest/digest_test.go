@@ -28,7 +28,11 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 	}
 
 	grouper := &DayGrouper{}
-	groups := grouper.GroupEntries(entries)
+	groups, summary := grouper.GroupEntries(entries)
+
+	if summary == "" {
+		t.Error("Expected a non-empty summary for DayGrouper")
+	}
 
 	if len(groups) != 2 {
 		t.Fatalf("Expected 2 groups, got %d", len(groups))
@@ -74,7 +78,11 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 	}
 
 	grouper := &FeedGrouper{}
-	groups := grouper.GroupEntries(entries)
+	groups, summary := grouper.GroupEntries(entries)
+
+	if summary == "" {
+		t.Error("Expected a non-empty summary for FeedGrouper")
+	}
 
 	if len(groups) != 2 {
 		t.Fatalf("Expected 2 groups, got %d", len(groups))
@@ -97,13 +105,13 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 }
 
 func TestNewGrouper(t *testing.T) {
-	if _, ok := NewGrouper("day").(*DayGrouper); !ok {
+	if _, ok := NewGrouper(GroupingTypeDay, nil).(*DayGrouper); !ok {
 		t.Error("Expected DayGrouper for 'day' grouping")
 	}
-	if _, ok := NewGrouper("feed").(*FeedGrouper); !ok {
+	if _, ok := NewGrouper(GroupingTypeFeed, nil).(*FeedGrouper); !ok {
 		t.Error("Expected FeedGrouper for 'feed' grouping")
 	}
-	if _, ok := NewGrouper("invalid").(*DayGrouper); !ok {
+	if _, ok := NewGrouper("invalid", nil).(*DayGrouper); !ok {
 		t.Error("Expected DayGrouper for invalid grouping")
 	}
 }

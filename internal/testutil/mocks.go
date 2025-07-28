@@ -88,6 +88,7 @@ func (m *MockEmailService) Send(cfg *config.Config, file *os.File, data *models.
 }
 
 type MockDigestService struct {
+	app.DigestService
 	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData
 }
 

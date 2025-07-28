@@ -161,7 +161,7 @@ func NewMockHTMLTemplateData(groupBy digest.GroupingType) *models.HTMLTemplateDa
 	yellowSquare := loadImageAsBase64("internal/testutil/images/yellow.png")
 	greenSquare := loadImageAsBase64("internal/testutil/images/green.png")
 
-	return digest.NewDigestService().BuildDigestData(
+	return digest.NewDigestService(nil).BuildDigestData(
 		NewMockCategory(),
 		&miniflux.Entries{
 			NewMockEntry1(),
