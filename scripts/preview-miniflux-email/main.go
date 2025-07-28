@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("Invalid category ID: %v", err)
 	}
 
-	minifluxClient := miniflux.NewClient(cfg.MinifluxHost, cfg.MinifluxApiToken)
+	minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
 	clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
 
 	archiveSvc := &archive.ArchiveServiceImpl{}

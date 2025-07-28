@@ -12,13 +12,17 @@ import (
 
 func TestSend(t *testing.T) {
 	cfg := &config.Config{
-		SmtpHost:        "localhost",
-		SmtpPort:        1025,
-		SmtpUser:        "test-user",
-		SmtpPassword:    "test-password",
-		DigestEmailTo:   "to@example.com",
-		DigestEmailFrom: "from@example.com",
-		DigestHost:      "https://example.com",
+		Smtp: config.ConfigSmtp{
+			Host:     "localhost",
+			Port:     1025,
+			User:     "test-user",
+			Password: "test-password",
+		},
+		Digest: config.ConfigDigest{
+			EmailTo:   "to@example.com",
+			EmailFrom: "from@example.com",
+			Host:      "https://example.com",
+		},
 	}
 
 	tmpFile, err := os.CreateTemp("", "test.html")
@@ -69,7 +73,7 @@ func TestTextTemplateData(t *testing.T) {
 
 	textData := templates.EmailTemplateData{
 		HTMLTemplateData: htmlTemplateData,
-		URL:          url,
+		URL:              url,
 	}
 
 	if textData.URL != url {

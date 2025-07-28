@@ -21,28 +21,28 @@ var _ app.EmailService = (*EmailServiceImpl)(nil)
 func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
 	message := mail.NewMsg()
 	client, err := mail.NewClient(
-		cfg.SmtpHost,
+		cfg.Smtp.Host,
 		mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
-		mail.WithPort(cfg.SmtpPort),
-		mail.WithUsername(cfg.SmtpUser),
-		mail.WithPassword(cfg.SmtpPassword))
+		mail.WithPort(cfg.Smtp.Port),
+		mail.WithUsername(cfg.Smtp.User),
+		mail.WithPassword(cfg.Smtp.Password))
 
 	if err != nil {
 		return err
 	}
 
-	if err := message.From(cfg.DigestEmailFrom); err != nil {
+	if err := message.From(cfg.Digest.EmailFrom); err != nil {
 		return err
 	}
 
-	if err := message.To(cfg.DigestEmailTo); err != nil {
+	if err := message.To(cfg.Digest.EmailTo); err != nil {
 		return err
 	}
 
 	subject := fmt.Sprintf("[miniflux digest] %s", data.Category.Title)
 	filename := filepath.Base(file.Name())
 	dir := filepath.Base(filepath.Dir(file.Name()))
-	url := fmt.Sprintf("%s/%s/%s", cfg.DigestHost, dir, filename)
+	url := fmt.Sprintf("%s/%s/%s", cfg.Digest.Host, dir, filename)
 	textData := templates.EmailTemplateData{
 		HTMLTemplateData: *data,
 		URL:          url,

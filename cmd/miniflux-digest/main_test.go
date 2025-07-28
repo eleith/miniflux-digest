@@ -53,7 +53,11 @@ func TestCategoriesCheckJob(t *testing.T) {
 }
 
 func TestJobRegistration(t *testing.T) {
-	cfg := &config.Config{DigestSchedule: "@daily"}
+	cfg := &config.Config{
+		Digest: config.ConfigDigest{
+			Schedule: "@daily",
+		},
+	}
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		t.Fatalf("Failed to create scheduler: %v", err)

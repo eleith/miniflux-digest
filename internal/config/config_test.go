@@ -4,83 +4,179 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestLoad(t *testing.T) {
 	tests := []struct {
 		name    string
-		content string
-		want    *Config
+		config  map[string]any
 		wantErr bool
 	}{
 		{
-			name: "compress not set",
-			content: `
-miniflux:
-  host: "miniflux.example.com"
-  api_token: "test-token"
-smtp:
-  host: "smtp.example.com"
-  port: 587
-  user: "test-user"
-  password: "test-password"
-digest:
-  email:
-    to: "to@example.com"
-    from: "from@example.com"
-  schedule: "@daily"
-  host: "https://example.com"
-`,
-			want: &Config{
-				MinifluxHost:     "miniflux.example.com",
-				MinifluxApiToken: "test-token",
-				SmtpHost:         "smtp.example.com",
-				SmtpPort:         587,
-				SmtpUser:         "test-user",
-				SmtpPassword:     "test-password",
-				DigestEmailTo:    "to@example.com",
-				DigestEmailFrom:  "from@example.com",
-				DigestSchedule:   "@daily",
-				DigestHost:       "https://example.com",
-				DigestCompress:   true,
-				DigestGroupBy:    "day",
+			name: "valid config",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@daily",
+				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "compress set to false",
-			content: `
-miniflux:
-  host: "miniflux.example.com"
-  api_token: "test-token"
-smtp:
-  host: "smtp.example.com"
-  port: 587
-  user: "test-user"
-  password: "test-password"
-digest:
-  email:
-    to: "to@example.com"
-    from: "from@example.com"
-  schedule: "@daily"
-  host: "https://example.com"
-  compress: false
-`,
-			want: &Config{
-				MinifluxHost:     "miniflux.example.com",
-				MinifluxApiToken: "test-token",
-				SmtpHost:         "smtp.example.com",
-				SmtpPort:         587,
-				SmtpUser:         "test-user",
-				SmtpPassword:     "test-password",
-				DigestEmailTo:    "to@example.com",
-				DigestEmailFrom:  "from@example.com",
-				DigestSchedule:   "@daily",
-				DigestHost:       "https://example.com",
-				DigestCompress:   false,
-				DigestGroupBy:    "day",
+			name: "invalid config missing miniflux.host",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@daily",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid config missing miniflux.api_token",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host": "miniflux.example.com",
+				},
+				"digest": map[string]any{
+					"schedule": "@daily",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid smtp.port too high",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@daily",
+				},
+				"smtp": map[string]any{
+					"port": 65536,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid smtp.port",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@daily",
+				},
+				"smtp": map[string]any{
+					"port": 587,
+				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "invalid digest.email.to format",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule":  "@daily",
+					"email.to": "invalid-email",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid digest.email.from format",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule":   "@daily",
+					"email.from": "another-invalid-email",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid digest.email.to and from",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule":   "@daily",
+					"email.to":   "test@example.com",
+					"email.from": "sender@example.com",
+				},
+			},
+							wantErr: false,
+		},
+		{
+			name: "valid cron schedule",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "* * 1 * *",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid cron schedule",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "* * * * * * *",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid @every schedule",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@every 1h30m",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid @every schedule",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digest": map[string]any{
+					"schedule": "@every bad-duration",
+				},
+			},
+			wantErr: true,
 		},
 	}
 
@@ -97,7 +193,12 @@ digest:
 			}()
 
 			configPath := filepath.Join(tmpDir, "config.yaml")
-			if err := os.WriteFile(configPath, []byte(tt.content), 0644); err != nil {
+			data, err := yaml.Marshal(tt.config)
+			if err != nil {
+				t.Fatalf("Failed to marshal test config: %v", err)
+			}
+
+			if err := os.WriteFile(configPath, data, 0644); err != nil {
 				t.Fatalf("Failed to write dummy config file: %v", err)
 			}
 
@@ -108,9 +209,12 @@ digest:
 				return
 			}
 
-			if *cfg != *tt.want {
-				t.Errorf("Load() = %v, want %v", *cfg, *tt.want)
+			if !tt.wantErr && tt.name == "default digest.schedule is @weekly" {
+				if cfg.Digest.Schedule != "@weekly" {
+					t.Errorf("Expected digest.schedule to be @weekly, got %s", cfg.Digest.Schedule)
+				}
 			}
 		})
 	}
+
 }

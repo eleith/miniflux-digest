@@ -4,14 +4,13 @@ import (
 	"log"
 
 	"miniflux-digest/internal/app"
-	
 )
 
 func CategoryDigestJob(application *app.App, rawData *app.RawCategoryData, markAsRead bool) {
-	data := application.DigestService.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, application.Config.DigestGroupBy)
+	data := application.DigestService.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, application.Config.Digest.GroupBy)
 
 	if len(*data.Entries) > 0 {
-		file, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.DigestCompress)
+		file, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
 
 		if err != nil {
 			log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
