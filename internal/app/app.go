@@ -8,6 +8,7 @@ type App struct {
 	EmailService          EmailService
 	MinifluxClientService MinifluxClientService
 	DigestService         DigestService
+	LLMService            LLMService
 }
 
 type Option func(*App)
@@ -47,5 +48,11 @@ func WithMinifluxClientService(s MinifluxClientService) Option {
 func WithDigestService(s DigestService) Option {
 	return func(a *App) {
 		a.DigestService = s
+	}
+}
+
+func WithLLMService(s LLMService) Option {
+	return func(a *App) {
+		a.LLMService = s
 	}
 }
