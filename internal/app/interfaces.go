@@ -1,14 +1,12 @@
 package app
 
 import (
-	"context"
 	"miniflux-digest/internal/config"
+	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	"os"
 	"time"
 	miniflux "miniflux.app/v2/client"
-
-	"miniflux-digest/internal/digest"
 )
 
 type ArchiveService interface {
@@ -30,8 +28,4 @@ type MinifluxClientService interface {
 	CategoryFeeds(categoryID int64) ([]*miniflux.Feed, error)
 	FeedIcon(feedID int64) (*miniflux.FeedIcon, error)
 	StreamAllCategoryData() <-chan *RawCategoryData
-}
-
-type LLMService interface {
-	GenerateContent(ctx context.Context, prompt string) (string, error)
 }

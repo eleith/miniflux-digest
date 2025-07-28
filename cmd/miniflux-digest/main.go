@@ -13,7 +13,7 @@ import (
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/email"
-	
+	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/processor"
 )
 
@@ -67,18 +67,25 @@ func main() {
 		log.Fatalf("Error loading configuration: %v", err)
 	}
 
-	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken))
+	minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
+	clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
+
+	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey, "gemini-1.5-flash-latest")
+	if err != nil {
+		log.Fatalf("Error creating LLM service: %v", err)
+	}
 
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	digestSvc := digest.NewDigestService()
+	digestService := digest.NewDigestService(llmService)
 
 	application := app.NewApp(
 		app.WithConfig(cfg),
-		app.WithMinifluxClientService(clientWrapper),
 		app.WithArchiveService(archiveSvc),
 		app.WithEmailService(emailSvc),
-		app.WithDigestService(digestSvc),
+		app.WithMinifluxClientService(clientWrapper),
+		app.WithDigestService(digestService),
+		app.WithLLMService(llmService),
 	)
 
 	scheduler, err := gocron.NewScheduler()

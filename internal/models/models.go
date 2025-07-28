@@ -16,6 +16,7 @@ type HTMLTemplateData struct {
 	GeneratedDate time.Time
 	FeedIcons     []*FeedIcon
 	EntryGroups   []*EntryGroup
+	Summary       string
 }
 
 type EntryGroup struct {

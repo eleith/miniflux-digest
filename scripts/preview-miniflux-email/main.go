@@ -34,7 +34,7 @@ func main() {
 
 	archiveSvc := &archive.ArchiveServiceImpl{}
 	emailSvc := &email.EmailServiceImpl{}
-	digestSvc := digest.NewDigestService()
+	digestSvc := digest.NewDigestService(nil)
 
 	application := app.NewApp(
 		app.WithConfig(cfg),
