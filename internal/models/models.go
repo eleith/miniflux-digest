@@ -17,6 +17,7 @@ type HTMLTemplateData struct {
 	FeedIcons     []*FeedIcon
 	EntryGroups   []*EntryGroup
 	Summary       string
+	MinifluxHost  string
 }
 
 type EntryGroup struct {

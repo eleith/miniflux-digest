@@ -7,7 +7,7 @@ import (
 )
 
 func CategoryDigestJob(application *app.App, rawData *app.RawCategoryData, markAsRead bool) {
-	data := application.DigestService.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, application.Config.Digest.GroupBy)
+	data := application.DigestService.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, application.Config.Digest.GroupBy, application.Config.Miniflux.Host)
 
 	if len(*data.Entries) > 0 {
 		file, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)

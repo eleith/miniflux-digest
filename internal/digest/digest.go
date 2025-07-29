@@ -44,7 +44,7 @@ func NewGrouper(groupBy GroupingType, llmService llm.LLMService) Grouper {
 	}
 }
 
-func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy GroupingType) *models.HTMLTemplateData {
+func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy GroupingType, minifluxHost string) *models.HTMLTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
@@ -62,6 +62,7 @@ func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *mi
 		FeedIcons:     iconsSlice,
 		EntryGroups:   entryGroups,
 		Summary:			summary,
+		MinifluxHost:  minifluxHost,
 	}
 }
 
