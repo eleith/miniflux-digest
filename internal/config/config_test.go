@@ -92,7 +92,9 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule":  "@daily",
-					"email.to": "invalid-email",
+					"email": map[string]any{
+						"to": "invalid-email",
+					},
 				},
 			},
 			wantErr: true,
@@ -106,7 +108,9 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule":   "@daily",
-					"email.from": "another-invalid-email",
+					"email": map[string]any{
+						"from": "another-invalid-email",
+					},
 				},
 			},
 			wantErr: true,
@@ -120,8 +124,10 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule":   "@daily",
-					"email.to":   "test@example.com",
-					"email.from": "sender@example.com",
+					"email": map[string]any{
+						"to":   "test@example.com",
+						"from": "sender@example.com",
+					},
 				},
 			},
 							wantErr: false,

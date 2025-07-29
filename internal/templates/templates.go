@@ -11,6 +11,7 @@ import (
 type EmailTemplateData struct {
 	models.HTMLTemplateData
 	URL string
+	Summary string
 }
 
 //go:embed *.gohtml *.gotxt

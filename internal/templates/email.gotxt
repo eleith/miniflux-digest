@@ -1,5 +1,9 @@
 {{ len .Entries }} entrie(s) were found in the category: "{{ .Category.Title }}".
 
+{{ if .Summary }}
+Summary: {{ .Summary }}
+
+{{ end }}
 {{ if .URL }}
 The entries are attached and you can also find them at: 
 	{{ .URL }}

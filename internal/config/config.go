@@ -31,6 +31,11 @@ type ConfigMiniflux struct {
 	ApiToken string `koanf:"api_token" validate:"required"`
 }
 
+type ConfigDigestEmail struct {
+	To			string `koanf:"to" validate:"omitempty,email"`
+	From		string `koanf:"from" validate:"omitempty,email"`
+}
+
 type ConfigSmtp struct {
 	Host     string `koanf:"host"`
 	Port     int    `koanf:"port" validate:"omitempty,min=1,max=65535"`
@@ -39,8 +44,7 @@ type ConfigSmtp struct {
 }
 
 type ConfigDigest struct {
-	EmailTo   string              `koanf:"email.to" validate:"omitempty,email"`
-	EmailFrom string              `koanf:"email.from" validate:"omitempty,email"`
+	Email     ConfigDigestEmail         `koanf:"email"`
 	Schedule  string              `koanf:"schedule" validate:"gocron"`
 	Host      string              `koanf:"host"`
 	Compress  bool                `koanf:"compress"`

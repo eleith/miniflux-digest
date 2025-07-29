@@ -19,8 +19,10 @@ func TestSend(t *testing.T) {
 			Password: "test-password",
 		},
 		Digest: config.ConfigDigest{
-			EmailTo:   "to@example.com",
-			EmailFrom: "from@example.com",
+			Email: config.ConfigDigestEmail{
+				To:			 "to@example.com",
+				From:       "from@example.com",
+			},
 			Host:      "https://example.com",
 		},
 	}

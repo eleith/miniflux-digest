@@ -31,11 +31,11 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.
 		return err
 	}
 
-	if err := message.From(cfg.Digest.EmailFrom); err != nil {
+	if err := message.From(cfg.Digest.Email.From); err != nil {
 		return err
 	}
 
-	if err := message.To(cfg.Digest.EmailTo); err != nil {
+	if err := message.To(cfg.Digest.Email.To); err != nil {
 		return err
 	}
 
@@ -46,6 +46,7 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.
 	textData := templates.EmailTemplateData{
 		HTMLTemplateData: *data,
 		URL:          url,
+		Summary:      data.Summary,
 	}
 
 	message.Subject(subject)
