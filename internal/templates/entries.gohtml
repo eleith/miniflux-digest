@@ -89,13 +89,20 @@
 			font-size: 1.875rem;
 			font-weight: 700;
 			color: var(--header-title-color);
-			margin: 0.5rem;
+			margin-bottom: 0.25rem;
 		}
 
 		section.header .date {
 			font-size: 0.875rem;
 			color: var(--header-date-color);
-			margin-top: 0.25rem;
+		}
+
+		section.summary p {
+			margin: 1rem auto;
+			padding: 0.5rem 1rem;
+			background-color: var(--container-background);
+			border: 1px solid var(--entry-border-color);
+			border-radius: 0.5rem;
 		}
 
 		h2.group-entries-title {
@@ -251,7 +258,11 @@
 		<section class="header">
 			<h1 class="title">{{.Category.Title}}</h1>
 			<span class="date"><a href="{{$.MinifluxHost}}/categories/{{.Category.ID}}/entries" target="_blank" rel="noopener noreferrer" class="category-link">category feed</a> generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
-			<p class="summary">{{.Summary}}</p>
+		</section>
+
+		<section class="summary">
+			<h2 class="group-entries-title">Summary</h2>
+			<p>{{.Summary}}</p>
 		</section>
 
 		<section class="entries">
