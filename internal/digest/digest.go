@@ -148,10 +148,7 @@ type LLMResponse struct {
 	} `json:"groups"`
 }
 
-const llmPrompt = `Please provide a summary of the following entries, and then group them by topic. For each group, provide a title and the IDs of the entries in that group.
-
-Entries:
-`
+const llmPrompt = `Group the following entries by topic. Return JSON with a summary and groups, each with a title and entry IDs.`
 
 var llmResponseSchema = &genai.Schema{
 	Type: genai.TypeObject,

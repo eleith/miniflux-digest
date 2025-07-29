@@ -2,11 +2,17 @@ build:
 	go build -mod=vendor -o miniflux-digest ./cmd/miniflux-digest
 
 preview-html:
-	go run -mod=vendor ./scripts/preview-html/main.go
-	./scripts/open-preview.sh
+	go run -mod=vendor ./scripts/preview/main.go
 
-preview-miniflux-email:
-	go run -mod=vendor ./scripts/preview-miniflux-email/main.go ${id}
+preview-email:
+	go run -mod=vendor ./scripts/preview/main.go --email
+
+preview-miniflux:
+ifdef category
+	go run -mod=vendor ./scripts/preview/main.go --miniflux=${category}
+else
+	@echo "use 'preview-miniflux category=' to preview a category from miniflux"
+endif
 
 test:
 	go test -mod=vendor ./... ./cmd/miniflux-digest
