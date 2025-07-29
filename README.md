@@ -29,6 +29,11 @@ user-defined schedule.
 
 ## Installation
 
+> [!NOTE]
+> The following instructions focus on Docker-based deployment, as this is the
+> primary supported method. Alternative deployment strategies or development setup
+> are left as an exercise for the reader.
+
 You can get up and running in just a few steps:
 
 ### Prerequisites
