@@ -2,7 +2,7 @@ package email
 
 import (
 	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/digest"
+	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
 	"os"
@@ -53,13 +53,17 @@ func TestSend(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
+	data := models.HTMLTemplateData{
+		Category: testutil.NewMockCategory(),
+		Entries: testutil.NewMockEntries(),
+		FeedIcons: testutil.NewMockFeedIcons(),
+	}
 
 	// In a real scenario, you would use a mock SMTP server.
 	// For this test, we are just checking if the function executes without error.
 	// The go-mail library does not make it easy to mock the SMTP client.
 	emailService := &EmailServiceImpl{}
-	err = emailService.Send(cfg, file, data)
+	err = emailService.Send(cfg, file, &data)
 	if err != nil {
 		// We expect an error because we are not running a real SMTP server.
 		// The important part is that the function attempts to connect.
@@ -70,7 +74,11 @@ func TestSend(t *testing.T) {
 }
 
 func TestTextTemplateData(t *testing.T) {
-	htmlTemplateData := *testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
+	htmlTemplateData := models.HTMLTemplateData{
+		Category: testutil.NewMockCategory(),
+		Entries: testutil.NewMockEntries(),
+		FeedIcons: testutil.NewMockFeedIcons(),
+	}
 	url := "https://example.com"
 
 	textData := templates.EmailTemplateData{

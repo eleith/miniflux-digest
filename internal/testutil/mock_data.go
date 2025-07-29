@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	miniflux "miniflux.app/v2/client"
 )
@@ -33,21 +32,21 @@ func NewMockCategory() *miniflux.Category {
 	}
 }
 
-func NewMockFeed() *miniflux.Feed {
+func NewMockFeedRed() *miniflux.Feed {
 	return &miniflux.Feed{
 		ID:    1,
 		Title: "Feed A",
 	}
 }
 
-func NewMockFeedB() *miniflux.Feed {
+func NewMockFeedYellow() *miniflux.Feed {
 	return &miniflux.Feed{
 		ID:    2,
 		Title: "Feed B",
 	}
 }
 
-func NewMockFeedC() *miniflux.Feed {
+func NewMockFeedGreen() *miniflux.Feed {
 	return &miniflux.Feed{
 		ID:    3,
 		Title: "Feed C",
@@ -59,15 +58,34 @@ func NewMockEntry() *miniflux.Entry {
 		ID:      1,
 		Title:   "Test Entry",
 		Content: "<p>Test Content</p>",
-		Feed:    NewMockFeed(),
+		Feed:    NewMockFeedRed(),
 	}
 }
 
-func NewMockFeedIcon() *models.FeedIcon {
-	redSquare := loadImageAsBase64("internal/testutil/images/red.png")
+func NewMockFeedIconRed() *models.FeedIcon {
+	feed := NewMockFeedRed()
+	icon := loadImageAsBase64("internal/testutil/images/red.png")
 	return &models.FeedIcon{
-		FeedID: 1,
-		Data:   "image/png;base64," + redSquare,
+		FeedID: feed.ID,
+		Data:   "image/png;base64," + icon,
+	}
+}
+
+func NewMockFeedIconYellow() *models.FeedIcon {
+	feed := NewMockFeedYellow()
+	icon := loadImageAsBase64("internal/testutil/images/yellow.png")
+	return &models.FeedIcon{
+		FeedID: feed.ID,
+		Data:   "image/png;base64," + icon,
+	}
+}
+
+func NewMockFeedIconGreen() *models.FeedIcon {
+	feed := NewMockFeedGreen()
+	icon := loadImageAsBase64("internal/testutil/images/green.png")
+	return &models.FeedIcon{
+		FeedID: feed.ID,
+		Data:   "image/png;base64," + icon,
 	}
 }
 
@@ -82,7 +100,7 @@ func NewMockEntry1() *miniflux.Entry {
 		Date:        time.Now().Add(-1 * time.Hour),
 		Content:     "This is a short and sweet entry.",
 		Author:      "Test Author 1",
-		Feed:        NewMockFeed(),
+		Feed:        NewMockFeedRed(),
 	}
 }
 
@@ -95,7 +113,7 @@ func NewMockEntry2() *miniflux.Entry {
 		Date:        time.Now().Add(-3 * time.Hour),
 		Content:     "This is a longer entry that contains a full paragraph of text. It is meant to simulate a more realistic entry that a user might encounter in their feed. It has enough text to wrap to multiple lines and give a good sense of how the layout will look with a more substantial amount of content.",
 		Author:      "Test Author 2",
-		Feed:        NewMockFeedB(),
+		Feed:        NewMockFeedYellow(),
 	}
 }
 
@@ -107,7 +125,7 @@ func NewMockEntry3() *miniflux.Entry {
 		URL:         "https://example.com/3",
 		Date:        time.Now().Add(-4 * time.Hour),
 		Content:     "<h1>This is a heading</h1><p>This is a paragraph with <strong>strong</strong> text and a <a href=\"https://example.com\">link</a>.</p><ul><li>This is a list item</li><li>This is another list item</li></ul>",
-		Feed:        NewMockFeedC(),
+		Feed:        NewMockFeedGreen(),
 	}
 }
 
@@ -122,7 +140,7 @@ func NewMockEntry4() *miniflux.Entry {
 		Date:        time.Now().AddDate(0, 0, -1), // One day earlier
 		Content:     "This entry is from a different day.",
 		Author:      "Test Author 4",
-		Feed:        NewMockFeed(),
+		Feed:        NewMockFeedRed(),
 	}
 }
 
@@ -137,7 +155,7 @@ func NewMockEntry5() *miniflux.Entry {
 		Date:        time.Now().AddDate(0, 0, -1).Add(-2 * time.Hour), // One day earlier, different time
 		Content:     "This is the fifth entry, also from day 2.",
 		Author:      "Test Author 5",
-		Feed:        NewMockFeedB(),
+		Feed:        NewMockFeedYellow(),
 	}
 }
 
@@ -152,30 +170,25 @@ func NewMockEntry6() *miniflux.Entry {
 		Date:        time.Now().AddDate(0, 0, -1).Add(-5 * time.Hour), // One day earlier, different time
 		Content:     "This is the sixth entry, also from day 2.",
 		Author:      "Test Author 6",
-		Feed:        NewMockFeedC(),
+		Feed:        NewMockFeedGreen(),
 	}
 }
 
-func NewMockHTMLTemplateData(groupBy digest.GroupingType) *models.HTMLTemplateData {
-	redSquare := loadImageAsBase64("internal/testutil/images/red.png")
-	yellowSquare := loadImageAsBase64("internal/testutil/images/yellow.png")
-	greenSquare := loadImageAsBase64("internal/testutil/images/green.png")
+func NewMockEntries() *miniflux.Entries {
+	return &miniflux.Entries{
+		NewMockEntry1(),
+		NewMockEntry2(),
+		NewMockEntry3(),
+		NewMockEntry4(),
+		NewMockEntry5(),
+		NewMockEntry6(),
+	}
+}
 
-	return digest.NewDigestService(nil).BuildDigestData(
-		NewMockCategory(),
-		&miniflux.Entries{
-			NewMockEntry1(),
-			NewMockEntry2(),
-			NewMockEntry3(),
-			NewMockEntry4(),
-			NewMockEntry5(),
-			NewMockEntry6(),
-		},
-		map[int64]*models.FeedIcon{
-			1: {FeedID: 1, Data: "image/png;base64," + redSquare},
-			2: {FeedID: 2, Data: "image/png;base64," + yellowSquare},
-			3: {FeedID: 3, Data: "image/png;base64," + greenSquare},
-		},
-		groupBy,
-	)
+func NewMockFeedIcons() []*models.FeedIcon {
+	return []*models.FeedIcon{
+		NewMockFeedIconRed(),
+		NewMockFeedIconYellow(),
+		NewMockFeedIconGreen(),
+	}
 }

@@ -12,7 +12,8 @@ type GeminiService struct {
 	modelName string
 }
 
-func NewGeminiService(apiKey, modelName string) (*GeminiService, error) {
+func NewGeminiService(apiKey string) (*GeminiService, error) {
+	modelName := "gemini-2.5-flash"
 	ctx := context.Background()
 	clientConfig := genai.ClientConfig{APIKey: apiKey}
 	client, err := genai.NewClient(ctx, &clientConfig)

@@ -1,7 +1,7 @@
 package archive
 
 import (
-	"miniflux-digest/internal/digest"
+	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/testutil"
 	"miniflux-digest/internal/utils"
 	"os"
@@ -11,8 +11,13 @@ import (
 )
 
 func TestGetHTML(t *testing.T) {
-	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
-	html, err := getHTML(data, true)
+	data := models.HTMLTemplateData{
+		Category: testutil.NewMockCategory(),
+		Entries: testutil.NewMockEntries(),
+		FeedIcons: testutil.NewMockFeedIcons(),
+	}
+
+	html, err := getHTML(&data, true)
 	if err != nil {
 		t.Fatalf("getHTML failed: %v", err)
 	}
@@ -32,8 +37,13 @@ func TestMakeArchiveFile(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
-	file, err := makeArchiveFile(data)
+	data := models.HTMLTemplateData{
+		Category: testutil.NewMockCategory(),
+		Entries: testutil.NewMockEntries(),
+		FeedIcons: testutil.NewMockFeedIcons(),
+	}
+
+	file, err := makeArchiveFile(&data)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
 	}
@@ -58,9 +68,13 @@ func TestMakeArchiveHTML(t *testing.T) {
 		}
 	}()
 
-	data := testutil.NewMockHTMLTemplateData(digest.GroupingTypeDay)
+	data := models.HTMLTemplateData{
+		Category: testutil.NewMockCategory(),
+		Entries: testutil.NewMockEntries(),
+		FeedIcons: testutil.NewMockFeedIcons(),
+	}
 	archiveService := &ArchiveServiceImpl{}
-	file, err := archiveService.MakeArchiveHTML(data, true)
+	file, err := archiveService.MakeArchiveHTML(&data, true)
 	if err != nil {
 		t.Fatalf("MakeArchiveHTML failed: %v", err)
 	}
