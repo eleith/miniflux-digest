@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"google.golang.org/genai"
 	miniflux "miniflux.app/v2/client"
 )
 
@@ -59,7 +60,7 @@ func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *mi
 		GeneratedDate: time.Now(),
 		FeedIcons:     iconsSlice,
 		EntryGroups:   entryGroups,
-		Summary:			 summary,
+		Summary:			summary,
 	}
 }
 
@@ -147,16 +148,48 @@ type LLMResponse struct {
 	} `json:"groups"`
 }
 
+const llmPrompt = `Please provide a summary of the following entries, and then group them by topic. For each group, provide a title and the IDs of the entries in that group.
+
+Entries:
+`
+
+var llmResponseSchema = &genai.Schema{
+	Type: genai.TypeObject,
+	Properties: map[string]*genai.Schema{
+		"summary": {
+			Type: genai.TypeString,
+		},
+		"groups": {
+			Type: genai.TypeArray,
+			Items: &genai.Schema{
+				Type: genai.TypeObject,
+				Properties: map[string]*genai.Schema{
+					"title": {
+						Type: genai.TypeString,
+					},
+					"entries": {
+						Type: genai.TypeArray,
+						Items: &genai.Schema{
+							Type: genai.TypeInteger,
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
 func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string) {
-	prompt := "Please provide a summary of the following entries, and then group them by topic. For each group, provide a title and the IDs of the entries in that group. Return the response as a JSON object with the following structure: {\"summary\": \"your summary\", \"groups\": [{\"title\": \"group title\", \"entries\": [entry_id_1, entry_id_2, ...]}]}\n\n"
+	prompt := llmPrompt
 	for _, entry := range *entries {
-		prompt += fmt.Sprintf("- %s\n", entry.Title)
+		prompt += fmt.Sprintf("- ID: %d, Title: %s\n", entry.ID, entry.Title)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	llmResponse, err := g.LLMService.GenerateContent(ctx, prompt)
+	llmResponse, err := g.LLMService.GenerateContent(ctx, prompt, llmResponseSchema)
+
 	if err != nil {
 		fmt.Printf("LLM service failed, falling back to day grouping: %v\n", err)
 		return (&DayGrouper{}).GroupEntries(entries)

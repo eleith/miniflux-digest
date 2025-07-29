@@ -48,7 +48,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			app.WithEmailService(&testutil.MockEmailService{}),
 			app.WithArchiveService(&testutil.MockArchiveService{
 				MakeArchiveHTMLFunc: func(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
-					return nil, errors.New("failed to make archive html")
+					return nil, errors.New("archive generation failed")
 				},
 			}),
 		)
@@ -59,7 +59,7 @@ func TestCategoryDigestJob(t *testing.T) {
 
 		CategoryDigestJob(mockApp, data, true)
 
-		if !bytes.Contains(buf.Bytes(), []byte("Error generating File")) {
+		if !bytes.Contains(buf.Bytes(), []byte("archive generation failed")) {
 			t.Error("Expected error log for archive generation, but not found")
 		}
 	})
@@ -80,7 +80,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			}),
 			app.WithEmailService(&testutil.MockEmailService{
 				SendFunc: func(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
-					return errors.New("failed to send email")
+					return errors.New("email sending failed")
 				},
 			}),
 		)
@@ -91,7 +91,7 @@ func TestCategoryDigestJob(t *testing.T) {
 
 		CategoryDigestJob(mockApp, data, true)
 
-		if !bytes.Contains(buf.Bytes(), []byte("Error sending email")) {
+		if !bytes.Contains(buf.Bytes(), []byte("email sending failed")) {
 			t.Error("Expected error log for email sending, but not found")
 		}
 	})
@@ -138,7 +138,7 @@ func TestCategoryDigestJob(t *testing.T) {
 
 		mockMinifluxClient := &testutil.MockMinifluxClient{
 			MarkAsReadFunc: func(categoryID int64) error {
-				return errors.New("failed to mark as read")
+				return errors.New("mark as read failed")
 			},
 		}
 		mockApp := app.NewApp(
@@ -164,7 +164,7 @@ func TestCategoryDigestJob(t *testing.T) {
 
 		CategoryDigestJob(mockApp, data, true)
 
-		if !bytes.Contains(buf.Bytes(), []byte("Error marking category as read")) {
+		if !bytes.Contains(buf.Bytes(), []byte("mark as read failed")) {
 			t.Error("Expected error log for marking as read, but not found")
 		}
 	})

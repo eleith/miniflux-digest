@@ -1,7 +1,11 @@
 package llm
 
-import "context"
+import (
+	"context"
+
+	"google.golang.org/genai"
+)
 
 type LLMService interface {
-	GenerateContent(ctx context.Context, prompt string) (string, error)
+	GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error)
 }
