@@ -25,7 +25,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			app.WithConfig(&config.Config{}),
 			app.WithMinifluxClientService(&testutil.MockMinifluxClient{}),
 			app.WithDigestService(&testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, group_by digest.GroupingType) *models.HTMLTemplateData {
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{}}
 				},
 			}),
@@ -41,7 +41,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			app.WithConfig(&config.Config{}),
 			app.WithMinifluxClientService(&testutil.MockMinifluxClient{}),
 			app.WithDigestService(&testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}}
 				},
 			}),
@@ -69,7 +69,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			app.WithConfig(&config.Config{}),
 			app.WithMinifluxClientService(&testutil.MockMinifluxClient{}),
 			app.WithDigestService(&testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}, FeedIcons: []*models.FeedIcon{}}
 				},
 			}),
@@ -108,7 +108,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			app.WithConfig(&config.Config{}),
 			app.WithMinifluxClientService(mockMinifluxClient),
 			app.WithDigestService(&testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}, FeedIcons: []*models.FeedIcon{}}
 				},
 			}),
@@ -145,7 +145,7 @@ func TestCategoryDigestJob(t *testing.T) {
 			app.WithConfig(&config.Config{}),
 			app.WithMinifluxClientService(mockMinifluxClient),
 			app.WithDigestService(&testutil.MockDigestService{
-				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType) *models.HTMLTemplateData {
+				BuildDigestDataFunc: func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData {
 					return &models.HTMLTemplateData{Entries: &miniflux.Entries{{ID: 1}}, Category: &miniflux.Category{Title: "title"}, FeedIcons: []*models.FeedIcon{}}
 				},
 			}),

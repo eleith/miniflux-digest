@@ -63,7 +63,7 @@ func generateDigestData(cfg *config.Config, minifluxID int64) *models.HTMLTempla
 			log.Fatalf("Failed to fetch category data: %v", err)
 		}
 		log.Println("generateDigestData: Building digest data with real Miniflux data...")
-		return digestSvc.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, cfg.Digest.GroupBy)
+		return digestSvc.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, cfg.Digest.GroupBy, cfg.Miniflux.Host)
 	} else {
 		log.Println("generateDigestData: Building digest data with mock data...")
 		return digestSvc.BuildDigestData(
@@ -82,6 +82,7 @@ func generateDigestData(cfg *config.Config, minifluxID int64) *models.HTMLTempla
 				3: testutil.NewMockFeedIconGreen(),
 			},
 			cfg.Digest.GroupBy,
+			cfg.Miniflux.Host,
 		)
 	}
 }

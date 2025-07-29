@@ -51,9 +51,18 @@
 				--entry-meta-text-color: #9ca3af;
 				--entry-meta-border-color: #4b5563;
 				--entry-content-text-color: #d1d5db;
-				--entry-link-color: #60a5fa;
+				--entry-link-color: #00ff00; /* Vibrant green for unvisited links */
+				--entry-visited-link-color: #00cc00; /* Muted green for visited links */
 				--entry-link-focus-background: rgba(96, 165, 250, 0.1);
 			}
+		}
+
+		a {
+			color: var(--entry-link-color);
+		}
+
+		a:visited {
+			color: var(--entry-visited-link-color);
 		}
 
 		body {
@@ -241,7 +250,7 @@
 	<div class="container">
 		<section class="header">
 			<h1 class="title">{{.Category.Title}}</h1>
-			<span class="date">generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
+			<span class="date"><a href="{{$.MinifluxHost}}/categories/{{.Category.ID}}/entries" target="_blank" rel="noopener noreferrer" class="category-link">category feed</a> generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
 			<p class="summary">{{.Summary}}</p>
 		</section>
 
@@ -276,7 +285,7 @@
 					</div>
 					{{end}}
 					<div class="entry-meta-tab">
-						<a href="/feed/{{.FeedID}}/entry/{{.ID}}" target="_blank"
+						<a href="{{$.MinifluxHost}}/feed/{{.FeedID}}/entry/{{.ID}}" target="_blank"
 							rel="noopener noreferrer" class="entry-link"
 							data-link-internal>source</a>
 					</div>
