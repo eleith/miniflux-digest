@@ -2,35 +2,41 @@ package llm
 
 import (
 	"context"
+	"errors"
 
-	"github.com/google/generative-ai-go/genai"
-	"google.golang.org/api/option"
+	"google.golang.org/genai"
 )
 
 type GeminiService struct {
-	client *genai.GenerativeModel
+	client *genai.Client
+	modelName string
 }
 
 func NewGeminiService(apiKey, modelName string) (*GeminiService, error) {
 	ctx := context.Background()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	clientConfig := genai.ClientConfig{APIKey: apiKey}
+	client, err := genai.NewClient(ctx, &clientConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	model := client.GenerativeModel(modelName)
-	return &GeminiService{client: model}, nil
+	return &GeminiService{client: client, modelName: modelName}, nil
 }
 
-func (s *GeminiService) GenerateContent(ctx context.Context, prompt string) (string, error) {
-	resp, err := s.client.GenerateContent(ctx, genai.Text(prompt))
+func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
+	resp, err := s.client.Models.GenerateContent(ctx, s.modelName, genai.Text(prompt), &genai.GenerateContentConfig{
+		ResponseMIMEType: "application/json",
+		ResponseSchema:   schema,
+	})
 	if err != nil {
 		return "", err
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
-		return "", nil
+		return "", errors.New("no content returned from LLM")
 	}
 
-	return string(resp.Candidates[0].Content.Parts[0].(genai.Text)), nil
+	// The API returns JSON as a Text part when a schema is provided
+	textPart := resp.Text()
+	return textPart, nil
 }

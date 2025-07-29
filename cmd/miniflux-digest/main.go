@@ -70,7 +70,7 @@ func main() {
 	minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
 	clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
 
-	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey, "gemini-1.5-flash-latest")
+	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey, "gemini-2.5-pro")
 	if err != nil {
 		log.Fatalf("Error creating LLM service: %v", err)
 	}
