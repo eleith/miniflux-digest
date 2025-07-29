@@ -44,11 +44,12 @@ type ConfigSmtp struct {
 }
 
 type ConfigDigest struct {
-	Email     ConfigDigestEmail         `koanf:"email"`
-	Schedule  string              `koanf:"schedule" validate:"gocron"`
-	Host      string              `koanf:"host"`
-	Compress  bool                `koanf:"compress"`
-	GroupBy   digest.GroupingType `koanf:"group_by" validate:"omitempty,oneof=day feed ai"`
+	Email        ConfigDigestEmail         `koanf:"email"`
+	Schedule     string                    `koanf:"schedule" validate:"gocron"`
+	Host         string                    `koanf:"host"`
+	Compress     bool                      `koanf:"compress"`
+	GroupBy      digest.GroupingType       `koanf:"group_by" validate:"omitempty,oneof=day feed ai"`
+	MarkAsRead   bool                      `koanf:"mark_as_read"`
 }
 
 type ConfigAI struct {
@@ -95,9 +96,10 @@ func Load(path string) (*Config, error) {
 	parser := yaml.Parser()
 
 	if err := k.Load(confmap.Provider(map[string]any{
-		"digest.compress": true,
-		"digest.group_by": "day",
-		"digest.schedule": "@weekly",
+		"digest.compress":     true,
+		"digest.group_by":     "day",
+		"digest.schedule":     "@weekly",
+		"digest.mark_as_read": true,
 	}, "."), nil); err != nil {
 		return nil, err
 	}

@@ -19,7 +19,7 @@ import (
 
 func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler, rawData *app.RawCategoryData) {
 	task := func(rawData *app.RawCategoryData) {
-		processor.CategoryDigestJob(application, rawData, true)
+		processor.CategoryDigestJob(application, rawData, application.Config.Digest.MarkAsRead)
 	}
 
 	jitter := time.Duration(rand.Intn(30)) * time.Second
