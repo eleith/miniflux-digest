@@ -50,6 +50,7 @@ type ConfigDigest struct {
 	Compress     bool                      `koanf:"compress"`
 	GroupBy      digest.GroupingType       `koanf:"group_by" validate:"omitempty,oneof=day feed ai"`
 	MarkAsRead   bool                      `koanf:"mark_as_read"`
+	RunOnStartup bool                      `koanf:"run_on_startup"`
 }
 
 type ConfigAI struct {
@@ -100,6 +101,7 @@ func Load(path string) (*Config, error) {
 		"digest.group_by":     "day",
 		"digest.schedule":     "@weekly",
 		"digest.mark_as_read": true,
+		"digest.run_on_startup": false,
 	}, "."), nil); err != nil {
 		return nil, err
 	}

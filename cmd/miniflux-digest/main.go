@@ -103,6 +103,10 @@ func main() {
 	registerCategoriesCheckJob(application, scheduler)
 	registerArchiveCleanupJob(application, scheduler)
 
+	if application.Config.Digest.RunOnStartup {
+		go categoriesCheckJob(application, scheduler)
+	}
+
 	scheduler.Start()
 
 	select {}
