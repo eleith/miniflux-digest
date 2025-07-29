@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
 	"sort"
@@ -222,13 +223,13 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 	llmResponse, err := g.LLMService.GenerateContent(ctx, prompt, llmResponseSchema)
 
 	if err != nil {
-		fmt.Printf("LLM service failed, falling back to day grouping: %v\n", err)
+		log.Printf("LLM service failed, falling back to day grouping: %v\n", err)
 		return (&DayGrouper{}).GroupEntries(entries)
 	}
 
 	var response LLMResponse
 	if err := json.Unmarshal([]byte(llmResponse), &response); err != nil {
-		fmt.Printf("Failed to parse LLM response, falling back to day grouping: %v\n", err)
+		log.Printf("Failed to parse LLM response, falling back to day grouping: %v\n", err)
 		return (&DayGrouper{}).GroupEntries(entries)
 	}
 
