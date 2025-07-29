@@ -8,6 +8,7 @@ import (
 	"miniflux-digest/internal/models"
 	"sort"
 	"time"
+	"strings"
 
 	"google.golang.org/genai"
 	miniflux "miniflux.app/v2/client"
@@ -148,7 +149,26 @@ type LLMResponse struct {
 	} `json:"groups"`
 }
 
-const llmPrompt = `Group the following entries by topic. Return JSON with a summary and groups, each with a title and entry IDs.`
+type llmEntry struct {
+	ID        int64  `json:"id"`
+	Title     string `json:"title"`
+	URL       string `json:"url"`
+	Content   string `json:"content"`
+	FeedTitle string `json:"feed_title"`
+}
+
+const llmPrompt = `You are a personal news assistant that helps organize feeds from various news websites, status updates and link aggregators. Given a list of feed entries, your task is to:
+1. provide a concise one paragraph concise 'summary' of the most important entries. it should be quick to read and informative.
+2. provide a small number of 'groups' to organize each entry into. the groups could be a topic, theme or keyword relevant to the collection of entries. groups and entries have a 1 to 1 mapping.
+3. a 'group.title' is the name of the group and 'group.entries' are a list of entry ids from the entry objects provided below.
+4. please do rank the list of entry ids in the group by order of importance, relevance or interest.
+
+Return the response as a JSON object according to the desired responseSchema.
+
+Below are the entries and other relevant metadata for this task:
+-----------------
+
+`
 
 var llmResponseSchema = &genai.Schema{
 	Type: genai.TypeObject,
@@ -177,10 +197,23 @@ var llmResponseSchema = &genai.Schema{
 }
 
 func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string) {
-	prompt := llmPrompt
-	for _, entry := range *entries {
-		prompt += fmt.Sprintf("- ID: %d, Title: %s\n", entry.ID, entry.Title)
+	llmEntries := make([]llmEntry, len(*entries))
+	for i, entry := range *entries {
+		llmEntries[i] = llmEntry{
+			ID:        entry.ID,
+			Title:     entry.Title,
+			URL:       entry.URL,
+			Content:   entry.Content,
+			FeedTitle: entry.Feed.Title,
+		}
 	}
+
+	entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
+	if err != nil {
+		return (&DayGrouper{}).GroupEntries(entries)
+	}
+
+	prompt := llmPrompt + string(entriesJSON)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -228,10 +261,20 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 	}
 
 	if len(ungroupedEntries) > 0 {
-		entryGroups = append(entryGroups, &models.EntryGroup{
-			Title:   "Uncategorized",
-			Entries: ungroupedEntries,
-		})
+		foundUncategorized := false
+		for _, group := range entryGroups {
+			if strings.EqualFold(group.Title, "Uncategorized") {
+				group.Entries = append(group.Entries, ungroupedEntries...)
+				foundUncategorized = true
+				break
+			}
+		}
+		if !foundUncategorized {
+			entryGroups = append(entryGroups, &models.EntryGroup{
+				Title:   "Uncategorized",
+				Entries: ungroupedEntries,
+			})
+		}
 	}
 
 	return entryGroups, response.Summary
