@@ -90,26 +90,9 @@ docker compose stop
 
 A `config.yaml` file is required for operation.
 
-Create this file in the root of the project directory and fill in the fields:
-
-```yaml
-miniflux:
-  host: "YOUR_MINIFLUX_URL"
-  api_token: "YOUR_MINIFLUX_API_API_KEY"
-
-smtp:
-  host: "YOUR_SMTP_HOST"
-  port: 587
-  user: "YOUR_SMTP_USERNAME"
-  password: "YOUR_SMTP_PASSWORD"
-
-digest:
-  email:
-    to: "RECIPIENT_EMAIL@example.com"
-    from: "SENDER_EMAIL@example.com"
-  schedule: "@every 1w" # cron syntax also supported
-  host: "https://your-digest-host.com" # optional
-```
+Create this file in the root of the project directory. See the
+[config.yaml.example](config.yaml.example) to learn about requirements, defaults
+and other options.
 
 ### Docker Compose
 
