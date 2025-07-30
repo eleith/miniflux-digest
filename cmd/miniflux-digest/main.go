@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -21,6 +23,7 @@ const (
 	JitterSeconds         = 30
 	ArchiveCleanupDays    = 21
 	ArchiveBasePath       = "web/miniflux-archive"
+	HealthCheckPort       = ":8080"
 )
 
 func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler, rawData *app.RawCategoryData) {
@@ -96,6 +99,19 @@ func main() {
 		go categoriesCheckJob(application, scheduler)
 	}
 
+	go func() {
+		log.Printf("Healthcheck server starting on port %s", HealthCheckPort)
+		http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			if _, err := fmt.Fprintf(w, "OK"); err != nil {
+					log.Printf("Error writing healthcheck response: %v", err)
+				}
+			})
+			if err := http.ListenAndServe(HealthCheckPort, nil); err != nil {
+				log.Fatalf("Healthcheck server failed to start: %v", err)
+			}
+		}()
+
 	scheduler.Start()
 
 	select {}
@@ -129,3 +145,4 @@ func initServices(cfg *config.Config) (*app.App, error) {
 func initScheduler() (gocron.Scheduler, error) {
 	return gocron.NewScheduler()
 }
+
