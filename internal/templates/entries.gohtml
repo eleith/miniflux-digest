@@ -257,7 +257,7 @@
 	<div class="container">
 		<section class="header">
 			<h1 class="title">{{.Category.Title}}</h1>
-			<span class="date"><a href="{{$.MinifluxHost}}/categories/{{.Category.ID}}/entries" target="_blank" rel="noopener noreferrer" class="category-link">category feed</a> generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
+			<span class="date"><a href="{{$.MinifluxHost}}/category/{{.Category.ID}}/entries" target="_blank" rel="noopener noreferrer" class="category-link">category feed</a> generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
 		</section>
 
 		<section class="summary">
