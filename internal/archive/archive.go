@@ -16,27 +16,17 @@ import (
 	"time"
 )
 
-var archiveBaseDir string
-
-func init() {
-	executablePath, err := os.Executable()
-	if err != nil {
-		log.Fatalf("Failed to get executable path: %v", err)
-	}
-	executableDir := filepath.Dir(executablePath)
-
-	// Assuming the executable is in cmd/miniflux-digest/miniflux-digest
-	// We need to go up two levels to reach the project root
-	projectRoot := filepath.Join(executableDir, "..", "..")
-
-	archiveBaseDir = filepath.Join(projectRoot, "web", "miniflux-archive")
+type ArchiveServiceImpl struct{
+	ArchiveBaseDir string
 }
-
-type ArchiveServiceImpl struct{}
 
 var _ app.ArchiveService = (*ArchiveServiceImpl)(nil)
 
-func getHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
+func NewArchiveService(archiveBaseDir string) *ArchiveServiceImpl {
+	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir}
+}
+
+func (s *ArchiveServiceImpl) getHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
 	var buf bytes.Buffer
 
 	err := templates.ArchiveTemplate.Execute(&buf, data)
@@ -47,11 +37,11 @@ func getHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
 	return digest.MinifyHTML(buf.Bytes(), compress)
 }
 
-func makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
+func (s *ArchiveServiceImpl) makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
 	categorySlug := utils.Slugify(data.Category.Title)
-	categoryFolderPath := fmt.Sprintf("%s/%s", archiveBaseDir, categorySlug)
+	categoryFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
-	err := os.MkdirAll(categoryFolderPath, os.ModePerm)
+	err := os.MkdirAll(categoryFolderPath, 0755)
 
 	if err == nil {
 		file, err := os.Create(filename)
@@ -62,14 +52,14 @@ func makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
 }
 
 func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
-	file, err := makeArchiveFile(data)
+	file, err := s.makeArchiveFile(data)
 
 	if err != nil {
 		log.Printf("Error creating HTML file for category '%s': %v", data.Category.Title, err)
 		return nil, err
 	}
 
-	htmlOutput, err := getHTML(data, compress)
+	htmlOutput, err := s.getHTML(data, compress)
 
 	if err != nil {
 		log.Printf("Error generating HTML for category %s: %v", data.Category.Title, err)
@@ -85,10 +75,10 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, comp
 	return file, err
 }
 
-func removeOldArchiveFiles(maxAge time.Duration) {
+func (s *ArchiveServiceImpl) removeOldArchiveFiles(maxAge time.Duration) {
 	cutoffTime := time.Now().Add(-maxAge)
 
-	err := filepath.WalkDir(archiveBaseDir, func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(s.ArchiveBaseDir, func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -117,7 +107,7 @@ func removeOldArchiveFiles(maxAge time.Duration) {
 	}
 }
 
-func isDirEmpty(name string) (bool, error) {
+func (s *ArchiveServiceImpl) isDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return false, err
@@ -136,17 +126,17 @@ func isDirEmpty(name string) (bool, error) {
 	return false, err
 }
 
-func removeEmptyCategoryFolders(archivePath string) {
-	dirs, err := os.ReadDir(archivePath)
+func (s *ArchiveServiceImpl) removeEmptyCategoryFolders() {
+	dirs, err := os.ReadDir(s.ArchiveBaseDir)
 	if err != nil {
-		log.Printf("Warning: could not read archive directory %s: %v", archivePath, err)
+		log.Printf("Warning: could not read archive directory %s: %v", s.ArchiveBaseDir, err)
 		return
 	}
 
 	for _, dir := range dirs {
 		if dir.IsDir() {
-			categoryPath := filepath.Join(archivePath, dir.Name())
-			empty, err := isDirEmpty(categoryPath)
+			categoryPath := filepath.Join(s.ArchiveBaseDir, dir.Name())
+			empty, err := s.isDirEmpty(categoryPath)
 			if err != nil {
 				log.Printf("Warning: could not check if directory %s is empty: %v", categoryPath, err)
 				continue
@@ -161,6 +151,6 @@ func removeEmptyCategoryFolders(archivePath string) {
 }
 
 func (s *ArchiveServiceImpl) CleanArchive(maxAge time.Duration) {
-	removeOldArchiveFiles(maxAge)
-	removeEmptyCategoryFolders(archiveBaseDir)
+	s.removeOldArchiveFiles(maxAge)
+	s.removeEmptyCategoryFolders()
 }

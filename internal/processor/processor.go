@@ -11,12 +11,10 @@ func CategoryDigestJob(application *app.App, rawData *app.RawCategoryData, markA
 
 	if len(*data.Entries) > 0 {
 		file, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
-
 		if err != nil {
 			log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
 			return
 		}
-
 		defer func() {
 			if err := file.Close(); err != nil {
 				log.Printf("Error closing file for category '%s': %v", data.Category.Title, err)

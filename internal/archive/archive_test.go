@@ -11,13 +11,14 @@ import (
 )
 
 func TestGetHTML(t *testing.T) {
+	archiveService := NewArchiveService(t.TempDir())
 	data := models.HTMLTemplateData{
 		Category: testutil.NewMockCategory(),
 		Entries: testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
 
-	html, err := getHTML(&data, true)
+	html, err := archiveService.getHTML(&data, true)
 	if err != nil {
 		t.Fatalf("getHTML failed: %v", err)
 	}
@@ -27,15 +28,9 @@ func TestGetHTML(t *testing.T) {
 }
 
 func TestMakeArchiveFile(t *testing.T) {
-	// Save original archiveBaseDir and restore it after the test
-	oldArchiveBaseDir := archiveBaseDir
-	archiveBaseDir = t.TempDir()
-	defer func() {
-		archiveBaseDir = oldArchiveBaseDir
-		if err := os.RemoveAll(archiveBaseDir); err != nil {
-			t.Errorf("Failed to clean up original archive directory: %v", err)
-		}
-	}()
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+	archiveService := NewArchiveService(tempDir)
 
 	data := models.HTMLTemplateData{
 		Category: testutil.NewMockCategory(),
@@ -43,7 +38,7 @@ func TestMakeArchiveFile(t *testing.T) {
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
 
-	file, err := makeArchiveFile(&data)
+	file, err := archiveService.makeArchiveFile(&data)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
 	}
@@ -51,29 +46,22 @@ func TestMakeArchiveFile(t *testing.T) {
 		t.Fatal("Expected file to be non-nil")
 	}
 	// Check if the file was created in the correct hardcoded path
-	expectedPath := filepath.Join(archiveBaseDir, utils.Slugify(data.Category.Title), data.GeneratedDate.Format("2006-01-02")+".html")
+	expectedPath := filepath.Join(tempDir, utils.Slugify(data.Category.Title), data.GeneratedDate.Format("2006-01-02")+".html")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("Expected file %s to exist", expectedPath)
 	}
 }
 
 func TestMakeArchiveHTML(t *testing.T) {
-	// Save original archiveBaseDir and restore it after the test
-	oldArchiveBaseDir := archiveBaseDir
-	archiveBaseDir = t.TempDir()
-	defer func() {
-		archiveBaseDir = oldArchiveBaseDir
-		if err := os.RemoveAll(archiveBaseDir); err != nil {
-			t.Errorf("Failed to clean up original archive directory: %v", err)
-		}
-	}()
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+	archiveService := NewArchiveService(tempDir)
 
 	data := models.HTMLTemplateData{
 		Category: testutil.NewMockCategory(),
 		Entries: testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
-	archiveService := &ArchiveServiceImpl{}
 	file, err := archiveService.MakeArchiveHTML(&data, true)
 	if err != nil {
 		t.Fatalf("MakeArchiveHTML failed: %v", err)
@@ -91,18 +79,12 @@ func TestMakeArchiveHTML(t *testing.T) {
 }
 
 func TestCleanArchive(t *testing.T) {
-	// Save original archiveBaseDir and restore it after the test
-	oldArchiveBaseDir := archiveBaseDir
-	archiveBaseDir = t.TempDir()
-	defer func() {
-		archiveBaseDir = oldArchiveBaseDir
-		if err := os.RemoveAll(archiveBaseDir); err != nil {
-			t.Errorf("Failed to clean up original archive directory: %v", err)
-		}
-	}()
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+	archiveService := NewArchiveService(tempDir)
 
 	categorySlug := "test-category"
-	categoryPath := filepath.Join(archiveBaseDir, categorySlug)
+	categoryPath := filepath.Join(tempDir, categorySlug)
 	if err := os.MkdirAll(categoryPath, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
@@ -121,7 +103,6 @@ func TestCleanArchive(t *testing.T) {
 		t.Fatalf("Failed to create new file: %v", err)
 	}
 
-	archiveService := &ArchiveServiceImpl{}
 	archiveService.CleanArchive(24*time.Hour)
 
 	if _, err := os.Stat(oldFilePath); !os.IsNotExist(err) {
@@ -137,11 +118,11 @@ func TestCleanArchive(t *testing.T) {
 	}
 
 	// Test removeEmptyCategoryFolders separately
-	emptyCategoryPath := filepath.Join(archiveBaseDir, "empty-category")
+	emptyCategoryPath := filepath.Join(tempDir, "empty-category")
 	if err := os.MkdirAll(emptyCategoryPath, 0755); err != nil {
 		t.Fatalf("Failed to create empty test directory: %v", err)
 	}
-	removeEmptyCategoryFolders(archiveBaseDir)
+	archiveService.removeEmptyCategoryFolders()
 
 	if _, err := os.Stat(emptyCategoryPath); !os.IsNotExist(err) {
 		t.Error("Expected empty category directory to be deleted")
@@ -149,6 +130,7 @@ func TestCleanArchive(t *testing.T) {
 }
 
 func TestIsDirEmpty(t *testing.T) {
+	archiveService := NewArchiveService(t.TempDir())
 	tmpDir, err := os.MkdirTemp("", "test-empty-dir")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -159,7 +141,7 @@ func TestIsDirEmpty(t *testing.T) {
 		}
 	}()
 
-	empty, err := isDirEmpty(tmpDir)
+	empty, err := archiveService.isDirEmpty(tmpDir)
 	if err != nil {
 		t.Fatalf("isDirEmpty failed for empty dir: %v", err)
 	}
@@ -172,7 +154,7 @@ func TestIsDirEmpty(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	empty, err = isDirEmpty(tmpDir)
+	empty, err = archiveService.isDirEmpty(tmpDir)
 	if err != nil {
 		t.Fatalf("isDirEmpty failed for non-empty dir: %v", err)
 	}
@@ -180,7 +162,7 @@ func TestIsDirEmpty(t *testing.T) {
 		t.Error("Expected directory to not be empty")
 	}
 
-	_, err = isDirEmpty("non-existent-dir")
+	_, err = archiveService.isDirEmpty("non-existent-dir")
 	if !os.IsNotExist(err) {
 		t.Errorf("Expected IsNotExist error for non-existent dir, got: %v", err)
 	}
