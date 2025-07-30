@@ -51,8 +51,10 @@
 				--entry-meta-text-color: #9ca3af;
 				--entry-meta-border-color: #4b5563;
 				--entry-content-text-color: #d1d5db;
-				--entry-link-color: #00ff00; /* Vibrant green for unvisited links */
-				--entry-visited-link-color: #00cc00; /* Muted green for visited links */
+				--entry-link-color: #00ff00;
+				/* Vibrant green for unvisited links */
+				--entry-visited-link-color: #00cc00;
+				/* Muted green for visited links */
 				--entry-link-focus-background: rgba(96, 165, 250, 0.1);
 			}
 		}
@@ -129,7 +131,7 @@
 
 		summary.entry {
 			font-size: 1.25rem;
-			font-weight: 600;
+			font-weight: 450;
 			padding: 0.5rem;
 			cursor: pointer;
 			color: var(--entry-summary-color);
@@ -154,15 +156,12 @@
 		}
 
 		section.entry.viewed:not(.active) {
-			opacity: 0.8;
 			filter: grayscale(100%);
+			opacity: 0.75;
 		}
-
-		section.entry.viewed:not(.active) summary.entry {
-			font-weight: 400;
-		}
-
+		
 		.entry-meta {
+			filter: grayscale(100%);
 			font-size: 0.875rem;
 			color: var(--entry-meta-text-color);
 			display: flex;
@@ -171,6 +170,10 @@
 			align-items: center;
 			justify-content: start;
 			border-top: 1px solid var(--entry-meta-border-color);
+		}
+
+		section.entry.active > .entry-meta {
+			filter: none;
 		}
 
 		.entry-meta-tab {
@@ -187,6 +190,13 @@
 
 		.entry-meta-tab:last-child {
 			border-right: none;
+		}
+
+		.entry-meta-tab-feed-title {
+			max-width: 200px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 
 		.entry-content {
@@ -238,17 +248,17 @@
 			cursor: pointer;
 		}
 
-		details summary > * {
+		details summary>* {
 			display: inline;
 		}
 
-		{{range .FeedIcons}}
-		div.feed-icon-{{.FeedID}} {
+		{{range .FeedIcons}} div.feed-icon-{{.FeedID}} {
 			background-image: url("data:{{.Data}}");
 			background-size: contain;
 			width: 16px;
 			height: 16px;
 		}
+
 		{{end}}
 	</style>
 </head>
@@ -257,7 +267,9 @@
 	<div class="container">
 		<section class="header">
 			<h1 class="title">{{.Category.Title}}</h1>
-			<span class="date"><a href="{{$.MinifluxHost}}/category/{{.Category.ID}}/entries" target="_blank" rel="noopener noreferrer" class="category-link">category feed</a> generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
+			<span class="date"><a href="{{$.MinifluxHost}}/category/{{.Category.ID}}/entries" target="_blank"
+					rel="noopener noreferrer" class="category-link">category feed</a> generated on {{.GeneratedDate.Format
+				"Jan 2, 2006"}}</span>
 		</section>
 
 		<section class="summary">
@@ -282,26 +294,23 @@
 				<div class="entry-meta">
 					<div class="entry-meta-tab entry-meta-tab-feed">
 						<div class="feed-icon-{{.FeedID}}"></div>
-						<div>{{.Feed.Title}}</div>
+						<div class="entry-meta-tab-feed-title">{{.Feed.Title}}</div>
 					</div>
-					<div class="entry-meta-tab">{{.Date.Format "2 Jan"}}</div>
-					<div class="entry-meta-tab" style="margin-left: auto;">
-						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer"
-							class="entry-link" data-link-external>permalink</a>
+					<div class="entry-meta-tab" style="margin-left: auto;">{{.Date.Format
+						"Jan 2"}}</div>
+					<div class="entry-meta-tab">
+						<a href="{{.URL}}" target="_blank" rel="noopener noreferrer" class="entry-link"
+							data-link-external>permalink</a>
 					</div>
 					{{if .CommentsURL}}
 					<div class="entry-meta-tab">
-						<a href="{{.CommentsURL}}" target="_blank" rel="noopener noreferrer"
-							class="entry-link" data-link-comments>comments</a>
+						<a href="{{.CommentsURL}}" target="_blank" rel="noopener noreferrer" class="entry-link"
+							data-link-comments>comments</a>
 					</div>
 					{{end}}
 					<div class="entry-meta-tab">
-						<a href="{{$.MinifluxHost}}/feed/{{.FeedID}}/entry/{{.ID}}" target="_blank"
-							rel="noopener noreferrer" class="entry-link"
-							data-link-internal>source</a>
-					</div>
-					<div class="entry-meta-tab">
-						<a href="#" class="entry-link" data-button-mark>hide</a>
+						<a href="{{$.MinifluxHost}}/feed/{{.FeedID}}/entry/{{.ID}}" target="_blank" rel="noopener noreferrer"
+							class="entry-link" data-link-internal>source</a>
 					</div>
 				</div>
 			</section>
@@ -316,96 +325,105 @@
 	<script>
 		document.addEventListener('DOMContentLoaded', () => {
 			const entries = Array.from(document.querySelectorAll('section.entry'));
-			let activeEntryIndex = -1;
+			let activeEntry = null;
 
-			function setActiveEntry(index) {
+			function setActiveEntry(entry) {
+				if (activeEntry) {
+					activeEntry.classList.remove('active');
+					activeEntry.classList.add('viewed');
+				}
+
+				activeEntry = entry;
+
+				if (activeEntry) {
+					activeEntry.classList.remove('viewed');
+					activeEntry.classList.add('active');
+					activeEntry.querySelector('summary')?.focus();
+				}
+			}
+
+			function focusEntry(startIndex, direction) {
+				let nextIndex = startIndex;
+
+				if (entries.length === 0) {
+					setActiveEntry(null);
+					return;
+				}
+
+				if (direction === 'next') {
+					nextIndex = Math.min(startIndex + 1, entries.length - 1);
+				} else if (direction === 'prev') {
+					nextIndex = Math.max(startIndex - 1, 0);
+				}
+				
+				const newEntry = entries[nextIndex];
+
+				if (newEntry) {
+					setActiveEntry(newEntry);
+				}
+			}
+
+			function navigate(direction) {
 				if (entries.length === 0) return;
+				
+				const currentIndex = activeEntry ? entries.indexOf(activeEntry) : -1;
 
-				if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
-					const activeEntry = entries[activeEntryIndex];
-					activeEntry?.classList.remove('active');
-					activeEntry?.classList.add('viewed');
-				}
-
-				activeEntryIndex = index;
-
-				if (activeEntryIndex >= 0 && activeEntryIndex < entries.length) {
-					const activeEntry = entries[activeEntryIndex];
-					const summary = activeEntry?.querySelector('summary');
-
-					activeEntry?.classList.add('active');
-					summary?.focus()
-				}
-			}
-
-			function removeEntry(index) {
-				if (index >= 0 && index < entries.length) {
-					const entry = entries[index];
-					entry.remove();
-					entries.splice(index, 1);
-					setActiveEntry(index);
+				switch (direction) {
+					case 'next':
+						focusEntry(currentIndex, 'next');
+						break;
+					case 'prev':
+						focusEntry(currentIndex, 'prev');
+						break;
+					case 'first':
+						focusEntry(0);
+						break;
+					case 'last':
+						focusEntry(entries.length - 1);
+						break;
 				}
 			}
 
-			if (entries.length > 0) {
-				setActiveEntry(0);
+			if (entries.length) {
+				focusEntry(0)
 			}
 
-			
 			document.addEventListener('click', (event) => {
-				if (event.target.matches('a[data-button-mark]')) {
-					const entry = event.target.closest('section.entry');
-					const index = entries.indexOf(entry);
+				const target = event.target;
+				const entry = target.closest('section.entry');
 
-					removeEntry(index);
-				} else if (event.target.closest('section.entry')) {
-					const entry = event.target.closest('section.entry');
-					const index = entries.indexOf(entry);
-
-					if (index !== -1) {
-						setActiveEntry(index);
-					}
+				if (entry) {
+					setActiveEntry(entry);
 				}
 			});
 
 			document.addEventListener('keydown', (event) => {
-				if (['j', 'k', 'v', 'D', 'U', 'V', 'm'].includes(event.key)) {
+				if (['j', 'k', 'v', 'D', 'U', 'V'].includes(event.key)) {
 					event.preventDefault();
 
 					switch (event.key) {
-						case 'm':
-							removeEntry(activeEntryIndex);
-							break;
 						case 'j':
-							setActiveEntry(activeEntryIndex + 1);
-							break;
-						case 'U':
-							setActiveEntry(entries.length - 1);
+							navigate('next');
 							break;
 						case 'k':
-							setActiveEntry(activeEntryIndex - 1);
+							navigate('prev');
+							break;
+						case 'U':
+							navigate('last');
 							break;
 						case 'D':
-							setActiveEntry(0);
+							navigate('first');
 							break;
 						case 'V':
-							if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
-								const currentEntry = entries[activeEntryIndex];
-								const link = currentEntry.querySelector('a[data-link-internal]');
-
-								if (link && link.href) {
-									window.open(link.href, '_blank');
-								}
+							if (activeEntry) {
+								const link = activeEntry.querySelector('a[data-link-internal]');
+								if (link && link.href) window.open(link.href, '_blank');
 							}
 							break;
 						case 'v':
-							if (activeEntryIndex !== -1 && entries[activeEntryIndex]) {
-								const currentEntry = entries[activeEntryIndex];
-								const link = currentEntry.querySelector('a[data-link-external]');
-
-								if (link && link.href) {
-									window.open(link.href, '_blank');
-								}
+							if (activeEntry) {
+								const link = activeEntry.querySelector('a[data-link-external]');
+								if (link && link.href) window.open(link.href, '_blank');
 							}
 							break;
 					}
