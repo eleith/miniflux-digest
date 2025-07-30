@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -69,6 +70,36 @@ func registerArchiveCleanupJob(application *app.App, scheduler gocron.Scheduler)
 	}
 }
 
+func SetupServer(archiveBasePath string) *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := fmt.Fprintf(w, "OK"); err != nil {
+			log.Printf("Error writing healthcheck response: %v", err)
+		}
+	})
+
+	fs := http.FileServer(http.Dir(archiveBasePath))
+	mux.Handle("/archive/", http.StripPrefix("/archive/", fs))
+
+	return mux
+}
+
+func requestSanitizerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "..") {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/") && len(r.URL.Path) > 1 {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	cfg, err := config.Load("./config.yaml")
 
@@ -100,17 +131,13 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Healthcheck server starting on port %s", HealthCheckPort)
-		http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			if _, err := fmt.Fprintf(w, "OK"); err != nil {
-					log.Printf("Error writing healthcheck response: %v", err)
-				}
-			})
-			if err := http.ListenAndServe(HealthCheckPort, nil); err != nil {
-				log.Fatalf("Healthcheck server failed to start: %v", err)
-			}
-		}()
+		mux := SetupServer(ArchiveBasePath)
+		log.Printf("Internal web server starting on port %s", HealthCheckPort)
+
+		if err := http.ListenAndServe(HealthCheckPort, requestSanitizerMiddleware(mux)); err != nil {
+			log.Fatalf("Internal web server failed to start: %v", err)
+		}
+	}()
 
 	scheduler.Start()
 
@@ -145,4 +172,3 @@ func initServices(cfg *config.Config) (*app.App, error) {
 func initScheduler() (gocron.Scheduler, error) {
 	return gocron.NewScheduler()
 }
-
