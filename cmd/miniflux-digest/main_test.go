@@ -1,89 +1,127 @@
 package main
 
 import (
-	"miniflux-digest/internal/app"
-	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/archive"
-	"miniflux-digest/internal/email"
-	"miniflux-digest/internal/digest"
-	"miniflux-digest/internal/testutil"
-	
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
-
-	"github.com/go-co-op/gocron/v2"
-	miniflux "miniflux.app/v2/client"
 )
 
-func TestCategoriesCheckJob(t *testing.T) {
-	mockMinifluxClient := &testutil.MockMinifluxClient{
-		StreamAllCategoryDataFunc: func() <-chan *app.RawCategoryData {
-			out := make(chan *app.RawCategoryData)
-			go func() {
-				defer close(out)
-				out <- &app.RawCategoryData{Category: &miniflux.Category{ID: 1, Title: "Test 1"}, Entries: &miniflux.Entries{}}
-				out <- &app.RawCategoryData{Category: &miniflux.Category{ID: 2, Title: "Test 2"}, Entries: &miniflux.Entries{}}
-				out <- &app.RawCategoryData{Category: &miniflux.Category{ID: 3, Title: "Test 3"}, Entries: &miniflux.Entries{}}
-			}()
-			return out
-		},
-	}
-
-	archiveSvc := &archive.ArchiveServiceImpl{}
-	emailSvc := &email.EmailServiceImpl{}
-	digestSvc := digest.NewDigestService(nil)
-	application := app.NewApp(
-		app.WithConfig(&config.Config{}),
-		app.WithMinifluxClientService(mockMinifluxClient),
-		app.WithArchiveService(archiveSvc),
-		app.WithEmailService(emailSvc),
-		app.WithDigestService(digestSvc),
-	)
-
-	scheduler, err := gocron.NewScheduler()
+func setupTestArchive(t *testing.T) string {
+	t.Helper()
+	tmpDir, err := os.MkdirTemp("", "miniflux-digest-test-")
 	if err != nil {
-		t.Fatalf("Failed to create scheduler: %v", err)
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
+	})
+
+	// Create a dummy file to serve
+	categoryDir := filepath.Join(tmpDir, "test-category")
+	if err := os.Mkdir(categoryDir, 0755); err != nil {
+		t.Fatalf("Failed to create category dir: %v", err)
+	}
+	filePath := filepath.Join(categoryDir, "test-file.html")
+	fileContent := "<html><body><h1>Test File</h1></body></html>"
+	if err := os.WriteFile(filePath, []byte(fileContent), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	categoriesCheckJob(application, scheduler)
+	return tmpDir
+}
 
-	jobs := scheduler.Jobs()
-	if len(jobs) != 3 {
-		t.Errorf("Expected 3 jobs to be scheduled, got %d", len(jobs))
+func TestHealthCheckHandler(t *testing.T) {
+	req := httptest.NewRequest("GET", "/healthcheck", nil)
+	rr := httptest.NewRecorder()
+	mux := SetupServer("") // archive base path is not needed for this test
+	h := requestSanitizerMiddleware(mux)
+	h.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	expected := "OK"
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			rr.Body.String(), expected)
 	}
 }
 
-func TestJobRegistration(t *testing.T) {
-	cfg := &config.Config{
-		Digest: config.ConfigDigest{
-			Schedule: "@daily",
-		},
+func TestServeArchiveFile_Success(t *testing.T) {
+	archiveBasePath := setupTestArchive(t)
+	mux := SetupServer(archiveBasePath)
+
+	req := httptest.NewRequest("GET", "/archive/test-category/test-file.html", nil)
+	rr := httptest.NewRecorder()
+	h := requestSanitizerMiddleware(mux)
+	h.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
 	}
-	scheduler, err := gocron.NewScheduler()
+
+	expected := "<html><body><h1>Test File</h1></body></html>"
+	body, err := io.ReadAll(rr.Body)
 	if err != nil {
-		t.Fatalf("Failed to create scheduler: %v", err)
+		t.Fatalf("Failed to read response body: %v", err)
 	}
-
-	clientWrapper := app.NewMinifluxClientWrapper(miniflux.NewClient("http://localhost", "test-token"))
-	archiveSvc := &archive.ArchiveServiceImpl{}
-	emailSvc := &email.EmailServiceImpl{}
-	digestSvc := digest.NewDigestService(nil)
-	application := app.NewApp(
-		app.WithConfig(cfg),
-		app.WithMinifluxClientService(clientWrapper),
-		app.WithArchiveService(archiveSvc),
-		app.WithEmailService(emailSvc),
-		app.WithDigestService(digestSvc),
-	)
-
-	registerCategoriesCheckJob(application, scheduler)
-	registerArchiveCleanupJob(application, scheduler)
-
-	jobs := scheduler.Jobs()
-	if len(jobs) != 2 {
-		t.Errorf("Expected 2 jobs to be registered, got %d", len(jobs))
+	if string(body) != expected {
+		t.Errorf("handler returned unexpected body: got %q want %q",
+			string(body), expected)
 	}
+}
 
-	if err := scheduler.Shutdown(); err != nil {
-		t.Fatalf("Failed to shutdown scheduler: %v", err)
+func TestServeArchiveFile_NotFound(t *testing.T) {
+	archiveBasePath := setupTestArchive(t)
+	mux := SetupServer(archiveBasePath)
+
+	req := httptest.NewRequest("GET", "/archive/test-category/not-found.html", nil)
+	rr := httptest.NewRecorder()
+	h := requestSanitizerMiddleware(mux)
+	h.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusNotFound {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusNotFound)
+	}
+}
+
+func TestServeArchiveFile_PathTraversal(t *testing.T) {
+	archiveBasePath := setupTestArchive(t)
+	mux := SetupServer(archiveBasePath)
+
+	// Attempt to access a file outside the archive base path
+	// The http.FileServer should prevent this, resulting in a 400
+	req := httptest.NewRequest("GET", "/archive/../main_test.go", nil)
+	rr := httptest.NewRecorder()
+	h := requestSanitizerMiddleware(mux)
+	h.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code for path traversal attempt: got %v want %v",
+			status, http.StatusBadRequest)
+	}
+}
+
+func TestServeArchiveFile_DirectoryRequest(t *testing.T) {
+	archiveBasePath := setupTestArchive(t)
+	mux := SetupServer(archiveBasePath)
+
+	req := httptest.NewRequest("GET", "/archive/test-category/", nil)
+	rr := httptest.NewRecorder()
+	h := requestSanitizerMiddleware(mux)
+	h.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusNotFound {
+		t.Errorf("handler returned wrong status code for directory request: got %v want %v",
+			status, http.StatusNotFound)
 	}
 }
