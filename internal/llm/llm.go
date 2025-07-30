@@ -7,13 +7,22 @@ import (
 	"google.golang.org/genai"
 )
 
+const GeminiModel = "gemini-1.5-flash"
+
+type modelClient interface {
+	GenerateContent(ctx context.Context, model string, parts []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error)
+}
+
 type GeminiService struct {
-	client *genai.Client
+	client    modelClient
 	modelName string
 }
 
 func NewGeminiService(apiKey string) (*GeminiService, error) {
-	modelName := "gemini-2.5-flash"
+	if apiKey == "" {
+		return &GeminiService{modelName: GeminiModel}, nil
+	}
+
 	ctx := context.Background()
 	clientConfig := genai.ClientConfig{APIKey: apiKey}
 	client, err := genai.NewClient(ctx, &clientConfig)
@@ -21,11 +30,15 @@ func NewGeminiService(apiKey string) (*GeminiService, error) {
 		return nil, err
 	}
 
-	return &GeminiService{client: client, modelName: modelName}, nil
+	return &GeminiService{client: client.Models, modelName: GeminiModel}, nil
 }
 
 func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-	resp, err := s.client.Models.GenerateContent(ctx, s.modelName, genai.Text(prompt), &genai.GenerateContentConfig{
+	if s.client == nil {
+		return "", errors.New("LLM service is disabled: no API key provided")
+	}
+
+	resp, err := s.client.GenerateContent(ctx, s.modelName, genai.Text(prompt), &genai.GenerateContentConfig{
 		ResponseMIMEType: "application/json",
 		ResponseSchema:   schema,
 	})

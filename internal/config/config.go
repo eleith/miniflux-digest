@@ -96,13 +96,7 @@ func Load(path string) (*Config, error) {
 	k := koanf.New(".")
 	parser := yaml.Parser()
 
-	if err := k.Load(confmap.Provider(map[string]any{
-		"digest.compress":     true,
-		"digest.group_by":     "day",
-		"digest.schedule":     "@weekly",
-		"digest.mark_as_read": true,
-		"digest.run_on_startup": false,
-	}, "."), nil); err != nil {
+	if err := setDefaultValues(k); err != nil {
 		return nil, err
 	}
 
@@ -120,4 +114,14 @@ func Load(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func setDefaultValues(k *koanf.Koanf) error {
+	return k.Load(confmap.Provider(map[string]any{
+		"digest.compress":     true,
+		"digest.group_by":     "day",
+		"digest.schedule":     "@weekly",
+		"digest.mark_as_read": true,
+		"digest.run_on_startup": false,
+	}, "."), nil)
 }

@@ -22,6 +22,12 @@ const (
 	GroupingTypeFeed GroupingType = "feed"
 )
 
+const (
+	LLMTimeout        = 2 * time.Minute
+	DayGroupLayout    = "2006-01-02"
+	DayGroupTitleLayout = "Jan 2, 2006"
+)
+
 func (gt GroupingType) String() string {
 	return string(gt)
 }
@@ -76,10 +82,10 @@ type DayGrouper struct{}
 func (g *DayGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string) {
 	entryGroupsMap := make(map[string]*models.EntryGroup)
 	for _, entry := range *entries {
-		dateKey := entry.Date.Format("2006-01-02")
+		dateKey := entry.Date.Format(DayGroupLayout)
 		if _, ok := entryGroupsMap[dateKey]; !ok {
 			entryGroupsMap[dateKey] = &models.EntryGroup{
-				Title:   entry.Date.Format("Jan 2, 2006"),
+				Title:   entry.Date.Format(DayGroupTitleLayout),
 				Entries: []*miniflux.Entry{},
 			}
 		}
@@ -89,10 +95,6 @@ func (g *DayGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 	// Convert map to sorted slice of EntryGroups
 	sortedEntryGroups := make([]*models.EntryGroup, 0, len(entryGroupsMap))
 	for _, group := range entryGroupsMap {
-		// Sort entries within each group by date (older to newer)
-		sort.Slice(group.Entries, func(i, j int) bool {
-			return group.Entries[i].Date.Before(group.Entries[j].Date)
-		})
 		sortedEntryGroups = append(sortedEntryGroups, group)
 	}
 
@@ -103,6 +105,13 @@ func (g *DayGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 		jDate, _ := time.Parse("Jan 2, 2006", sortedEntryGroups[j].Title)
 		return iDate.Before(jDate)
 	})
+
+	// Sort entries within each group by date (older to newer)
+	for _, group := range sortedEntryGroups {
+		sort.Slice(group.Entries, func(i, j int) bool {
+			return group.Entries[i].Date.Before(group.Entries[j].Date)
+		})
+	}
 
 	return sortedEntryGroups, fmt.Sprintf("You have %d entries from %d different days", len(*entries), len(sortedEntryGroups))
 }
@@ -124,10 +133,6 @@ func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGr
 	// Convert map to slice of EntryGroups
 	entryGroups := make([]*models.EntryGroup, 0, len(entryGroupsMap))
 	for _, group := range entryGroupsMap {
-		// Sort entries within each group by date (older to newer)
-		sort.Slice(group.Entries, func(i, j int) bool {
-			return group.Entries[i].Date.Before(group.Entries[j].Date)
-		})
 		entryGroups = append(entryGroups, group)
 	}
 
@@ -135,6 +140,13 @@ func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGr
 	sort.Slice(entryGroups, func(i, j int) bool {
 		return entryGroups[i].Title < entryGroups[j].Title
 	})
+
+	// Sort entries within each group by date (older to newer)
+	for _, group := range entryGroups {
+		sort.Slice(group.Entries, func(i, j int) bool {
+			return group.Entries[i].Date.Before(group.Entries[j].Date)
+		})
+	}
 
 	return entryGroups, fmt.Sprintf("You have %d entries from %d feeds", len(*entries), len(entryGroups))
 }
@@ -217,7 +229,7 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 
 	prompt := llmPrompt + string(entriesJSON)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), LLMTimeout)
 	defer cancel()
 
 	llmResponse, err := g.LLMService.GenerateContent(ctx, prompt, llmResponseSchema)

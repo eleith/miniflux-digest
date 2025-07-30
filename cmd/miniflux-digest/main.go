@@ -17,12 +17,18 @@ import (
 	"miniflux-digest/internal/processor"
 )
 
+const (
+	JitterSeconds         = 30
+	ArchiveCleanupDays    = 21
+	ArchiveBasePath       = "web/miniflux-archive"
+)
+
 func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler, rawData *app.RawCategoryData) {
 	task := func(rawData *app.RawCategoryData) {
 		processor.CategoryDigestJob(application, rawData, application.Config.Digest.MarkAsRead)
 	}
 
-	jitter := time.Duration(rand.Intn(30)) * time.Second
+	jitter := time.Duration(rand.Intn(JitterSeconds)) * time.Second
 	startTime := time.Now().Add(1*time.Minute + jitter)
 
 	_, err := scheduler.NewJob(
@@ -52,7 +58,7 @@ func registerCategoriesCheckJob(application *app.App, scheduler gocron.Scheduler
 
 func registerArchiveCleanupJob(application *app.App, scheduler gocron.Scheduler) {
 	_, err := scheduler.NewJob(gocron.DurationJob(time.Hour*24), gocron.NewTask(func() {
-		application.ArchiveService.CleanArchive(time.Hour*24*21)
+		application.ArchiveService.CleanArchive(time.Hour * 24 * ArchiveCleanupDays)
 	}))
 
 	if err != nil {
@@ -67,15 +73,44 @@ func main() {
 		log.Fatalf("Error loading configuration: %v", err)
 	}
 
+	application, err := initServices(cfg)
+	if err != nil {
+		log.Fatalf("Error initializing services: %v", err)
+	}
+
+	scheduler, err := initScheduler()
+	if err != nil {
+		log.Fatalf("Error creating scheduler: %v", err)
+	}
+
+	defer func() {
+		if err := scheduler.Shutdown(); err != nil {
+			log.Printf("Error stopping scheduler: %v", err)
+		}
+	}()
+
+	registerCategoriesCheckJob(application, scheduler)
+	registerArchiveCleanupJob(application, scheduler)
+
+	if application.Config.Digest.RunOnStartup {
+		go categoriesCheckJob(application, scheduler)
+	}
+
+	scheduler.Start()
+
+	select {}
+}
+
+func initServices(cfg *config.Config) (*app.App, error) {
 	minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
 	clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
 
 	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
 	if err != nil {
-		log.Fatalf("Error creating LLM service: %v", err)
+		return nil, err
 	}
 
-	archiveSvc := &archive.ArchiveServiceImpl{}
+	archiveSvc := archive.NewArchiveService(ArchiveBasePath)
 	emailSvc := &email.EmailServiceImpl{}
 	digestService := digest.NewDigestService(llmService)
 
@@ -88,26 +123,9 @@ func main() {
 		app.WithLLMService(llmService),
 	)
 
-	scheduler, err := gocron.NewScheduler()
+	return application, nil
+}
 
-	defer func() {
-		if err := scheduler.Shutdown(); err != nil {
-			log.Printf("Error stopping scheduler: %v", err)
-		}
-	}()
-
-	if err != nil {
-		log.Fatalf("Error creating scheduler: %v", err)
-	}
-
-	registerCategoriesCheckJob(application, scheduler)
-	registerArchiveCleanupJob(application, scheduler)
-
-	if application.Config.Digest.RunOnStartup {
-		go categoriesCheckJob(application, scheduler)
-	}
-
-	scheduler.Start()
-
-	select {}
+func initScheduler() (gocron.Scheduler, error) {
+	return gocron.NewScheduler()
 }
