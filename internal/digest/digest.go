@@ -68,7 +68,7 @@ func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *mi
 		GeneratedDate: time.Now(),
 		FeedIcons:     iconsSlice,
 		EntryGroups:   entryGroups,
-		Summary:			summary,
+		Summary:		summary,
 		MinifluxHost:  minifluxHost,
 	}
 }
@@ -171,11 +171,20 @@ type llmEntry struct {
 	FeedTitle string `json:"feed_title"`
 }
 
-const llmPrompt = `You are a personal news assistant that helps organize feeds from various news websites, status updates and link aggregators. Given a list of feed entries, your task is to:
-1. provide a concise one paragraph concise 'summary' of the most important entries. it should be quick to read and informative.
-2. provide a small number of 'groups' to organize each entry into. the groups could be a topic, theme or keyword relevant to the collection of entries. groups and entries have a 1 to 1 mapping.
-3. a 'group.title' is the name of the group and 'group.entries' are a list of entry ids from the entry objects provided below.
-4. please do rank the list of entry ids in the group by order of importance, relevance or interest.
+const llmPrompt = `You are an expert news editor with a talent for identifying the most important and interesting information from a large volume of content. Your primary goal is to save the user time by providing a high-level, insightful overview of their news feeds.
+
+Given the following list of entries, your task is to perform two distinct functions:
+
+1.  **Create an insightful 'summary':**
+    *   This must be a single, concise paragraph.
+    *   Your task is to identify and highlight the most significant themes, trends, or critical events from the provided entries.
+    *   **Do not** simply list the topics of every article. Instead, synthesize a compelling narrative. For example, you might point out a recurring theme across several articles or highlight a single entry if it represents a major, must-read development. Your summary should be opinionated and selective, giving the user a clear sense of what matters most.
+
+2.  **Generate intelligent 'groups' for all entries:**
+    *   Your goal is to cluster the entries into a set of meaningful, thematic groups that will help the user quickly navigate the content.
+    *   The number of groups should be driven by the content itself. **Do not create a group for a single entry unless it represents a major, unique event.** The ideal number of groups is one that best helps a user skim the content. A group can contain many entries if they are all highly related.
+    *   Group titles should be short, descriptive, and useful for skimming (e.g., "AI Industry News," "Project Updates," "Global Politics").
+    *   Within each group, you must rank the 'entries' by importance, with the most significant or actionable item appearing first.
 
 Return the response as a JSON object according to the desired responseSchema.
 
@@ -183,6 +192,7 @@ Below are the entries and other relevant metadata for this task:
 -----------------
 
 `
+
 
 var llmResponseSchema = &genai.Schema{
 	Type: genai.TypeObject,
