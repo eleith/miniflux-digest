@@ -42,7 +42,7 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.
 	subject := fmt.Sprintf("[miniflux digest] %s", data.Category.Title)
 	filename := filepath.Base(file.Name())
 	dir := filepath.Base(filepath.Dir(file.Name()))
-	url := fmt.Sprintf("%s/%s/%s", cfg.Digest.Host, dir, filename)
+	url := fmt.Sprintf("%s/%s/%s/%s", cfg.Digest.Host, "archive", dir, filename)
 	textData := templates.EmailTemplateData{
 		HTMLTemplateData: *data,
 		URL:          url,
