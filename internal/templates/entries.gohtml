@@ -52,9 +52,7 @@
 				--entry-meta-border-color: #4b5563;
 				--entry-content-text-color: #d1d5db;
 				--entry-link-color: #00ff00;
-				/* Vibrant green for unvisited links */
 				--entry-visited-link-color: #00cc00;
-				/* Muted green for visited links */
 				--entry-link-focus-background: rgba(96, 165, 250, 0.1);
 			}
 		}
@@ -326,37 +324,58 @@
 		document.addEventListener('DOMContentLoaded', () => {
 			const entries = Array.from(document.querySelectorAll('section.entry'));
 			let activeEntry = null;
+			let markAsReadTimer = null;
+			let focusTimer = null;
+			let lastScrollY = window.scrollY;
+
+			function getVisibleEntries() {
+				return entries.filter(entry => !entry.classList.contains('entry-hidden'));
+			}
+
+			function markAsRead(entry) {
+				const visibleEntries = getVisibleEntries();
+				const entryIndex = visibleEntries.indexOf(entry);
+				for (let i = 0; i < entryIndex; i++) {
+					visibleEntries[i].classList.add('viewed');
+				}
+			}
 
 			function setActiveEntry(entry) {
+				clearTimeout(markAsReadTimer);
+
 				if (activeEntry) {
 					activeEntry.classList.remove('active');
-					activeEntry.classList.add('viewed');
 				}
 
 				activeEntry = entry;
 
 				if (activeEntry) {
-					activeEntry.classList.remove('viewed');
+					activeEntry.classList.add('viewed');
 					activeEntry.classList.add('active');
 					activeEntry.querySelector('summary')?.focus();
+
+					markAsReadTimer = setTimeout(() => {
+						markAsRead(activeEntry);
+					}, 1000);
 				}
 			}
 
 			function focusEntry(startIndex, direction) {
 				let nextIndex = startIndex;
 
-				if (entries.length === 0) {
+				const visibleEntries = getVisibleEntries();
+				if (visibleEntries.length === 0) {
 					setActiveEntry(null);
 					return;
 				}
 
 				if (direction === 'next') {
-					nextIndex = Math.min(startIndex + 1, entries.length - 1);
+					nextIndex = Math.min(startIndex + 1, visibleEntries.length - 1);
 				} else if (direction === 'prev') {
 					nextIndex = Math.max(startIndex - 1, 0);
 				}
 				
-				const newEntry = entries[nextIndex];
+				const newEntry = visibleEntries[nextIndex];
 
 				if (newEntry) {
 					setActiveEntry(newEntry);
@@ -364,9 +383,10 @@
 			}
 
 			function navigate(direction) {
-				if (entries.length === 0) return;
+				const visibleEntries = getVisibleEntries();
+				if (visibleEntries.length === 0) return;
 				
-				const currentIndex = activeEntry ? entries.indexOf(activeEntry) : -1;
+				const currentIndex = activeEntry ? visibleEntries.indexOf(activeEntry) : -1;
 
 				switch (direction) {
 					case 'next':
@@ -376,16 +396,41 @@
 						focusEntry(currentIndex, 'prev');
 						break;
 					case 'first':
-						focusEntry(0);
+						setActiveEntry(visibleEntries[0]);
 						break;
 					case 'last':
-						focusEntry(entries.length - 1);
+						setActiveEntry(visibleEntries[visibleEntries.length - 1]);
 						break;
 				}
 			}
 
+			const observer = new IntersectionObserver((intersectionEntries) => {
+				const scrollDirection = window.scrollY > lastScrollY ? 'down' : 'up';
+				lastScrollY = window.scrollY;
+
+				const activeEntryStatus = intersectionEntries.find(e => e.target === activeEntry);
+
+				if (activeEntryStatus && !activeEntryStatus.isIntersecting && scrollDirection === 'down') {
+					clearTimeout(focusTimer);
+					focusTimer = setTimeout(() => {
+						for (const entry of getVisibleEntries()) {
+							if (entry.getBoundingClientRect().top >= 0) {
+									setActiveEntry(entry);
+									return;
+								}
+							}
+					}, 450);
+				} else if (activeEntryStatus && activeEntryStatus.isIntersecting) {
+					clearTimeout(focusTimer);
+				}
+			}, {
+				threshold: 0
+			});
+
+			entries.forEach(entry => observer.observe(entry));
+
 			if (entries.length) {
-				focusEntry(0)
+				setActiveEntry(getVisibleEntries()[0]);
 			}
 
 			document.addEventListener('click', (event) => {
