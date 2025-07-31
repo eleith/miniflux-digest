@@ -32,7 +32,7 @@ steps:
   build-docker:
     image: woodpeckerci/plugin-docker-buildx:6.0.1
     settings:
-      repo: git.eleith.com/eleith/miniflux-digest
+      repo: git.eleith.com/eleith.private/miniflux-digest
       username: eleith
       dockerfile: Dockerfile
       registry: https://git.eleith.com
