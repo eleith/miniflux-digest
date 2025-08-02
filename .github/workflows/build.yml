@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: lint, test and build
 
 on:
   workflow_dispatch:

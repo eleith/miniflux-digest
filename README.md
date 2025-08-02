@@ -4,7 +4,8 @@
 
 HTML digests (email, web or both) for Miniflux Categories.
 
-[![status-badge](https://ci.eleith.com/api/badges/26/status.svg)](https://ci.eleith.com/repos/26)
+[![build](https://ci.eleith.com/api/badges/26/status.svg)](https://ci.eleith.com/repos/26)
+[![ghcr build](https://github.com/eleith/miniflux-digest/actions/workflows/build.yml/badge.svg)](https://github.com/eleith/miniflux-digest/actions/workflows/build.yml)
 
 ### Overview
 
@@ -31,10 +32,7 @@ user-defined schedule.
 
 > [!NOTE]
 > The following instructions focus on Docker-based deployment, as this is the
-> primary supported method. Alternative deployment strategies or development setup
-> are left as an exercise for the reader.
-
-You can get up and running in just a few steps:
+> most straight forward method.
 
 ### Prerequisites
 
@@ -42,26 +40,44 @@ You can get up and running in just a few steps:
 * An active [Miniflux](https://miniflux.app/) account
 * A Miniflux API Key (Settings > API Keys > Create a new API key)
 
-### Clone and Build
+### Setup
 
-```bash
-git clone https://git.eleith.com/eleith/miniflux-digest.git  
-cd miniflux-digest
-docker compose build
-```
+1. **Create a Project Directory**
 
-### Configuration Setup
+   Create a directory on your system for the project.
 
-A [config.yaml.example](config.yaml.example) file is provided in the project
-root. Copy this file to `config.yaml`:
+   ```bash
+   mkdir miniflux-digest
+   cd miniflux-digest
+   ```
 
-```bash
-cp config.yaml.example config.yaml
-```
+2. **Create a `docker-compose.yml` File**
 
-Then, edit it as described in the [Configuration](#configuration) section.
+   Create a `docker-compose.yml` file with the following content. This example
+   uses the `latest` tag, but you can pin to a specific version like `0.0.8`.
 
-### Start
+   ```yaml
+   services:
+     miniflux-digest:
+       image: ghcr.io/eleith/miniflux-digest:latest
+       container_name: miniflux-digest
+       restart: unless-stopped
+       user: "1001:1001" # Optional: Set to your user/group ID
+       volumes:
+         - ./config.yaml:/app/config.yaml:ro
+         - ./archive:/app/web/miniflux-archive
+   ```
+
+3. **Create a Configuration File**
+
+   A `config.yaml` file is required for operation.
+
+   Create this file in the root of the project directory and edit it.
+
+   See the [config.yaml.example](config.yaml.example) to learn about
+   requirements, defaults and other options.
+
+### Run
 
 Run the container:
 
@@ -69,11 +85,7 @@ Run the container:
 docker-compose up -d
 ```
 
-The service will now:
-
-* Build the Docker image (if not already built).
-* Mount your config file and archive folder.
-* Start the main digest service.
+The service will now pull the Docker image and start the main digest service.
 
 Now have some ☕️, 🍵, 🧋 or a tall glass of water.
 
@@ -87,31 +99,6 @@ To stop the running service:
 
 ```bash
 docker compose stop
-```
-
-## Configuration
-
-### Config.yaml
-
-A `config.yaml` file is required for operation.
-
-Create this file in the root of the project directory. See the
-[config.yaml.example](config.yaml.example) to learn about requirements, defaults
-and other options.
-
-### Docker Compose
-
-Customize `docker-compose.yml` settings to your liking if you prefer a different
-user or different locations to store your config file and archive folder.
-
-```yaml
-services:
-  miniflux-digest:
-    user: "1001:1001"
-    volumes:
-      - ./my-custom-config.yaml:/app/config.yaml:ro
-      - ./my-custom-archive-folder:/app/web/miniflux-archive
-  restart: unless-stopped
 ```
 
 ## License
