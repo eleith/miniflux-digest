@@ -68,7 +68,7 @@ func generateDigestData(cfg *config.Config, minifluxID int64) *models.HTMLTempla
 		log.Println("generateDigestData: Building digest data with mock data...")
 		return digestSvc.BuildDigestData(
 			testutil.NewMockCategory(),
-			testutil.NewMockEntries(),
+			testutil.MockNumEntries(200),
 			map[int64]*models.FeedIcon{
 				1: testutil.NewMockFeedIconRed(),
 				2: testutil.NewMockFeedIconYellow(),
