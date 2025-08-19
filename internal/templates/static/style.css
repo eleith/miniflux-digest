@@ -209,6 +209,7 @@ section.entry.active > .entry-meta {
     color: var(--entry-content-text-color);
     padding: 1rem;
     overflow-wrap: anywhere;
+    overflow-x: auto;
 }
 
 .entry-content img {
