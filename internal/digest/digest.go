@@ -266,11 +266,14 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 	for _, groupData := range response.Groups {
 		var groupEntries []*miniflux.Entry
 		for _, entryID := range groupData.Entries {
-			if entry, ok := entryMap[int64(entryID)]; ok {
-				groupEntries = append(groupEntries, entry)
-				groupedEntryIDs[int64(entryID)] = true
+			if _, exists := groupedEntryIDs[int64(entryID)]; !exists {
+				if entry, ok := entryMap[int64(entryID)]; ok {
+					groupEntries = append(groupEntries, entry)
+					groupedEntryIDs[int64(entryID)] = true
+				}
 			}
 		}
+		
 		entryGroups = append(entryGroups, &models.EntryGroup{
 			Title:   groupData.Title,
 			Entries: groupEntries,
