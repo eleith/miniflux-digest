@@ -136,6 +136,15 @@
 			text-decoration: none;
 			list-style: none;
 			position: relative;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		details[open] summary.entry {
+			white-space: normal;
+			overflow: visible;
+			text-overflow: initial;
 		}
 
 		summary.entry:focus {
@@ -184,6 +193,10 @@
 			display: flex;
 			align-items: center;
 			gap: 0.25rem;
+			flex-grow: 1;
+			flex-shrink: 1;
+			flex-basis: 0;
+			min-width: 0;
 		}
 
 		.entry-meta-tab:last-child {
