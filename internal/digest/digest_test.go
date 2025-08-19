@@ -260,3 +260,49 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 		t.Errorf("Incorrect Uncategorized group: %+v", uncategorizedGroup)
 	}
 }
+
+func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
+	entries := createDayGrouperMockEntries()
+
+	expectedLLMResponse := `{
+	"summary": "This is a summary of all entries.",
+	"groups": [
+		{
+			"title": "Go Programming",
+			"entries": [1, 2, 1, 4]
+		},
+		{
+			"title": "Python Programming",
+			"entries": [3, 3]
+		}
+	]
+}`
+
+	mockLLM := &mockLLMService{
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
+			return expectedLLMResponse, nil
+		},
+	}
+
+	grouper := &LLMGrouper{LLMService: mockLLM}
+	groups, summary := grouper.GroupEntries(entries)
+
+	if summary != "This is a summary of all entries." {
+		t.Errorf("Expected summary \"This is a summary of all entries.\", got \"%s\"", summary)
+	}
+
+	if len(groups) != 2 {
+		t.Fatalf("Expected 2 groups, got %d", len(groups))
+	}
+
+	// Check group titles and entries
+	goGroup := findGroup(groups, "Go Programming")
+	if goGroup == nil || len(goGroup.Entries) != 3 {
+		t.Errorf("Incorrect Go Programming group: %+v", goGroup)
+	}
+
+	pythonGroup := findGroup(groups, "Python Programming")
+	if pythonGroup == nil || len(pythonGroup.Entries) != 1 {
+		t.Errorf("Incorrect Python Programming group: %+v", pythonGroup)
+	}
+}
