@@ -27,7 +27,7 @@ func init() {
 	archiveTemplateName := "entries.gohtml"
 	emailTemplateName := "email.gotxt"
 
-	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(htmlTemplate.FuncMap{
+	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(FuncMap()).Funcs(htmlTemplate.FuncMap{
 		"htmlEscape": func(s string) htmlTemplate.HTML {
 			return htmlTemplate.HTML(s)
 		},
