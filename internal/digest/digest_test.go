@@ -34,29 +34,33 @@ func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, sch
 func createDayGrouperMockEntries() *miniflux.Entries {
 	return &miniflux.Entries{
 		{
-			ID:    1,
-			Title: "Entry 1 - Jan 2",
-			Date:  time.Date(2024, time.January, 2, 10, 0, 0, 0, time.UTC),
-			Feed:  &miniflux.Feed{ID: 100, Title: "Feed A"},
+			ID:     1,
+			Title:  "Entry 1 - Jan 2",
+			Date:   time.Date(2024, time.January, 2, 10, 0, 0, 0, time.UTC),
+			FeedID: 100,
+			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
 		},
 		{
-			ID:    2,
-			Title: "Entry 2 - Jan 1",
-			Date:  time.Date(2024, time.January, 1, 10, 0, 0, 0, time.UTC),
-			Feed:  &miniflux.Feed{ID: 200, Title: "Feed B"},
+			ID:     2,
+			Title:  "Entry 2 - Jan 1",
+			Date:   time.Date(2024, time.January, 1, 10, 0, 0, 0, time.UTC),
+			FeedID: 200,
+			Feed:   &miniflux.Feed{ID: 200, Title: "Feed B"},
 		},
 		{
-			ID:    3,
-			Title: "Entry 3 - Jan 2",
-			Date:  time.Date(2024, time.January, 2, 11, 0, 0, 0, time.UTC),
-			Feed:  &miniflux.Feed{ID: 100, Title: "Feed A"},
+			ID:     3,
+			Title:  "Entry 3 - Jan 2",
+			Date:   time.Date(2024, time.January, 2, 11, 0, 0, 0, time.UTC),
+			FeedID: 100,
+			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
 		},
 		{
-			ID:    4,
-			Title: "Entry 4 - Jan 1",
+			ID:      4,
+			Title:   "Entry 4 - Jan 1",
 			Content: "Content of entry 4 about Go concurrency.",
-			Date:  time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC),
-			Feed:  &miniflux.Feed{ID: 200, Title: "Feed B"},
+			Date:    time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC),
+			FeedID:  200,
+			Feed:    &miniflux.Feed{ID: 200, Title: "Feed B"},
 		},
 	}
 }
@@ -199,8 +203,9 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	grouper := &LLMGrouper{LLMService: mockLLM}
 	groups, summary := grouper.GroupEntries(entries)
 
-	if summary != "This is a summary of all entries." {
-		t.Errorf("Expected summary \"This is a summary of all entries.\", got \"%s\"", summary)
+	expectedSummary := "This is a summary of all entries.\n\nYou have 4 entries from 2 feeds."
+	if summary != expectedSummary {
+		t.Errorf("Expected summary \"%s\", got \"%s\"", expectedSummary, summary)
 	}
 
 	if len(groups) != 2 {
@@ -287,8 +292,9 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 	grouper := &LLMGrouper{LLMService: mockLLM}
 	groups, summary := grouper.GroupEntries(entries)
 
-	if summary != "This is a summary of all entries." {
-		t.Errorf("Expected summary \"This is a summary of all entries.\", got \"%s\"", summary)
+	expectedSummary := "This is a summary of all entries.\n\nYou have 4 entries from 2 feeds."
+	if summary != expectedSummary {
+		t.Errorf("Expected summary \"%s\", got \"%s\"", expectedSummary, summary)
 	}
 
 	if len(groups) != 2 {

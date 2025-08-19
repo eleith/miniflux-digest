@@ -23,7 +23,7 @@ const (
 )
 
 const (
-	LLMTimeout        = 2 * time.Minute
+	LLMTimeout        = 5 * time.Minute
 	DayGroupLayout    = "2006-01-02"
 	DayGroupTitleLayout = "Jan 2, 2006"
 )
@@ -171,7 +171,9 @@ type llmEntry struct {
 	FeedTitle string `json:"feed_title"`
 }
 
-const llmPrompt = `You are an expert news editor with a talent for identifying the most important and interesting information from a large volume of content. Your primary goal is to save the user time by providing a high-level, insightful overview of their news feeds.
+const llmPrompt = `You are an expert content curator with a talent for identifying the most important and interesting information from a large volume of content. Your primary goal is to save the user time by providing a high-level, insightful overview of their content feeds.
+
+The content can come from a variety of sources, including news sites, blogs, forums like Reddit, and social media like Bluesky. Your tone should be that of a helpful assistant, not a news editor.
 
 Given the following list of entries, your task is to perform two distinct functions:
 
@@ -185,6 +187,7 @@ Given the following list of entries, your task is to perform two distinct functi
     *   The number of groups should be driven by the content itself. **Do not create a group for a single entry unless it represents a major, unique event.** The ideal number of groups is one that best helps a user skim the content. A group can contain many entries if they are all highly related.
     *   Group titles should be short, descriptive, and useful for skimming (e.g., "AI Industry News," "Project Updates," "Global Politics").
     *   Within each group, you must rank the 'entries' by importance, with the most significant or actionable item appearing first.
+    *   The goal of grouping is to help with reading, so if a few entries are about some similar topic, those are worth grouping because the user can just read one and skim the rest.
 
 Return the response as a JSON object according to the desired responseSchema.
 
@@ -304,5 +307,12 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 		}
 	}
 
-	return entryGroups, response.Summary
+	feedIDs := make(map[int64]bool)
+	for _, entry := range *entries {
+		feedIDs[entry.FeedID] = true
+	}
+	
+	statsSummary := fmt.Sprintf("You have %d entries from %d feeds.", len(*entries), len(feedIDs))
+
+	return entryGroups, fmt.Sprintf("%s\n\n%s", response.Summary, statsSummary)
 }
