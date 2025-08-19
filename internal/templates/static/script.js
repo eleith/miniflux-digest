@@ -27,12 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
         activeEntry = entry;
 
         if (activeEntry) {
-            activeEntry.classList.add('viewed');
+            activeEntry.classList.add('viewed'); // Mark as viewed immediately
             activeEntry.classList.add('active');
-            if (!preventScroll) {
+            if (!preventScroll) { // Only focus if not preventing scroll
                 activeEntry.querySelector('summary')?.focus();
             }
 
+            // Mark previous entries as read after a delay
             markAsReadTimer = setTimeout(() => {
                 markAsRead(activeEntry);
             }, 1000);
@@ -84,41 +85,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const observer = new IntersectionObserver((intersectionEntries) => {
-        const scrollDirection = window.scrollY > lastScrollY ? 'down' : 'up';
-        lastScrollY = window.scrollY;
+                const scrollDirection = window.scrollY > lastScrollY ? 'down' : 'up';
+                lastScrollY = window.scrollY;
 
-        const activeEntryIsVisible = entries.some(entry => {
-            if (entry === activeEntry) {
-                const rect = entry.getBoundingClientRect();
-                return rect.top >= 0 && rect.bottom <= window.innerHeight;
-            }
-            return false;
-        });
+                intersectionEntries.forEach(intersectionEntry => {
+                    const {
+                        target,
+                        isIntersecting,
+                        boundingClientRect
+                    } = intersectionEntry;
 
-        if (activeEntryIsVisible) {
-            return;
-        }
-
-        intersectionEntries.forEach(intersectionEntry => {
-            const {
-                target,
-                isIntersecting,
-                boundingClientRect
-            } = intersectionEntry;
-            if (scrollDirection === 'down' && !isIntersecting && boundingClientRect.top < 0) {
-                clearTimeout(focusTimer);
-                focusTimer = setTimeout(() => {
-                    const visibleEntries = getVisibleEntries();
-                    const nextEntry = visibleEntries[visibleEntries.indexOf(target) + 1];
-                    if (nextEntry) {
-                        setActiveEntry(nextEntry, true);
+                    // If an entry is no longer intersecting and we are scrolling down,
+                    // mark it as viewed.
+                    if (scrollDirection === 'down' && !isIntersecting && boundingClientRect.top < 0) {
+                        target.classList.add('viewed');
                     }
-                }, 450);
-            }
-        });
-    }, {
-        threshold: 0.5
-    });
+
+                    // If there's no active entry, or the active entry is no longer visible,
+                    // try to set the first visible entry as active.
+                    if (!activeEntry || (activeEntry && !intersectionEntries.some(e => e.target === activeEntry && e.isIntersecting))) {
+                        for (const entry of getVisibleEntries()) {
+                            const rect = entry.getBoundingClientRect();
+                            // Set the first entry that is at or above the top of the viewport as active.
+                            // Only set active if it's not already the active entry and it's not behind the current active entry.
+                            if (rect.top >= 0) {
+                                if (!activeEntry || entries.indexOf(entry) >= entries.indexOf(activeEntry)) {
+                                    setActiveEntry(entry, true); // Prevent scroll on auto-focus
+                                }
+                                return;
+                            }
+                        }
+                    }
+                });
+            }, {
+                threshold: 0.01 // A very small threshold to detect entry entering/leaving the viewport
+            });
 
     entries.forEach(entry => observer.observe(entry));
 
