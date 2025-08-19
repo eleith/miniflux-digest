@@ -120,7 +120,7 @@ section.entry:focus-within {
 }
 
 summary.entry {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 450;
     padding: 0.5rem;
     cursor: pointer;
@@ -128,9 +128,11 @@ summary.entry {
     text-decoration: none;
     list-style: none;
     position: relative;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 details[open] summary.entry {
