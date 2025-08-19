@@ -85,41 +85,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const observer = new IntersectionObserver((intersectionEntries) => {
-                const scrollDirection = window.scrollY > lastScrollY ? 'down' : 'up';
-                lastScrollY = window.scrollY;
+        const scrollDirection = window.scrollY > lastScrollY ? 'down' : 'up';
+        lastScrollY = window.scrollY;
 
-                intersectionEntries.forEach(intersectionEntry => {
-                    const {
-                        target,
-                        isIntersecting,
-                        boundingClientRect
-                    } = intersectionEntry;
+        // Mark entries as viewed when they scroll out of view
+        intersectionEntries.forEach(intersectionEntry => {
+            const {
+                target,
+                isIntersecting,
+                boundingClientRect
+            } = intersectionEntry;
+            if (scrollDirection === 'down' && !isIntersecting && boundingClientRect.top < 0) {
+                target.classList.add('viewed');
+            }
+        });
 
-                    // If an entry is no longer intersecting and we are scrolling down,
-                    // mark it as viewed.
-                    if (scrollDirection === 'down' && !isIntersecting && boundingClientRect.top < 0) {
-                        target.classList.add('viewed');
-                    }
+        // If we are scrolling up, do nothing with focus.
+        if (scrollDirection === 'up') {
+            return;
+        }
 
-                    // If there's no active entry, or the active entry is no longer visible,
-                    // try to set the first visible entry as active.
-                    if (!activeEntry || (activeEntry && !intersectionEntries.some(e => e.target === activeEntry && e.isIntersecting))) {
-                        for (const entry of getVisibleEntries()) {
-                            const rect = entry.getBoundingClientRect();
-                            // Set the first entry that is at or above the top of the viewport as active.
-                            // Only set active if it's not already the active entry and it's not behind the current active entry.
-                            if (rect.top >= 0) {
-                                if (!activeEntry || entries.indexOf(entry) >= entries.indexOf(activeEntry)) {
-                                    setActiveEntry(entry, true); // Prevent scroll on auto-focus
-                                }
-                                return;
-                            }
-                        }
-                    }
-                });
-            }, {
-                threshold: 0.01 // A very small threshold to detect entry entering/leaving the viewport
-            });
+        // Check if the active entry is still visible. If so, do nothing.
+        if (activeEntry) {
+            const rect = activeEntry.getBoundingClientRect();
+            if (rect.bottom > 0 && rect.top < window.innerHeight) {
+                return;
+            }
+        }
+
+        // Find the next entry to focus.
+        // It should be the first one that is at least partially visible.
+        for (const entry of getVisibleEntries()) {
+            const rect = entry.getBoundingClientRect();
+            if (rect.top >= 0 && rect.top < window.innerHeight) {
+                // Only set active if it's after the current active entry.
+                const activeEntryIndex = activeEntry ? entries.indexOf(activeEntry) : -1;
+                const newEntryIndex = entries.indexOf(entry);
+                if (newEntryIndex > activeEntryIndex) {
+                    setActiveEntry(entry, true);
+                    return;
+                }
+            }
+        }
+
+    }, {
+        threshold: 0.0,
+    });
 
     entries.forEach(entry => observer.observe(entry));
 
