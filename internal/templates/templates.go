@@ -27,11 +27,7 @@ func init() {
 	archiveTemplateName := "entries.gohtml"
 	emailTemplateName := "email.gotxt"
 
-	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(FuncMap()).Funcs(htmlTemplate.FuncMap{
-		"htmlEscape": func(s string) htmlTemplate.HTML {
-			return htmlTemplate.HTML(s)
-		},
-	}).ParseFS(embedFS, archiveTemplateName)
+	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(FuncMap()).ParseFS(embedFS, archiveTemplateName)
 
 	if err != nil {
 		log.Fatalf("Error parsing archive template: %v", err)

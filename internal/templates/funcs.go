@@ -13,7 +13,9 @@ var staticFS embed.FS
 
 func FuncMap() template.FuncMap {
 	return template.FuncMap{
-		"include": include,
+		"include":    include,
+		"textToHTML": textToHTML,
+		"htmlEscape": htmlEscape,
 	}
 }
 
@@ -31,4 +33,12 @@ func include(filename string) (any, error) {
 	default:
 		return template.HTML(b), nil
 	}
+}
+
+func textToHTML(s string) template.HTML {
+	return template.HTML(strings.ReplaceAll(template.HTMLEscapeString(s), "\n", "<br>"))
+}
+
+func htmlEscape(s string) template.HTML {
+	return template.HTML(s)
 }
