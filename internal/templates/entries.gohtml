@@ -340,7 +340,7 @@
 				}
 			}
 
-			function setActiveEntry(entry) {
+			function setActiveEntry(entry, preventScroll = false) {
 				clearTimeout(markAsReadTimer);
 
 				if (activeEntry) {
@@ -352,7 +352,9 @@
 				if (activeEntry) {
 					activeEntry.classList.add('viewed');
 					activeEntry.classList.add('active');
-					activeEntry.querySelector('summary')?.focus();
+					if (!preventScroll) {
+						activeEntry.querySelector('summary')?.focus();
+					}
 
 					markAsReadTimer = setTimeout(() => {
 						markAsRead(activeEntry);
@@ -408,23 +410,25 @@
 				const scrollDirection = window.scrollY > lastScrollY ? 'down' : 'up';
 				lastScrollY = window.scrollY;
 
-				const activeEntryStatus = intersectionEntries.find(e => e.target === activeEntry);
-
-				if (activeEntryStatus && !activeEntryStatus.isIntersecting && scrollDirection === 'down') {
-					clearTimeout(focusTimer);
-					focusTimer = setTimeout(() => {
-						for (const entry of getVisibleEntries()) {
-							if (entry.getBoundingClientRect().top >= 0) {
-									setActiveEntry(entry);
-									return;
-								}
+				intersectionEntries.forEach(intersectionEntry => {
+					const {
+						target,
+						isIntersecting,
+						boundingClientRect
+					} = intersectionEntry;
+					if (scrollDirection === 'down' && !isIntersecting && boundingClientRect.top < 0) {
+						clearTimeout(focusTimer);
+						focusTimer = setTimeout(() => {
+							const visibleEntries = getVisibleEntries();
+							const nextEntry = visibleEntries[visibleEntries.indexOf(target) + 1];
+							if (nextEntry) {
+								setActiveEntry(nextEntry, true);
 							}
-					}, 450);
-				} else if (activeEntryStatus && activeEntryStatus.isIntersecting) {
-					clearTimeout(focusTimer);
-				}
+						}, 450);
+					}
+				});
 			}, {
-				threshold: 0
+				threshold: 0.5
 			});
 
 			entries.forEach(entry => observer.observe(entry));
