@@ -41,7 +41,7 @@ func openBrowser(url string) error {
 	return exec.Command(cmd, args...).Start()
 }
 
-func generateDigestData(cfg *config.Config, minifluxID int64) *models.HTMLTemplateData {
+func generateDigestData(cfg *config.Config, useMiniflux bool) *models.HTMLTemplateData {
 	log.Println("generateDigestData: Starting...")
 	var llmService llm.LLMService
 
@@ -53,31 +53,35 @@ func generateDigestData(cfg *config.Config, minifluxID int64) *models.HTMLTempla
 	digestSvc := digest.NewDigestService(llmService)
 	log.Println("generateDigestData: DigestService initialized.")
 
-	if minifluxID != 0 {
+	var entries *miniflux.Entries
+	if useMiniflux {
 		log.Println("generateDigestData: Fetching real Miniflux data...")
 		minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
 		clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
 
-		rawData, err := clientWrapper.FetchRawCategoryData(minifluxID)
+		entries, err = clientWrapper.GetAllUnreadEntries()
 		if err != nil {
-			log.Fatalf("Failed to fetch category data: %v", err)
+			log.Fatalf("Failed to fetch entries: %v", err)
 		}
-		log.Println("generateDigestData: Building digest data with real Miniflux data...")
-		return digestSvc.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, cfg.Digest.GroupBy, cfg.Miniflux.Host)
 	} else {
-		log.Println("generateDigestData: Building digest data with mock data...")
-		return digestSvc.BuildDigestData(
-			testutil.NewMockCategory(),
-			testutil.MockNumEntries(200),
-			map[int64]*models.FeedIcon{
-				1: testutil.NewMockFeedIconRed(),
-				2: testutil.NewMockFeedIconYellow(),
-				3: testutil.NewMockFeedIconGreen(),
-			},
-			cfg.Digest.GroupBy,
-			cfg.Miniflux.Host,
-		)
+		log.Println("generateDigestData: Using mock data...")
+		entries = testutil.MockNumEntries(200)
 	}
+
+	// For the preview, we'll just use a mock category and all entries.
+	// The full grouping logic will be in the processor.
+	log.Println("generateDigestData: Building digest data...")
+	return digestSvc.BuildDigestData(
+		testutil.NewMockCategory(),
+		entries,
+		map[int64]*models.FeedIcon{
+			1: testutil.NewMockFeedIconRed(),
+			2: testutil.NewMockFeedIconYellow(),
+			3: testutil.NewMockFeedIconGreen(),
+		},
+		digest.SubGroupingType(cfg.Digest.SubGroupBy),
+		cfg.Miniflux.Host,
+	)
 }
 
 func generateHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
@@ -113,7 +117,7 @@ func writeHTMLToFile(html []byte) (string, error) {
 func main() {
 	log.Println("main: Starting preview script...")
 	emailFlag := flag.Bool("email", false, "Send the generated HTML as an email")
-	minifluxID := flag.Int64("miniflux", 0, "Miniflux category ID to fetch entries")
+	minifluxFlag := flag.Bool("miniflux", false, "Use live data from Miniflux")
 	flag.Parse()
 
 	cfg, err := config.Load("./config.yaml")
@@ -122,7 +126,7 @@ func main() {
 	}
 	log.Println("main: Config loaded.")
 
-	data := generateDigestData(cfg, *minifluxID)
+	data := generateDigestData(cfg, *minifluxFlag)
 	log.Println("main: Digest data generated.")
 
 	html, err := generateHTML(data, cfg.Digest.Compress)

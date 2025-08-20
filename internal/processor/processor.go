@@ -4,33 +4,32 @@ import (
 	"log"
 
 	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/digest"
 )
 
-func CategoryDigestJob(application *app.App, rawData *app.RawCategoryData, markAsRead bool) {
-	data := application.DigestService.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, application.Config.Digest.GroupBy, application.Config.Miniflux.Host)
+func ProcessAndSendDigest(application *app.App) {
+	log.Println("Starting to process digest...")
 
-	if len(*data.Entries) > 0 {
-		file, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
-		if err != nil {
-			log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
-			return
-		}
-		defer func() {
-			if err := file.Close(); err != nil {
-				log.Printf("Error closing file for category '%s': %v", data.Category.Title, err)
-			}
-		}()
+	entries, err := application.MinifluxClientService.GetAllUnreadEntries()
+	if err != nil {
+		log.Printf("Error getting all unread entries: %v", err)
+		return
+	}
 
-		err = application.EmailService.Send(application.Config, file, data)
+	log.Printf("Found %d unread entries", len(*entries))
 
-		if err != nil {
-			log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
-		}
+	groups := digest.GroupEntries(entries, application.Config.Digest.GroupBy)
+	log.Printf("Grouped entries into %d groups", len(groups))
 
-		if markAsRead {
-			if err := application.MinifluxClientService.MarkCategoryAsRead(data.Category.ID); err != nil {
-				log.Printf("Error marking category as read for category '%s': %v", data.Category.Title, err)
-			}
-		}
+	// TODO: Call LLM
+	// TODO: Generate Overview Digest
+	// TODO: Generate Group Digests
+	// TODO: Send Email
+	// TODO: Mark as read
+}
+
+func RunOnStartup(application *app.App) {
+	if application.Config.Digest.RunOnStartup {
+		ProcessAndSendDigest(application)
 	}
 }

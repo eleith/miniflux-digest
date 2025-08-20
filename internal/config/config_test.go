@@ -24,6 +24,9 @@ func TestLoad(t *testing.T) {
 				"digest": map[string]any{
 					"schedule": "@daily",
 				},
+				"ai": map[string]any{
+					"api_key": "dummy-key",
+				},
 			},
 			wantErr: false,
 		},
@@ -80,6 +83,9 @@ func TestLoad(t *testing.T) {
 				"smtp": map[string]any{
 					"port": 587,
 				},
+				"ai": map[string]any{
+					"api_key": "dummy-key",
+				},
 			},
 			wantErr: false,
 		},
@@ -129,8 +135,11 @@ func TestLoad(t *testing.T) {
 						"from": "sender@example.com",
 					},
 				},
+				"ai": map[string]any{
+					"api_key": "dummy-key",
+				},
 			},
-							wantErr: false,
+			wantErr: false,
 		},
 		{
 			name: "valid cron schedule",
@@ -141,6 +150,9 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule": "* * 1 * *",
+				},
+				"ai": map[string]any{
+					"api_key": "dummy-key",
 				},
 			},
 			wantErr: false,
@@ -167,6 +179,9 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule": "@every 1h30m",
+				},
+				"ai": map[string]any{
+					"api_key": "dummy-key",
 				},
 			},
 			wantErr: false,
@@ -199,15 +214,15 @@ func TestLoad(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing ai.api_key when group_by is ai",
+			name: "missing ai.api_key when sub_group_by is ai_topic",
 			config: map[string]any{
 				"miniflux": map[string]any{
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
 				"digest": map[string]any{
-					"schedule": "@daily",
-					"group_by": "ai",
+					"schedule":     "@daily",
+					"sub_group_by": "ai_topic",
 				},
 			},
 			wantErr: true,

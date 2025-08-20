@@ -124,3 +124,11 @@ func (m *MinifluxClientWrapper) StreamAllCategoryData() <-chan *RawCategoryData 
 
 	return out
 }
+
+func (m *MinifluxClientWrapper) GetAllUnreadEntries() (*miniflux.Entries, error) {
+	entries, err := m.client.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread})
+	if err != nil {
+		return nil, err
+	}
+	return &entries.Entries, nil
+}
