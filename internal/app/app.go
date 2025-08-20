@@ -3,7 +3,7 @@ package app
 import (
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/digest"
-	"miniflux-digest/internal/llm/service"
+	"miniflux-digest/internal/llm"
 )
 
 type App struct {
@@ -12,7 +12,7 @@ type App struct {
 	EmailService          EmailService
 	MinifluxClientService MinifluxClientService
 	DigestService         digest.DigestService
-	LLMService            service.LLMService
+	LLMService            llm.LLMService
 }
 
 type Option func(*App)
@@ -55,7 +55,7 @@ func WithDigestService(s digest.DigestService) Option {
 	}
 }
 
-func WithLLMService(s service.LLMService) Option { // Changed
+func WithLLMService(s llm.LLMService) Option { // Changed
 	return func(a *App) {
 		a.LLMService = s
 	}
