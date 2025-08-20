@@ -47,7 +47,7 @@ func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*minif
 
 func NewSubGrouper(subGroupBy string, llmService services.LLMService) SubGrouper {
 	switch subGroupBy {
-	case "ai":
+	case "ai_topic":
 		return &LLMGrouper{LLMService: llmService}
 	case "feed":
 		return &FeedGrouper{}
@@ -82,7 +82,7 @@ func sortEntries(entries []*miniflux.Entry, sortBy string) []*miniflux.Entry {
 	return entries
 }
 
-func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.HTMLTemplateData {
+func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
@@ -98,7 +98,7 @@ func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries
 		group.Entries = sortEntries(group.Entries, sortBy)
 	}
 
-	return &models.HTMLTemplateData{
+	return &models.OverviewTemplateData{
 		Category:      category,
 		Entries:       entries,
 		GeneratedDate: time.Now(),

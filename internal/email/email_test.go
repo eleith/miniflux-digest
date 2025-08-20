@@ -53,7 +53,7 @@ func TestSend(t *testing.T) {
 		}
 	}()
 
-	data := models.HTMLTemplateData{
+	data := models.OverviewTemplateData{
 		Category: testutil.NewMockCategory(),
 		Entries: testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
@@ -74,7 +74,7 @@ func TestSend(t *testing.T) {
 }
 
 func TestTextTemplateData(t *testing.T) {
-	htmlTemplateData := models.HTMLTemplateData{
+	htmlTemplateData := models.OverviewTemplateData{
 		Category: testutil.NewMockCategory(),
 		Entries: testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
@@ -82,7 +82,7 @@ func TestTextTemplateData(t *testing.T) {
 	url := "https://example.com"
 
 	textData := templates.EmailTemplateData{
-		HTMLTemplateData: htmlTemplateData,
+		OverviewTemplateData: htmlTemplateData,
 		URL:              url,
 	}
 

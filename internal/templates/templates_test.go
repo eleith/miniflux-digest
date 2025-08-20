@@ -45,13 +45,13 @@ func TestArchiveTemplateExecution(t *testing.T) {
 }
 
 func TestEmailTemplateExecution(t *testing.T) {
-	data := models.HTMLTemplateData{
+	data := models.OverviewTemplateData{
 		Category: testutil.NewMockCategory(),
 		Entries: testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
 	textData := &EmailTemplateData{
-		HTMLTemplateData: data,
+		OverviewTemplateData: data,
 		URL:          "https://example.com",
 	}
 	var buf bytes.Buffer

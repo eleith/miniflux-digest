@@ -7,5 +7,5 @@ import (
 )
 
 type EmailService interface {
-	Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error
+	Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error
 }

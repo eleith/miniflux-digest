@@ -76,10 +76,10 @@ func (m *MockMinifluxClient) GetAllUnreadEntries() (*miniflux.Entries, error) {
 
 type MockArchiveService struct {
 	services.ArchiveService
-	MakeArchiveHTMLFunc func(data *models.HTMLTemplateData, minify bool) (*os.File, error)
+	MakeArchiveHTMLFunc func(data *models.OverviewTemplateData, minify bool) (*os.File, error)
 }
 
-func (m *MockArchiveService) MakeArchiveHTML(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
+func (m *MockArchiveService) MakeArchiveHTML(data *models.OverviewTemplateData, minify bool) (*os.File, error) {
 	return m.MakeArchiveHTMLFunc(data, minify)
 }
 
@@ -87,19 +87,19 @@ func (m *MockArchiveService) CleanArchive(maxAge time.Duration) {}
 
 type MockEmailService struct {
 	services.EmailService
-	SendFunc func(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error
+	SendFunc func(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error
 }
 
-func (m *MockEmailService) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error {
+func (m *MockEmailService) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
 	return m.SendFunc(cfg, overviewFile, groupedEntryFiles, data)
 }
 
 type MockDigestService struct {
 	services.DigestService
-	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.HTMLTemplateData
+	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData
 }
 
-func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.HTMLTemplateData {
+func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
 	if m.BuildDigestDataFunc != nil {
 		return m.BuildDigestDataFunc(category, entries, icons, subGroupBy, sortBy, minifluxHost)
 	}
