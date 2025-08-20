@@ -97,12 +97,12 @@ func (m *MockEmailService) Send(cfg *config.Config, file *os.File, data *models.
 
 type MockDigestService struct {
 	digest.DigestService
-	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.SubGroupingType, minifluxHost string) *models.HTMLTemplateData
+	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy digest.SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData
 }
 
-func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.SubGroupingType, minifluxHost string) *models.HTMLTemplateData {
+func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy digest.SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData {
 	if m.BuildDigestDataFunc != nil {
-		return m.BuildDigestDataFunc(category, entries, icons, groupBy, minifluxHost)
+		return m.BuildDigestDataFunc(category, entries, icons, subGroupBy, sortBy, minifluxHost)
 	}
 	return nil
 }
