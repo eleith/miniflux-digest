@@ -144,16 +144,16 @@ func main() {
 	if *emailFlag {
 		log.Println("main: Email flag is true, sending email...")
 		emailSvc := &email.EmailServiceImpl{}
-		file, err := os.Open(filePath)
+		overviewFile, err := os.Open(filePath)
 		if err != nil {
 			log.Fatalf("Failed to open HTML file for email: %v", err)
 		}
 		defer func() {
-			if err := file.Close(); err != nil {
+			if err := overviewFile.Close(); err != nil {
 				log.Printf("Error closing file: %v", err)
 			}
 		}()
-		if err := emailSvc.Send(cfg, file, data); err != nil {
+		if err := emailSvc.Send(cfg, overviewFile, []*os.File{}, data); err != nil {
 			log.Fatalf("Failed to send email: %v", err)
 		}
 		log.Printf("Successfully generated %s and sent email.", filePath)
