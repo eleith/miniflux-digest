@@ -2,6 +2,7 @@ package archive
 
 import (
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
 	"miniflux-digest/internal/utils"
 	"os"
@@ -18,7 +19,7 @@ func TestGetHTML(t *testing.T) {
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
 
-	html, err := archiveService.getHTML(&data, true)
+	html, err := archiveService.getHTML(templates.ArchiveTemplate, &data, true)
 	if err != nil {
 		t.Fatalf("getHTML failed: %v", err)
 	}
@@ -38,7 +39,7 @@ func TestMakeArchiveFile(t *testing.T) {
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
 
-	file, err := archiveService.makeArchiveFile(&data)
+	file, err := archiveService.makeGroupedEntriesArchiveFile(&data)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
 	}

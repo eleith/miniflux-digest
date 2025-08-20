@@ -14,6 +14,10 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	htmlTemplate "html/template"
+
+	miniflux "miniflux.app/v2/client"
 )
 
 type ArchiveServiceImpl struct{
@@ -26,10 +30,10 @@ func NewArchiveService(archiveBaseDir string) *ArchiveServiceImpl {
 	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir}
 }
 
-func (s *ArchiveServiceImpl) getHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
+func (s *ArchiveServiceImpl) getHTML(template *htmlTemplate.Template, data *models.HTMLTemplateData, compress bool) ([]byte, error) {
 	var buf bytes.Buffer
 
-	err := templates.ArchiveTemplate.Execute(&buf, data)
+	err := template.Execute(&buf, data)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +41,7 @@ func (s *ArchiveServiceImpl) getHTML(data *models.HTMLTemplateData, compress boo
 	return digest.MinifyHTML(buf.Bytes(), compress)
 }
 
-func (s *ArchiveServiceImpl) makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
+func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
 	categorySlug := utils.Slugify(data.Category.Title)
 	categoryFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
@@ -51,28 +55,64 @@ func (s *ArchiveServiceImpl) makeArchiveFile(data *models.HTMLTemplateData) (*os
 	return nil, err
 }
 
-func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
-	file, err := s.makeArchiveFile(data)
+func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
+	dateFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, data.GeneratedDate.Format("2006-01-02"))
+	filename := fmt.Sprintf("%s/index.html", dateFolderPath)
+	err := os.MkdirAll(dateFolderPath, 0755)
 
-	if err != nil {
-		log.Printf("Error creating HTML file for category '%s': %v", data.Category.Title, err)
-		return nil, err
-	}
-
-	htmlOutput, err := s.getHTML(data, compress)
-
-	if err != nil {
-		log.Printf("Error generating HTML for category %s: %v", data.Category.Title, err)
+	if err == nil {
+		file, err := os.Create(filename)
 		return file, err
 	}
 
-	_, err = file.Write(htmlOutput)
+	return nil, err
+}
 
+func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
+	// Generate overview HTML
+	overviewFile, err := s.makeOverviewArchiveFile(data)
 	if err != nil {
-		log.Printf("Error writing HTML to file for category '%s': %v", data.Category.Title, err)
+		log.Printf("Error creating overview HTML file: %v", err)
+		return nil, err
+	}
+	overviewHTML, err := s.getHTML(templates.OverviewTemplate, data, compress)
+	if err != nil {
+		log.Printf("Error generating overview HTML: %v", err)
+		return overviewFile, err
+	}
+	_, err = overviewFile.Write(overviewHTML)
+	if err != nil {
+		log.Printf("Error writing overview HTML to file: %v", err)
 	}
 
-	return file, err
+	// Generate grouped entries HTML
+	for _, entryGroup := range data.EntryGroups {
+		groupData := &models.HTMLTemplateData{
+			Category:      data.Category,
+			Entries:       (*miniflux.Entries)(&entryGroup.Entries),
+			GeneratedDate: data.GeneratedDate,
+			FeedIcons:     data.FeedIcons,
+			EntryGroups:   []*models.EntryGroup{entryGroup},
+			Summary:       entryGroup.Title,
+			MinifluxHost:  data.MinifluxHost,
+		}
+		groupedEntriesFile, err := s.makeGroupedEntriesArchiveFile(groupData)
+		if err != nil {
+			log.Printf("Error creating grouped entries HTML file: %v", err)
+			return nil, err
+		}
+		groupedEntriesHTML, err := s.getHTML(templates.ArchiveTemplate, groupData, compress)
+		if err != nil {
+			log.Printf("Error generating grouped entries HTML: %v", err)
+			return groupedEntriesFile, err
+		}
+		_, err = groupedEntriesFile.Write(groupedEntriesHTML)
+		if err != nil {
+			log.Printf("Error writing grouped entries HTML to file: %v", err)
+		}
+	}
+
+	return overviewFile, err
 }
 
 func (s *ArchiveServiceImpl) removeOldArchiveFiles(maxAge time.Duration) {
