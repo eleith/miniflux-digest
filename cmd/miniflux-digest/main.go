@@ -27,7 +27,16 @@ const (
 )
 
 func digestJob(application *app.App) {
-	processor.ProcessAndSendDigest(application)
+	overviewFile, groupedEntryFiles, data, err := processor.ProcessAndSendDigest(application)
+	if err != nil {
+		log.Printf("Error processing digest: %v", err)
+		return
+	}
+
+	// Send email
+	if err := application.EmailService.Send(application.Config, overviewFile, groupedEntryFiles, data); err != nil {
+		log.Printf("Error sending digest email: %v", err)
+	}
 }
 
 func registerDigestJob(application *app.App, scheduler gocron.Scheduler) {

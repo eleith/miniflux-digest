@@ -88,11 +88,11 @@ func (m *MockArchiveService) CleanArchive(maxAge time.Duration) {}
 
 type MockEmailService struct {
 	app.EmailService
-	SendFunc func(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error
+	SendFunc func(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error
 }
 
-func (m *MockEmailService) Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
-	return m.SendFunc(cfg, file, data)
+func (m *MockEmailService) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error {
+	return m.SendFunc(cfg, overviewFile, groupedEntryFiles, data)
 }
 
 type MockDigestService struct {
