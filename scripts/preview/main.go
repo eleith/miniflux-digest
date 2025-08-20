@@ -1,22 +1,20 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 
 	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/email"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
-	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
 	miniflux "miniflux.app/v2/client"
 )
@@ -84,35 +82,7 @@ func generateDigestData(cfg *config.Config, useMiniflux bool) *models.HTMLTempla
 	)
 }
 
-func generateHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
-	log.Println("generateHTML: Starting...")
-	var buf bytes.Buffer
-	if err := templates.ArchiveTemplate.Execute(&buf, data); err != nil {
-		return nil, fmt.Errorf("failed to execute template: %w", err)
-	}
 
-	html, err := digest.MinifyHTML(buf.Bytes(), compress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to minify HTML: %w", err)
-	}
-	log.Println("generateHTML: Finished.")
-	return html, nil
-}
-
-func writeHTMLToFile(html []byte) (string, error) {
-	log.Println("writeHTMLToFile: Starting...")
-	tmpDir, err := os.MkdirTemp("", "miniflux-digest-preview")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temporary directory: %w", err)
-	}
-	filePath := filepath.Join(tmpDir, "preview.html")
-
-	if err := os.WriteFile(filePath, html, 0644); err != nil {
-		return "", fmt.Errorf("failed to write HTML to file: %w", err)
-	}
-	log.Println("writeHTMLToFile: Finished.")
-	return filePath, nil
-}
 
 func main() {
 	log.Println("main: Starting preview script...")
@@ -129,42 +99,29 @@ func main() {
 	data := generateDigestData(cfg, *minifluxFlag)
 	log.Println("main: Digest data generated.")
 
-	html, err := generateHTML(data, cfg.Digest.Compress)
+	archiveSvc := archive.NewArchiveService("web/miniflux-archive")
+	overviewFile, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
 	if err != nil {
 		log.Fatalf("Failed to generate HTML: %v", err)
 	}
 	log.Println("main: HTML generated.")
 
-	filePath, err := writeHTMLToFile(html)
-	if err != nil {
-		log.Fatalf("Failed to write HTML to file: %v", err)
-	}
-	log.Println("main: HTML written to file.")
-
 	if *emailFlag {
 		log.Println("main: Email flag is true, sending email...")
 		emailSvc := &email.EmailServiceImpl{}
-		overviewFile, err := os.Open(filePath)
-		if err != nil {
-			log.Fatalf("Failed to open HTML file for email: %v", err)
-		}
-		defer func() {
-			if err := overviewFile.Close(); err != nil {
-				log.Printf("Error closing file: %v", err)
-			}
-		}()
+		// For preview, we only send the overview file
 		if err := emailSvc.Send(cfg, overviewFile, []*os.File{}, data); err != nil {
 			log.Fatalf("Failed to send email: %v", err)
 		}
-		log.Printf("Successfully generated %s and sent email.", filePath)
+		log.Printf("Successfully generated and sent email.")
 	} else {
-		log.Printf("Successfully generated %s.", filePath)
+		log.Printf("Successfully generated.")
 	}
 
-	log.Printf("Preview available at: file://%s", filePath)
+	log.Printf("Preview available at: file://%s", overviewFile.Name())
 
 	log.Println("main: Attempting to open browser...")
-	if err := openBrowser(fmt.Sprintf("file://%s", filePath)); err != nil {
+	if err := openBrowser(fmt.Sprintf("file://%s", overviewFile.Name())); err != nil {
 		log.Printf("Failed to open browser: %v", err)
 	}
 	log.Println("main: Browser open attempt finished.")
