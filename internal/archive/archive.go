@@ -53,7 +53,7 @@ func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.GroupedE
 	return nil, err
 }
 
-func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
+func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.OverviewTemplateData) (*os.File, error) {
 	dateFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, data.GeneratedDate.Format("2006-01-02"))
 	filename := fmt.Sprintf("%s/index.html", dateFolderPath)
 	err := os.MkdirAll(dateFolderPath, 0755)
@@ -66,7 +66,7 @@ func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.HTMLTemplateDa
 	return nil, err
 }
 
-func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
+func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, compress bool) (*os.File, error) {
 	// Generate overview HTML
 	overviewFile, err := s.makeOverviewArchiveFile(data)
 	if err != nil {

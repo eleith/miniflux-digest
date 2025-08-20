@@ -9,7 +9,7 @@ import (
 )
 
 type EmailTemplateData struct {
-	models.HTMLTemplateData
+	models.OverviewTemplateData
 	URL string
 	Summary string
 }

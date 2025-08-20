@@ -13,7 +13,7 @@ import (
 
 type EmailServiceImpl struct{}
 
-func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error {
+func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
 	message := mail.NewMsg()
 	client, err := mail.NewClient(
 		cfg.Smtp.Host,

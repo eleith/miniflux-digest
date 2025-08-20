@@ -41,7 +41,7 @@ func openBrowser(url string) error {
 	return exec.Command(cmd, args...).Start()
 }
 
-func generateDigestData(cfg *config.Config, useMiniflux bool) *models.HTMLTemplateData {
+func generateDigestData(cfg *config.Config, useMiniflux bool) *models.OverviewTemplateData {
 	log.Println("generateDigestData: Starting...")
 
 	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)

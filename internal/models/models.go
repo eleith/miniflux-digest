@@ -10,7 +10,7 @@ type FeedIcon struct {
 	Data   string
 }
 
-type HTMLTemplateData struct {
+type OverviewTemplateData struct {
 	Category      *miniflux.Category
 	Entries       *miniflux.Entries
 	GeneratedDate time.Time
