@@ -47,8 +47,8 @@ type ConfigDigest struct {
 	Host         string            `koanf:"host"`
 	Compress     bool              `koanf:"compress"`
 	GroupBy      string            `koanf:"group_by" validate:"omitempty,oneof=category feed"`
-	SubGroupBy   string            `koanf:"sub_group_by" validate:"omitempty,oneof=ai_topic feed none"`
-	SortBy       string            `koanf:"sort_by" validate:"omitempty,oneof=importance date_desc date_asc"`
+	SubGroupBy   string            `koanf:"sub_group_by" validate:"omitempty,oneof=day feed ai_topic"`
+	SortBy       string            `koanf:"sort_by" validate:"omitempty,oneof=date title feed_title ai_rank"`
 	MarkAsRead   bool              `koanf:"mark_as_read"`
 	RunOnStartup bool              `koanf:"run_on_startup"`
 }
@@ -121,7 +121,7 @@ func setDefaultValues(k *koanf.Koanf) error {
 		"digest.compress":       true,
 		"digest.group_by":       "category",
 		"digest.sub_group_by":   "ai_topic",
-		"digest.sort_by":        "importance",
+		"digest.sort_by":        "date",
 		"digest.schedule":       "@weekly",
 		"digest.mark_as_read":   true,
 		"digest.run_on_startup": false,
