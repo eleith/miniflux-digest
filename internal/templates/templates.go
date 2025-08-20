@@ -19,18 +19,26 @@ var embedFS embed.FS
 
 var (
 	ArchiveTemplate *htmlTemplate.Template
+	OverviewTemplate *htmlTemplate.Template
 	EmailTemplate   *textTemplate.Template
 )
 
 func init() {
 	var err error
-	archiveTemplateName := "entries.gohtml"
+	archiveTemplateName := "grouped-entries.gohtml"
+	overviewTemplateName := "overview.gohtml"
 	emailTemplateName := "email.gotxt"
 
 	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(FuncMap()).ParseFS(embedFS, archiveTemplateName)
 
 	if err != nil {
 		log.Fatalf("Error parsing archive template: %v", err)
+	}
+
+	OverviewTemplate, err = htmlTemplate.New(overviewTemplateName).Funcs(FuncMap()).ParseFS(embedFS, overviewTemplateName)
+
+	if err != nil {
+		log.Fatalf("Error parsing overview template: %v", err)
 	}
 
 	EmailTemplate, err = textTemplate.New(emailTemplateName).ParseFS(embedFS, emailTemplateName)
