@@ -3,16 +3,23 @@ package digest
 import (
 	"context"
 	"errors"
+	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
 	"testing"
 	"time"
 
-	"google.golang.org/genai"
 	miniflux "miniflux.app/v2/client"
 )
 
 type mockLLMService struct {
-	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) (string, error)
+	GenerateDigestContentFunc func(ctx context.Context, entries *miniflux.Entries) (*llm.LLMResponse, error)
+}
+
+func (m *mockLLMService) GenerateDigestContent(ctx context.Context, entries *miniflux.Entries) (*llm.LLMResponse, error) {
+	if m.GenerateDigestContentFunc != nil {
+		return m.GenerateDigestContentFunc(ctx, entries)
+	}
+	return nil, errors.New("GenerateDigestContentFunc not implemented")
 }
 
 func findGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
@@ -24,12 +31,7 @@ func findGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
 	return nil
 }
 
-func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-	if m.GenerateContentFunc != nil {
-		return m.GenerateContentFunc(ctx, prompt, schema)
-	}
-	return "", nil
-}
+
 
 func createDayGrouperMockEntries() *miniflux.Entries {
 	return &miniflux.Entries{
@@ -180,23 +182,27 @@ func TestNewSubGrouper(t *testing.T) {
 func TestLLMGrouper_GroupEntries(t *testing.T) {
 	entries := createDayGrouperMockEntries()
 
-	expectedLLMResponse := `{
-	"summary": "This is a summary of all entries.",
-	"groups": [
-		{
-			"title": "Go Programming",
-			"entries": [1, 2, 4]
-		},
-		{
-			"title": "Python Programming",
-			"entries": [3]
-		}
-	]
-}`
-
 	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-			return expectedLLMResponse, nil
+		GenerateDigestContentFunc: func(ctx context.Context, entries *miniflux.Entries) (*llm.LLMResponse, error) {
+			return &llm.LLMResponse{
+				OverviewSummary: "This is a summary of all entries.",
+				GroupSummaries: []struct {
+					Title    string `json:"title"`
+					Summary  string `json:"summary"`
+					EntryIDs []int64 `json:"entry_ids"`
+				}{
+					{
+						Title:   "Go Programming",
+						Summary: "summary",
+						EntryIDs: []int64{1, 2, 4},
+					},
+					{
+						Title:   "Python Programming",
+						Summary: "summary",
+						EntryIDs: []int64{3},
+					},
+				}, 
+			}, nil
 		},
 	}
 
@@ -224,8 +230,8 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	}
 
 	// Test fallback to DayGrouper on LLM error
-	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-		return "", errors.New("LLM API error")
+	mockLLM.GenerateDigestContentFunc = func(ctx context.Context, entries *miniflux.Entries) (*llm.LLMResponse, error) {
+		return nil, errors.New("LLM API error")
 	}
 	groups, summary = grouper.GroupEntries(entries)
 	if len(groups) == 0 || summary == "" {
@@ -233,8 +239,8 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	}
 
 	// Test fallback to DayGrouper on invalid JSON
-	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-		return "invalid json", nil
+	mockLLM.GenerateDigestContentFunc = func(ctx context.Context, entries *miniflux.Entries) (*llm.LLMResponse, error) {
+		return &llm.LLMResponse{}, nil
 	}
 	groups, summary = grouper.GroupEntries(entries)
 	if len(groups) == 0 || summary == "" {
@@ -242,17 +248,21 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	}
 
 	// Test ungrouped entries
-	expectedLLMResponseWithMissingEntry := `{
-	"summary": "Summary with missing entry.",
-	"groups": [
-		{
-			"title": "Go Programming",
-			"entries": [1, 2]
-		}
-	]
-}`
-	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-		return expectedLLMResponseWithMissingEntry, nil
+	mockLLM.GenerateDigestContentFunc = func(ctx context.Context, entries *miniflux.Entries) (*llm.LLMResponse, error) {
+		return &llm.LLMResponse{
+			OverviewSummary: "Summary with missing entry.",
+			GroupSummaries: []struct {
+				Title    string `json:"title"`
+				Summary  string `json:"summary"`
+				EntryIDs []int64 `json:"entry_ids"`
+			}{
+				{
+					Title:   "Go Programming",
+					Summary: "summary",
+					EntryIDs: []int64{1, 2},
+				},
+			}, 
+		}, nil
 	}
 	groups, _ = grouper.GroupEntries(entries)
 
@@ -269,23 +279,27 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 	entries := createDayGrouperMockEntries()
 
-	expectedLLMResponse := `{
-	"summary": "This is a summary of all entries.",
-	"groups": [
-		{
-			"title": "Go Programming",
-			"entries": [1, 2, 1, 4]
-		},
-		{
-			"title": "Python Programming",
-			"entries": [3, 3]
-		}
-	]
-}`
-
 	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-			return expectedLLMResponse, nil
+		GenerateDigestContentFunc: func(ctx context.Context, entries *miniflux.Entries) (*llm.LLMResponse, error) {
+			return &llm.LLMResponse{
+				OverviewSummary: "This is a summary of all entries.",
+				GroupSummaries: []struct {
+					Title    string `json:"title"`
+					Summary  string `json:"summary"`
+					EntryIDs []int64 `json:"entry_ids"`
+				}{
+					{
+						Title:   "Go Programming",
+						Summary: "summary",
+						EntryIDs: []int64{1, 2, 1, 4},
+					},
+					{
+						Title:   "Python Programming",
+						Summary: "summary",
+						EntryIDs: []int64{3, 3},
+					},
+				}, 
+			}, nil
 		},
 	}
 
