@@ -29,19 +29,19 @@ func init() {
 	overviewTemplateName := "overview.gohtml"
 	emailTemplateName := "email.gotxt"
 
-	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(FuncMap()).ParseFS(embedFS, archiveTemplateName)
+	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(TemplateFuncs).ParseFS(embedFS, archiveTemplateName)
 
 	if err != nil {
 		log.Fatalf("Error parsing archive template: %v", err)
 	}
 
-	OverviewTemplate, err = htmlTemplate.New(overviewTemplateName).Funcs(FuncMap()).ParseFS(embedFS, overviewTemplateName)
+	OverviewTemplate, err = htmlTemplate.New(overviewTemplateName).Funcs(TemplateFuncs).ParseFS(embedFS, overviewTemplateName)
 
 	if err != nil {
 		log.Fatalf("Error parsing overview template: %v", err)
 	}
 
-	EmailTemplate, err = textTemplate.New(emailTemplateName).ParseFS(embedFS, emailTemplateName)
+	EmailTemplate, err = textTemplate.New(emailTemplateName).Funcs(TemplateFuncs).ParseFS(embedFS, emailTemplateName)
 
 	if err != nil {
 		log.Fatalf("Error parsing email template: %v", err)

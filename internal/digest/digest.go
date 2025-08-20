@@ -5,22 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
 	"sort"
-	"time"
 	"strings"
+	"time"
 
 	"google.golang.org/genai"
 	miniflux "miniflux.app/v2/client"
-)
-
-type SubGroupingType string
-
-const (
-	SubGroupingTypeDay  SubGroupingType = "day"
-	SubGroupingTypeFeed SubGroupingType = "feed"
-	SubGroupingTypeAI    SubGroupingType = "ai_topic"
 )
 
 const (
@@ -28,18 +21,6 @@ const (
 	DayGroupLayout    = "2006-01-02"
 	DayGroupTitleLayout = "Jan 2, 2006"
 )
-
-func (sgt SubGroupingType) String() string {
-	return string(sgt)
-}
-
-type DigestService interface {
-	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData
-}
-
-
-
-
 
 func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*miniflux.Entry {
 	groups := make(map[string][]*miniflux.Entry)
@@ -64,26 +45,24 @@ func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*minif
 	return groups
 }
 
-func NewSubGrouper(subGroupBy SubGroupingType, llmService llm.LLMService) SubGrouper {
+func NewSubGrouper(subGroupBy string, llmService services.LLMService) SubGrouper {
 	switch subGroupBy {
-	case SubGroupingTypeAI:
+	case "ai":
 		return &LLMGrouper{LLMService: llmService}
-	case SubGroupingTypeFeed:
+	case "feed":
 		return &FeedGrouper{}
 	default:
 		return &DayGrouper{}
 	}
 }
 
-func NewDigestService(llmService llm.LLMService) DigestService {
+func NewDigestService(llmService services.LLMService) services.DigestService {
 	return &digestServiceImpl{llmService: llmService}
 }
 
 type digestServiceImpl struct {
-	llmService llm.LLMService
+	llmService services.LLMService
 }
-
-
 
 func sortEntries(entries []*miniflux.Entry, sortBy string) []*miniflux.Entry {
 	switch sortBy {
@@ -103,7 +82,7 @@ func sortEntries(entries []*miniflux.Entry, sortBy string) []*miniflux.Entry {
 	return entries
 }
 
-func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData {
+func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.HTMLTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
@@ -125,7 +104,7 @@ func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries
 		GeneratedDate: time.Now(),
 		FeedIcons:     iconsSlice,
 		EntryGroups:   entryGroups,
-		Summary:       summary,
+		OverviewSummary:       summary,
 		MinifluxHost:  minifluxHost,
 	}
 }
@@ -209,7 +188,7 @@ func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGr
 }
 
 type LLMGrouper struct {
-	LLMService llm.LLMService
+	LLMService services.LLMService
 }
 
 type llmEntry struct {

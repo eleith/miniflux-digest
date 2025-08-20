@@ -6,31 +6,29 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
-	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/utils"
 	"os"
 	"path/filepath"
 	"time"
 
 	htmlTemplate "html/template"
-
-	miniflux "miniflux.app/v2/client"
 )
+
+
 
 type ArchiveServiceImpl struct{
 	ArchiveBaseDir string
+	ArchiveTemplate *htmlTemplate.Template
+	OverviewTemplate *htmlTemplate.Template
 }
 
-var _ app.ArchiveService = (*ArchiveServiceImpl)(nil)
-
-func NewArchiveService(archiveBaseDir string) *ArchiveServiceImpl {
-	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir}
+func NewArchiveService(archiveBaseDir string, archiveTemplate *htmlTemplate.Template, overviewTemplate *htmlTemplate.Template) *ArchiveServiceImpl {
+	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir, ArchiveTemplate: archiveTemplate, OverviewTemplate: overviewTemplate}
 }
 
-func (s *ArchiveServiceImpl) getHTML(template *htmlTemplate.Template, data *models.HTMLTemplateData, compress bool) ([]byte, error) {
+func (s *ArchiveServiceImpl) getHTML(template *htmlTemplate.Template, data interface{}, compress bool) ([]byte, error) {
 	var buf bytes.Buffer
 
 	err := template.Execute(&buf, data)
@@ -41,8 +39,8 @@ func (s *ArchiveServiceImpl) getHTML(template *htmlTemplate.Template, data *mode
 	return digest.MinifyHTML(buf.Bytes(), compress)
 }
 
-func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
-	categorySlug := utils.Slugify(data.Category.Title)
+func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.GroupedEntriesTemplateData) (*os.File, error) {
+	categorySlug := utils.Slugify(data.EntryGroup.Title)
 	categoryFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, categorySlug)
 	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
 	err := os.MkdirAll(categoryFolderPath, 0755)
@@ -75,7 +73,7 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, comp
 		log.Printf("Error creating overview HTML file: %v", err)
 		return nil, err
 	}
-	overviewHTML, err := s.getHTML(templates.OverviewTemplate, data, compress)
+	overviewHTML, err := s.getHTML(s.OverviewTemplate, data, compress)
 	if err != nil {
 		log.Printf("Error generating overview HTML: %v", err)
 		return overviewFile, err
@@ -87,13 +85,10 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, comp
 
 	// Generate grouped entries HTML
 	for _, entryGroup := range data.EntryGroups {
-		groupData := &models.HTMLTemplateData{
-			Category:      data.Category,
-			Entries:       (*miniflux.Entries)(&entryGroup.Entries),
+		groupData := &models.GroupedEntriesTemplateData{
+			EntryGroup:    entryGroup,
 			GeneratedDate: data.GeneratedDate,
 			FeedIcons:     data.FeedIcons,
-			EntryGroups:   []*models.EntryGroup{entryGroup},
-			Summary:       entryGroup.Title,
 			MinifluxHost:  data.MinifluxHost,
 		}
 		groupedEntriesFile, err := s.makeGroupedEntriesArchiveFile(groupData)
@@ -101,7 +96,7 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, comp
 			log.Printf("Error creating grouped entries HTML file: %v", err)
 			return nil, err
 		}
-		groupedEntriesHTML, err := s.getHTML(templates.ArchiveTemplate, groupData, compress)
+		groupedEntriesHTML, err := s.getHTML(s.ArchiveTemplate, groupData, compress)
 		if err != nil {
 			log.Printf("Error generating grouped entries HTML: %v", err)
 			return groupedEntriesFile, err

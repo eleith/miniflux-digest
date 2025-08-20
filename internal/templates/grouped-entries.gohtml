@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>{{.Category.Title}}</title>
+	<title>{{.EntryGroup.Title}}</title>
 	<style>
 		{{include "static/style.css"}}
 
@@ -21,22 +21,18 @@
 <body>
 	<div class="container">
 		<section class="header">
-			<h1 class="title">{{.Category.Title}}</h1>
-			<span class="date"><a href="{{$.MinifluxHost}}/category/{{.Category.ID}}/entries" target="_blank"
-					rel="noopener noreferrer" class="category-link">category feed</a> generated on {{.GeneratedDate.Format
+			<h1 class="title">{{.EntryGroup.Title}}</h1>
+			<span class="date">generated on {{.GeneratedDate.Format
 				"Jan 2, 2006"}}</span>
 		</section>
 
 		<section class="summary">
 			<h2 class="group-entries-title">Summary</h2>
-			<p>{{textToHTML .Summary}}</p>
+			<p>{{textToHTML .EntryGroup.Summary}}</p>
 		</section>
 
 		<section class="entries">
-			{{if .EntryGroups}}
-			{{range .EntryGroups}}
-			<h2 class="group-entries-title">{{.Title}}</h2>
-			{{range .Entries}}
+			{{range .EntryGroup.Entries}}
 			<section class="entry">
 				<details class="entry">
 					<summary class="entry">
@@ -69,10 +65,6 @@
 					</div>
 				</div>
 			</section>
-			{{end}}
-			{{end}}
-			{{else}}
-			<div class="no-entries">No unread entries in this category.</div>
 			{{end}}
 		</section>
 	</div>

@@ -42,7 +42,7 @@ func (m *MinifluxClientWrapper) FeedIcon(feedID int64) (*miniflux.FeedIcon, erro
 
 
 
-func (m *MinifluxClientWrapper) FetchRawCategoryData(categoryID int64) (*RawCategoryData, error) {
+func (m *MinifluxClientWrapper) FetchRawCategoryData(categoryID int64) (*models.RawCategoryData, error) {
 	categories, err := m.categories()
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (m *MinifluxClientWrapper) FetchRawCategoryData(categoryID int64) (*RawCate
 		}
 	}
 
-	return &RawCategoryData{
+	return &models.RawCategoryData{
 		Category: category,
 		Entries:  &entriesResult.Entries,
 		Feeds:    feeds,
@@ -93,8 +93,8 @@ func (m *MinifluxClientWrapper) FetchRawCategoryData(categoryID int64) (*RawCate
 	}, nil
 }
 
-func (m *MinifluxClientWrapper) StreamAllCategoryData() <-chan *RawCategoryData {
-	out := make(chan *RawCategoryData)
+		func (m *MinifluxClientWrapper) StreamAllCategoryData() <-chan *models.RawCategoryData {
+	out := make(chan *models.RawCategoryData)
 
 	go func() {
 		defer close(out)

@@ -1,18 +1,17 @@
 package app
 
 import (
+	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/digest"
-	"miniflux-digest/internal/llm"
 )
 
 type App struct {
 	Config                *config.Config
-	ArchiveService        ArchiveService
-	EmailService          EmailService
-	MinifluxClientService MinifluxClientService
-	DigestService         digest.DigestService
-	LLMService            llm.LLMService
+	ArchiveService        services.ArchiveService
+	EmailService          services.EmailService
+	MinifluxClientService services.MinifluxClientService
+	DigestService         services.DigestService
+	LLMService            services.LLMService
 }
 
 type Option func(*App)
@@ -31,31 +30,31 @@ func WithConfig(cfg *config.Config) Option {
 	}
 }
 
-func WithArchiveService(s ArchiveService) Option {
+func WithArchiveService(s services.ArchiveService) Option {
 	return func(a *App) {
 		a.ArchiveService = s
 	}
 }
 
-func WithEmailService(s EmailService) Option {
+func WithEmailService(s services.EmailService) Option {
 	return func(a *App) {
 		a.EmailService = s
 	}
 }
 
-func WithMinifluxClientService(s MinifluxClientService) Option {
+func WithMinifluxClientService(s services.MinifluxClientService) Option {
 	return func(a *App) {
 		a.MinifluxClientService = s
 	}
 }
 
-func WithDigestService(s digest.DigestService) Option {
+func WithDigestService(s services.DigestService) Option {
 	return func(a *App) {
 		a.DigestService = s
 	}
 }
 
-func WithLLMService(s llm.LLMService) Option { // Changed
+func WithLLMService(s services.LLMService) Option { // Changed
 	return func(a *App) {
 		a.LLMService = s
 	}

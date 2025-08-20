@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"miniflux-digest/internal/app"
-	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 
 	miniflux "miniflux.app/v2/client"
@@ -27,7 +26,7 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.H
 		&miniflux.Category{Title: "All"},
 		entries,
 		map[int64]*models.FeedIcon{},
-		digest.SubGroupingType(application.Config.Digest.SubGroupBy),
+		application.Config.Digest.SubGroupBy,
 		application.Config.Digest.SortBy,
 		application.Config.Miniflux.Host,
 	)

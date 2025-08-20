@@ -17,6 +17,7 @@ import (
 	"miniflux-digest/internal/email"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/processor"
+	"miniflux-digest/internal/templates"
 )
 
 const (
@@ -138,11 +139,12 @@ func initServices(cfg *config.Config) (*app.App, error) {
 	clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
 
 	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
+
 	if err != nil {
 		return nil, err
 	}
 
-	archiveSvc := archive.NewArchiveService(ArchiveBasePath)
+	archiveSvc := archive.NewArchiveService(ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
 	emailSvc := &email.EmailServiceImpl{}
 	digestService := digest.NewDigestService(llmService)
 

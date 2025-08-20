@@ -5,6 +5,16 @@
 </head>
 <body>
     <h1>Miniflux Digest Overview</h1>
-    <p>This is the overview digest.</p>
+    <p>{{.Summary}}</p>
+
+    <h2>Grouped Digests</h2>
+    <ul>
+        {{range .EntryGroups}}
+            <li>
+                <h3><a href="{{.Slug}}.html">{{.Title}}</a></h3>
+                <p>{{.Summary}}</p>
+            </li>
+        {{end}}
+    </ul>
 </body>
 </html>
