@@ -15,11 +15,12 @@ import (
 	miniflux "miniflux.app/v2/client"
 )
 
-type GroupingType string
+type SubGroupingType string
 
 const (
-	GroupingTypeDay  GroupingType = "day"
-	GroupingTypeFeed GroupingType = "feed"
+	SubGroupingTypeDay  SubGroupingType = "day"
+	SubGroupingTypeFeed SubGroupingType = "feed"
+	SubGroupingTypeAI    SubGroupingType = "ai_topic"
 )
 
 const (
@@ -28,8 +29,8 @@ const (
 	DayGroupTitleLayout = "Jan 2, 2006"
 )
 
-func (gt GroupingType) String() string {
-	return string(gt)
+func (sgt SubGroupingType) String() string {
+	return string(sgt)
 }
 
 type DigestService struct{
@@ -40,18 +41,41 @@ func NewDigestService(llmService llm.LLMService) *DigestService {
 	return &DigestService{LLMService: llmService}
 }
 
-func NewGrouper(groupBy GroupingType, llmService llm.LLMService) Grouper {
+func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*miniflux.Entry {
+	groups := make(map[string][]*miniflux.Entry)
+
 	switch groupBy {
-	case "ai":
+	case "category":
+		for _, entry := range *entries {
+			var groupName string
+			if entry.Feed.Category != nil {
+				groupName = entry.Feed.Category.Title
+			} else {
+				groupName = "Uncategorized"
+			}
+			groups[groupName] = append(groups[groupName], entry)
+		}
+	case "feed":
+		for _, entry := range *entries {
+			groups[entry.Feed.Title] = append(groups[entry.Feed.Title], entry)
+		}
+	}
+
+	return groups
+}
+
+func NewSubGrouper(subGroupBy SubGroupingType, llmService llm.LLMService) SubGrouper {
+	switch subGroupBy {
+	case SubGroupingTypeAI:
 		return &LLMGrouper{LLMService: llmService}
-	case GroupingTypeFeed:
+	case SubGroupingTypeFeed:
 		return &FeedGrouper{}
 	default:
 		return &DayGrouper{}
 	}
 }
 
-func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy GroupingType, minifluxHost string) *models.HTMLTemplateData {
+func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy SubGroupingType, minifluxHost string) *models.HTMLTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
@@ -59,7 +83,7 @@ func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *mi
 	}
 
 	// Group entries
-	grouper := NewGrouper(groupBy, s.LLMService)
+	grouper := NewSubGrouper(subGroupBy, s.LLMService)
 	entryGroups, summary := grouper.GroupEntries(entries)
 
 	return &models.HTMLTemplateData{
@@ -68,12 +92,12 @@ func (s *DigestService) BuildDigestData(category *miniflux.Category, entries *mi
 		GeneratedDate: time.Now(),
 		FeedIcons:     iconsSlice,
 		EntryGroups:   entryGroups,
-		Summary:		summary,
+		Summary:       summary,
 		MinifluxHost:  minifluxHost,
 	}
 }
 
-type Grouper interface {
+type SubGrouper interface {
 	GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string)
 }
 
@@ -192,8 +216,7 @@ Given the following list of entries, your task is to perform two distinct functi
 Return the response as a JSON object according to the desired responseSchema.
 
 Below are the entries and other relevant metadata for this task:
------------------
-
+----------------- 
 `
 
 

@@ -19,7 +19,7 @@ type EmailService interface {
 }
 
 type DigestService interface {
-	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData
+	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.SubGroupingType, minifluxHost string) *models.HTMLTemplateData
 }
 
 type MinifluxClientService interface {
@@ -28,4 +28,5 @@ type MinifluxClientService interface {
 	CategoryFeeds(categoryID int64) ([]*miniflux.Feed, error)
 	FeedIcon(feedID int64) (*miniflux.FeedIcon, error)
 	StreamAllCategoryData() <-chan *RawCategoryData
+	GetAllUnreadEntries() (*miniflux.Entries, error)
 }

@@ -160,19 +160,19 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 	}
 }
 
-func TestNewGrouper(t *testing.T) {
+func TestNewSubGrouper(t *testing.T) {
 	mockLLM := &mockLLMService{}
 
-	if _, ok := NewGrouper(GroupingTypeDay, mockLLM).(*DayGrouper); !ok {
+	if _, ok := NewSubGrouper(SubGroupingTypeDay, mockLLM).(*DayGrouper); !ok {
 		t.Error("Expected DayGrouper for 'day' grouping")
 	}
-	if _, ok := NewGrouper(GroupingTypeFeed, mockLLM).(*FeedGrouper); !ok {
+	if _, ok := NewSubGrouper(SubGroupingTypeFeed, mockLLM).(*FeedGrouper); !ok {
 		t.Error("Expected FeedGrouper for 'feed' grouping")
 	}
-	if _, ok := NewGrouper("invalid", mockLLM).(*DayGrouper); !ok {
+	if _, ok := NewSubGrouper("invalid", mockLLM).(*DayGrouper); !ok {
 		t.Error("Expected DayGrouper for invalid grouping")
 	}
-	if _, ok := NewGrouper("ai", mockLLM).(*LLMGrouper); !ok {
+	if _, ok := NewSubGrouper(SubGroupingTypeAI, mockLLM).(*LLMGrouper); !ok {
 		t.Error("Expected LLMGrouper for 'ai' grouping")
 	}
 }
@@ -310,5 +310,33 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 	pythonGroup := findGroup(groups, "Python Programming")
 	if pythonGroup == nil || len(pythonGroup.Entries) != 1 {
 		t.Errorf("Incorrect Python Programming group: %+v", pythonGroup)
+	}
+}
+
+func TestGroupEntries(t *testing.T) {
+	entries := &miniflux.Entries{
+		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category A"}}},
+		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category B"}}},
+		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category A"}}},
+		{Feed: &miniflux.Feed{}},
+	}
+
+	categoryGroups := GroupEntries(entries, "category")
+	if len(categoryGroups) != 3 {
+		t.Errorf("Expected 3 category groups, got %d", len(categoryGroups))
+	}
+	if len(categoryGroups["Category A"]) != 2 {
+		t.Errorf("Expected 2 entries in Category A, got %d", len(categoryGroups["Category A"]))
+	}
+	if len(categoryGroups["Category B"]) != 1 {
+		t.Errorf("Expected 1 entry in Category B, got %d", len(categoryGroups["Category B"]))
+	}
+	if len(categoryGroups["Uncategorized"]) != 1 {
+		t.Errorf("Expected 1 entry in Uncategorized, got %d", len(categoryGroups["Uncategorized"]))
+	}
+
+	feedGroups := GroupEntries(entries, "feed")
+	if len(feedGroups) != 1 {
+		t.Errorf("Expected 1 feed group, got %d", len(feedGroups))
 	}
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -27,32 +26,13 @@ const (
 	HealthCheckPort       = ":8080"
 )
 
-func registerCategoryDigestJob(application *app.App, scheduler gocron.Scheduler, rawData *app.RawCategoryData) {
-	task := func(rawData *app.RawCategoryData) {
-		processor.CategoryDigestJob(application, rawData, application.Config.Digest.MarkAsRead)
-	}
-
-	jitter := time.Duration(rand.Intn(JitterSeconds)) * time.Second
-	startTime := time.Now().Add(1*time.Minute + jitter)
-
-	_, err := scheduler.NewJob(
-		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(startTime)),
-		gocron.NewTask(task, rawData),
-	)
-	if err != nil {
-		log.Printf("Error creating one-time job for category %d: %v", rawData.Category.ID, err)
-	}
+func digestJob(application *app.App) {
+	processor.ProcessAndSendDigest(application)
 }
 
-func categoriesCheckJob(application *app.App, scheduler gocron.Scheduler) {
-	for rawData := range application.MinifluxClientService.StreamAllCategoryData() {
-		registerCategoryDigestJob(application, scheduler, rawData)
-	}
-}
-
-func registerCategoriesCheckJob(application *app.App, scheduler gocron.Scheduler) {
+func registerDigestJob(application *app.App, scheduler gocron.Scheduler) {
 	_, err := scheduler.NewJob(gocron.CronJob(application.Config.Digest.Schedule, true), gocron.NewTask(func() {
-		categoriesCheckJob(application, scheduler)
+		digestJob(application)
 	}))
 
 	if err != nil {
@@ -123,11 +103,11 @@ func main() {
 		}
 	}()
 
-	registerCategoriesCheckJob(application, scheduler)
+	registerDigestJob(application, scheduler)
 	registerArchiveCleanupJob(application, scheduler)
 
 	if application.Config.Digest.RunOnStartup {
-		go categoriesCheckJob(application, scheduler)
+		go digestJob(application)
 	}
 
 	go func() {
