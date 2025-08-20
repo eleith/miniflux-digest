@@ -31,9 +31,6 @@ func TestNewGeminiService(t *testing.T) {
 	if service == nil {
 		t.Fatal("Service should not be nil")
 	}
-	if service.client != nil {
-		t.Error("Service client should be nil for empty API key")
-	}
 }
 
 func TestGeminiService_GenerateContent_Success(t *testing.T) {

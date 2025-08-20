@@ -135,8 +135,7 @@ func initServices(cfg *config.Config) (*app.App, error) {
 
 	archiveSvc := archive.NewArchiveService(ArchiveBasePath)
 	emailSvc := &email.EmailServiceImpl{}
-	digestLLMService := digest.NewDigestLLMService(llmService)
-	digestService := digest.NewDigestService(digestLLMService)
+	digestService := digest.NewDigestService(llmService)
 
 	application := app.NewApp(
 		app.WithConfig(cfg),

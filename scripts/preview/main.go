@@ -49,8 +49,7 @@ func generateDigestData(cfg *config.Config, useMiniflux bool) *models.HTMLTempla
 		log.Fatalf("Failed to create LLM service: %v", err)
 	}
 
-	digestLLMService := digest.NewDigestLLMService(llmService)
-	digestSvc := digest.NewDigestService(digestLLMService)
+	digestSvc := digest.NewDigestService(llmService)
 	log.Println("generateDigestData: DigestService initialized.")
 
 	var entries *miniflux.Entries
