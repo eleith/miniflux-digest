@@ -34,7 +34,7 @@ func (sgt SubGroupingType) String() string {
 }
 
 type DigestService interface {
-	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy SubGroupingType, minifluxHost string) *models.HTMLTemplateData
+	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData
 }
 
 
@@ -85,7 +85,25 @@ type digestServiceImpl struct {
 
 
 
-func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy SubGroupingType, minifluxHost string) *models.HTMLTemplateData {
+func sortEntries(entries []*miniflux.Entry, sortBy string) []*miniflux.Entry {
+	switch sortBy {
+	case "date":
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].Date.Before(entries[j].Date)
+		})
+	case "title":
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].Title < entries[j].Title
+		})
+	case "feed_title":
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].Feed.Title < entries[j].Feed.Title
+		})
+	}
+	return entries
+}
+
+func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
@@ -95,6 +113,11 @@ func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries
 	// Group entries
 	grouper := NewSubGrouper(subGroupBy, s.llmService)
 	entryGroups, summary := grouper.GroupEntries(entries)
+
+	// Sort entries within each group
+	for _, group := range entryGroups {
+		group.Entries = sortEntries(group.Entries, sortBy)
+	}
 
 	return &models.HTMLTemplateData{
 		Category:      category,

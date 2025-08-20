@@ -79,6 +79,7 @@ func generateDigestData(cfg *config.Config, useMiniflux bool) *models.HTMLTempla
 			3: testutil.NewMockFeedIconGreen(),
 		},
 		digest.SubGroupingType(cfg.Digest.SubGroupBy),
+		cfg.Digest.SortBy,
 		cfg.Miniflux.Host,
 	)
 }
