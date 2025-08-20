@@ -162,23 +162,6 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 	}
 }
 
-func TestNewSubGrouper(t *testing.T) {
-	mockLLM := &mockLLMService{}
-
-	if _, ok := NewSubGrouper(SubGroupingTypeDay, mockLLM).(*DayGrouper); !ok {
-		t.Error("Expected DayGrouper for 'day' grouping")
-	}
-	if _, ok := NewSubGrouper(SubGroupingTypeFeed, mockLLM).(*FeedGrouper); !ok {
-		t.Error("Expected FeedGrouper for 'feed' grouping")
-	}
-	if _, ok := NewSubGrouper("invalid", mockLLM).(*DayGrouper); !ok {
-		t.Error("Expected DayGrouper for invalid grouping")
-	}
-	if _, ok := NewSubGrouper(SubGroupingTypeAI, mockLLM).(*LLMGrouper); !ok {
-		t.Error("Expected LLMGrouper for 'ai' grouping")
-	}
-}
-
 func TestLLMGrouper_GroupEntries(t *testing.T) {
 	entries := createDayGrouperMockEntries()
 

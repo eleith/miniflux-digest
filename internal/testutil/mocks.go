@@ -1,9 +1,8 @@
 package testutil
 
 import (
-	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	"os"
 	"time"
@@ -12,13 +11,13 @@ import (
 )
 
 type MockMinifluxClient struct {
-	app.MinifluxClientService
+	services.MinifluxClientService
 	MarkAsReadFunc func(categoryID int64) error
 	CategoriesFunc func() ([]*miniflux.Category, error)
 	CategoryEntriesFunc func(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error)
 	CategoryFeedsFunc func(categoryID int64) ([]*miniflux.Feed, error)
 	FeedIconFunc func(feedID int64) (*miniflux.FeedIcon, error)
-	StreamAllCategoryDataFunc func() <-chan *app.RawCategoryData
+	StreamAllCategoryDataFunc func() <-chan *models.RawCategoryData
 	GetAllUnreadEntriesFunc func() (*miniflux.Entries, error)
 }
 
@@ -59,11 +58,11 @@ func (m *MockMinifluxClient) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) 
 
 
 
-func (m *MockMinifluxClient) StreamAllCategoryData() <-chan *app.RawCategoryData {
+func (m *MockMinifluxClient) StreamAllCategoryData() <-chan *models.RawCategoryData {
 	if m.StreamAllCategoryDataFunc != nil {
 		return m.StreamAllCategoryDataFunc()
 	}
-	out := make(chan *app.RawCategoryData)
+	out := make(chan *models.RawCategoryData)
 	close(out)
 	return out
 }
@@ -76,7 +75,7 @@ func (m *MockMinifluxClient) GetAllUnreadEntries() (*miniflux.Entries, error) {
 }
 
 type MockArchiveService struct {
-	app.ArchiveService
+	services.ArchiveService
 	MakeArchiveHTMLFunc func(data *models.HTMLTemplateData, minify bool) (*os.File, error)
 }
 
@@ -87,7 +86,7 @@ func (m *MockArchiveService) MakeArchiveHTML(data *models.HTMLTemplateData, mini
 func (m *MockArchiveService) CleanArchive(maxAge time.Duration) {}
 
 type MockEmailService struct {
-	app.EmailService
+	services.EmailService
 	SendFunc func(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error
 }
 
@@ -96,11 +95,11 @@ func (m *MockEmailService) Send(cfg *config.Config, overviewFile *os.File, group
 }
 
 type MockDigestService struct {
-	digest.DigestService
-	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy digest.SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData
+	services.DigestService
+	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.HTMLTemplateData
 }
 
-func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy digest.SubGroupingType, sortBy string, minifluxHost string) *models.HTMLTemplateData {
+func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.HTMLTemplateData {
 	if m.BuildDigestDataFunc != nil {
 		return m.BuildDigestDataFunc(category, entries, icons, subGroupBy, sortBy, minifluxHost)
 	}

@@ -15,7 +15,9 @@ import (
 	"miniflux-digest/internal/email"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
+
 	miniflux "miniflux.app/v2/client"
 )
 
@@ -76,7 +78,7 @@ func generateDigestData(cfg *config.Config, useMiniflux bool) *models.HTMLTempla
 			2: testutil.NewMockFeedIconYellow(),
 			3: testutil.NewMockFeedIconGreen(),
 		},
-		digest.SubGroupingType(cfg.Digest.SubGroupBy),
+		cfg.Digest.SubGroupBy,
 		cfg.Digest.SortBy,
 		cfg.Miniflux.Host,
 	)
@@ -99,7 +101,7 @@ func main() {
 	data := generateDigestData(cfg, *minifluxFlag)
 	log.Println("main: Digest data generated.")
 
-	archiveSvc := archive.NewArchiveService("web/miniflux-archive")
+	archiveSvc := archive.NewArchiveService("web/miniflux-archive", templates.ArchiveTemplate, templates.OverviewTemplate)
 	overviewFile, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
 	if err != nil {
 		log.Fatalf("Failed to generate HTML: %v", err)

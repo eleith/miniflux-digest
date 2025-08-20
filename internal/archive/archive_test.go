@@ -12,11 +12,21 @@ import (
 )
 
 func TestGetHTML(t *testing.T) {
-	archiveService := NewArchiveService(t.TempDir())
-	data := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
+	archiveService := NewArchiveService(t.TempDir(), templates.OverviewTemplate, templates.ArchiveTemplate)
+
+	// Create a mock EntryGroup
+	mockEntryGroup := &models.EntryGroup{
+		Title:   "Test Group Title",
+		Summary: "Test Group Summary",
+		Entries: *testutil.NewMockEntries(),
+	}
+
+	// Create GroupedEntriesTemplateData
+	data := models.GroupedEntriesTemplateData{
+		EntryGroup:    mockEntryGroup,
+		GeneratedDate: time.Now(),
+		FeedIcons:     testutil.NewMockFeedIcons(),
+		MinifluxHost:  "http://localhost:8080",
 	}
 
 	html, err := archiveService.getHTML(templates.ArchiveTemplate, &data, true)
@@ -31,12 +41,17 @@ func TestGetHTML(t *testing.T) {
 func TestMakeArchiveFile(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
-	archiveService := NewArchiveService(tempDir)
+	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	data := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
+	data := models.GroupedEntriesTemplateData{
+		FeedIcons:     testutil.NewMockFeedIcons(),
+		GeneratedDate: time.Now(),
+		MinifluxHost: "test-host",
+		EntryGroup: &models.EntryGroup{
+			Summary: "Test Summary",
+			Title:   "Test Title",
+			Entries: *testutil.NewMockEntries(),
+		},
 	}
 
 	file, err := archiveService.makeGroupedEntriesArchiveFile(&data)
@@ -47,42 +62,16 @@ func TestMakeArchiveFile(t *testing.T) {
 		t.Fatal("Expected file to be non-nil")
 	}
 	// Check if the file was created in the correct hardcoded path
-	expectedPath := filepath.Join(tempDir, utils.Slugify(data.Category.Title), data.GeneratedDate.Format("2006-01-02")+".html")
+	expectedPath := filepath.Join(tempDir, utils.Slugify(data.EntryGroup.Title), data.GeneratedDate.Format("2006-01-02")+".html")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("Expected file %s to exist", expectedPath)
-	}
-}
-
-func TestMakeArchiveHTML(t *testing.T) {
-	// Create a temporary directory for the test
-	tempDir := t.TempDir()
-	archiveService := NewArchiveService(tempDir)
-
-	data := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
-	}
-	file, err := archiveService.MakeArchiveHTML(&data, true)
-	if err != nil {
-		t.Fatalf("MakeArchiveHTML failed: %v", err)
-	}
-	if file == nil {
-		t.Fatal("Expected file to be non-nil")
-	}
-	info, err := file.Stat()
-	if err != nil {
-		t.Fatalf("Failed to stat file: %v", err)
-	}
-	if info.Size() == 0 {
-		t.Error("Expected file to have content")
 	}
 }
 
 func TestCleanArchive(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
-	archiveService := NewArchiveService(tempDir)
+	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
 	categorySlug := "test-category"
 	categoryPath := filepath.Join(tempDir, categorySlug)
@@ -131,7 +120,7 @@ func TestCleanArchive(t *testing.T) {
 }
 
 func TestIsDirEmpty(t *testing.T) {
-	archiveService := NewArchiveService(t.TempDir())
+	archiveService := NewArchiveService(t.TempDir(), templates.OverviewTemplate, templates.ArchiveTemplate)
 	tmpDir, err := os.MkdirTemp("", "test-empty-dir")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)

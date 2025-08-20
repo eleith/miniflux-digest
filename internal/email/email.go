@@ -6,16 +6,12 @@ import (
 	"os"
 
 	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/models"
 
 	"github.com/wneessen/go-mail"
 )
 
-
 type EmailServiceImpl struct{}
-
-var _ app.EmailService = (*EmailServiceImpl)(nil)
 
 func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.HTMLTemplateData) error {
 	message := mail.NewMsg()
@@ -38,7 +34,7 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, group
 		return err
 	}
 
-	subject := fmt.Sprintf("[miniflux digest] %s", data.Summary)
+	subject := fmt.Sprintf("[miniflux digest] %s", data.OverviewSummary)
 
 	message.Subject(subject)
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"google.golang.org/genai"
+	"miniflux-digest/internal/app/services"
 )
 
 const (
@@ -24,7 +25,7 @@ type GeminiService struct {
 	modelName string
 }
 
-func NewGeminiService(apiKey string) (LLMService, error) {
+func NewGeminiService(apiKey string) (services.LLMService, error) {
 	if apiKey == "" {
 		return &GeminiService{modelName: GeminiModel}, nil
 	}
