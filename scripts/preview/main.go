@@ -43,14 +43,14 @@ func openBrowser(url string) error {
 
 func generateDigestData(cfg *config.Config, useMiniflux bool) *models.HTMLTemplateData {
 	log.Println("generateDigestData: Starting...")
-	var llmService llm.LLMService
 
 	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
 	if err != nil {
 		log.Fatalf("Failed to create LLM service: %v", err)
 	}
 
-	digestSvc := digest.NewDigestService(llmService)
+	digestLLMService := digest.NewDigestLLMService(llmService)
+	digestSvc := digest.NewDigestService(digestLLMService)
 	log.Println("generateDigestData: DigestService initialized.")
 
 	var entries *miniflux.Entries

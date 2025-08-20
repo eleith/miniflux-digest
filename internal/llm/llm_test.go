@@ -8,12 +8,7 @@ import (
 	"google.golang.org/genai"
 )
 
-// MockLLMService is a mock implementation of the llm.LLMService interface.
-type MockLLMService struct{}
 
-func (m *MockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-	return "", nil
-}
 
 // mockModelClient is a mock implementation of the modelClient interface.
 type mockModelClient struct {
@@ -45,12 +40,11 @@ func TestGeminiService_GenerateContent_Success(t *testing.T) {
 	// Create a mock model that returns a successful response
 	mockClient := &mockModelClient{
 		GenerateContentFunc: func(ctx context.Context, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+			part := genai.Text("{\"overview_summary\": \"test summary\", \"group_summaries\": []}")
 			return &genai.GenerateContentResponse{
 				Candidates: []*genai.Candidate{
 					{
-						Content: &genai.Content{
-							Parts: []*genai.Part{{Text: "test response"}},
-						},
+						Content: part[0],
 					},
 				},
 			}, nil
@@ -65,8 +59,8 @@ func TestGeminiService_GenerateContent_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateContent should not return an error, but got: %v", err)
 	}
-	if resp != "test response" {
-		t.Errorf("Expected response to be 'test response', but got: %s", resp)
+	if resp != "{\"overview_summary\": \"test summary\", \"group_summaries\": []}" {
+		t.Errorf("Expected response to be '{\"overview_summary\": \"test summary\", \"group_summaries\": []}', but got: %s", resp)
 	}
 }
 

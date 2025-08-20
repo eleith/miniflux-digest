@@ -2,10 +2,10 @@ package app
 
 import (
 	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	"os"
 	"time"
+
 	miniflux "miniflux.app/v2/client"
 )
 
@@ -15,12 +15,10 @@ type ArchiveService interface {
 }
 
 type EmailService interface {
-		Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error
+	Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error
 }
 
-type DigestService interface {
-	BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.SubGroupingType, minifluxHost string) *models.HTMLTemplateData
-}
+
 
 type MinifluxClientService interface {
 	MarkCategoryAsRead(categoryID int64) error
@@ -29,4 +27,12 @@ type MinifluxClientService interface {
 	FeedIcon(feedID int64) (*miniflux.FeedIcon, error)
 	StreamAllCategoryData() <-chan *RawCategoryData
 	GetAllUnreadEntries() (*miniflux.Entries, error)
+}
+
+type RawCategoryData struct {
+	Category *miniflux.Category
+	Entries  *miniflux.Entries
+	Feeds    []*miniflux.Feed
+	Icons    map[int64]*models.FeedIcon
+	Err      error
 }

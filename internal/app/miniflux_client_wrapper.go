@@ -40,12 +40,7 @@ func (m *MinifluxClientWrapper) FeedIcon(feedID int64) (*miniflux.FeedIcon, erro
 	return m.client.FeedIcon(feedID)
 }
 
-type RawCategoryData struct {
-	Category *miniflux.Category
-	Entries  *miniflux.Entries
-	Feeds    []*miniflux.Feed
-	Icons    map[int64]*models.FeedIcon
-}
+
 
 func (m *MinifluxClientWrapper) FetchRawCategoryData(categoryID int64) (*RawCategoryData, error) {
 	categories, err := m.categories()
