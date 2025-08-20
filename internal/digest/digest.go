@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"miniflux-digest/internal/llm/service"
+	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
 	"sort"
 	"time"
@@ -64,7 +64,7 @@ func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*minif
 	return groups
 }
 
-func NewSubGrouper(subGroupBy SubGroupingType, llmService service.LLMService) SubGrouper {
+func NewSubGrouper(subGroupBy SubGroupingType, llmService llm.LLMService) SubGrouper {
 	switch subGroupBy {
 	case SubGroupingTypeAI:
 		return &LLMGrouper{LLMService: llmService}
@@ -75,12 +75,12 @@ func NewSubGrouper(subGroupBy SubGroupingType, llmService service.LLMService) Su
 	}
 }
 
-func NewDigestService(llmService service.LLMService) DigestService {
+func NewDigestService(llmService llm.LLMService) DigestService {
 	return &digestServiceImpl{llmService: llmService}
 }
 
 type digestServiceImpl struct {
-	llmService service.LLMService
+	llmService llm.LLMService
 }
 
 
@@ -186,7 +186,7 @@ func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGr
 }
 
 type LLMGrouper struct {
-	LLMService service.LLMService
+	LLMService llm.LLMService
 }
 
 type llmEntry struct {
@@ -277,7 +277,7 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 		return (&DayGrouper{}).GroupEntries(entries)
 	}
 
-	var response service.LLMResponse
+	var response llm.LLMResponse
 	if err := json.Unmarshal([]byte(llmResponse), &response); err != nil {
 		log.Printf("Failed to parse LLM response, falling back to day grouping: %v\n", err)
 		return (&DayGrouper{}).GroupEntries(entries)
