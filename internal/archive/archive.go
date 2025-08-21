@@ -90,11 +90,17 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, 
 
 	// Generate grouped entries HTML
 	for _, primaryGroup := range data.PrimaryGroups {
+		totalEntriesInPrimaryGroup := 0
+		for _, subGroup := range primaryGroup.SubGroups {
+			totalEntriesInPrimaryGroup += len(subGroup.Entries)
+		}
+
 		groupedPageData := &models.GroupedDigestPageData{
 			PrimaryGroup: primaryGroup,
 			FeedIcons:    data.FeedIcons,
 			MinifluxHost: data.MinifluxHost,
 			GeneratedDate: data.GeneratedDate,
+			TotalEntries: totalEntriesInPrimaryGroup,
 		}
 		groupedEntriesFile, err := s.makeGroupedEntriesArchiveFile(primaryGroup, dateFolderPath)
 		if err != nil {

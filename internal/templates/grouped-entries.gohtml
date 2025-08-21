@@ -28,13 +28,17 @@
 
 		<section class="summary">
 			<h2 class="group-entries-title">Summary</h2>
+      {{if .PrimaryGroup.Summary}}
 			<p>{{textToHTML .PrimaryGroup.Summary}}</p>
+			{{end}}
+			<p>
+				This digest has {{.PrimaryGroup.TotalEntries}} entries from {{.PrimaryGroup.TotalFeeds}} feeds.
+			</p>
 		</section>
 
 		<section class="entries">
     {{range .PrimaryGroup.SubGroups}}
     <h3 class="sub-group-title">{{.Title}}</h3>
-    <p>{{textToHTML .Summary}}</p>
         {{range .Entries}}
         <section class="entry">
             <details class="entry">

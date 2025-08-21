@@ -109,8 +109,9 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 	grouper := &DayGrouper{}
 	groups, summary := grouper.GroupEntries(entries)
 
-	if summary == "" {
-		t.Error("Expected a non-empty summary for DayGrouper")
+	// Summary is now empty for DayGrouper
+	if summary != nil {
+		t.Errorf("Expected an empty summary for DayGrouper, got %q", *summary)
 	}
 
 	// Expect 2 groups: Jan 1, 2024 and Jan 2, 2024
@@ -144,8 +145,9 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 	grouper := &FeedGrouper{}
 	groups, summary := grouper.GroupEntries(entries)
 
-	if summary == "" {
-		t.Error("Expected a non-empty summary for FeedGrouper")
+	// Summary is now empty for FeedGrouper
+	if summary != nil {
+		t.Errorf("Expected an empty summary for FeedGrouper, got %q", *summary)
 	}
 
 	// Expect 2 groups: Feed A and Feed B
@@ -191,9 +193,8 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	grouper := &LLMGrouper{LLMService: mockLLM}
 	groups, summary := grouper.GroupEntries(entries)
 
-	expectedSummary := "This is a summary of all entries.\n\nYou have 4 entries from 2 feeds."
-	if summary != expectedSummary {
-		t.Errorf("Expected summary \"%s\", got \"%s\"", expectedSummary, summary)
+	if summary == nil || *summary != "This is a summary of all entries." {
+		t.Errorf("Expected summary 'This is a summary of all entries.', got %q", *summary)
 	}
 
 	if len(groups) != 2 {
@@ -216,7 +217,7 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 		return "", errors.New("LLM API error")
 	}
 	groups, summary = grouper.GroupEntries(entries)
-	if len(groups) == 0 || summary == "" {
+	if len(groups) == 0 || summary != nil { // Expect groups, and nil summary from DayGrouper
 		t.Error("Expected fallback to DayGrouper on LLM error")
 	}
 
@@ -225,7 +226,7 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 		return "invalid json", nil
 	}
 	groups, summary = grouper.GroupEntries(entries)
-	if len(groups) == 0 || summary == "" {
+	if len(groups) == 0 || summary != nil { // Expect groups, and nil summary from DayGrouper
 		t.Error("Expected fallback to DayGrouper on invalid JSON")
 	}
 
@@ -280,9 +281,8 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 	grouper := &LLMGrouper{LLMService: mockLLM}
 	groups, summary := grouper.GroupEntries(entries)
 
-	expectedSummary := "This is a summary of all entries.\n\nYou have 4 entries from 2 feeds."
-	if summary != expectedSummary {
-		t.Errorf("Expected summary \"%s\", got \"%s\"", expectedSummary, summary)
+	if summary == nil || *summary != "This is a summary of all entries." {
+		t.Errorf("Expected summary 'This is a summary of all entries.', got %q", *summary)
 	}
 
 	if len(groups) != 2 {
