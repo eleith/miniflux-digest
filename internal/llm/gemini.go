@@ -49,6 +49,9 @@ func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt str
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   schema,
 		})
+		if err != nil {
+			log.Printf("LLM call failed: %v", err)
+		}
 		if err == nil {
 			return resp, nil
 		}
@@ -80,6 +83,7 @@ func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, sche
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
+		log.Println("LLM: No content returned from LLM (empty candidates or parts).")
 		return "", errors.New("no content returned from LLM")
 	}
 
