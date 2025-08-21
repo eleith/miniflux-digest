@@ -12,4 +12,5 @@ type MinifluxClientService interface {
 	FeedIcon(feedID int64) (*miniflux.FeedIcon, error)
 	StreamAllCategoryData() <-chan *models.RawCategoryData
 	GetAllUnreadEntries() (*miniflux.Entries, error)
+	UpdateEntries(entryIDs []int64, status string) error
 }

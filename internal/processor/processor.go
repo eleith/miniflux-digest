@@ -55,13 +55,20 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 		return nil, nil, nil, err
 	}
 
-	// TODO: Mark as read
+	// Mark as read
+	if application.Config.Digest.MarkAsRead {
+		var entryIDs []int64
+		for _, entry := range *entries {
+			entryIDs = append(entryIDs, entry.ID)
+		}
+
+		if len(entryIDs) > 0 {
+			err := application.MinifluxClientService.UpdateEntries(entryIDs, miniflux.EntryStatusRead)
+			if err != nil {
+				log.Printf("Error marking entries as read: %v", err)
+			}
+		}
+	}
 
 	return overviewFile, groupedEntryFiles, data, nil
-}
-
-func RunOnStartup(application *app.App) {
-	if application.Config.Digest.RunOnStartup {
-		_, _, _, _ = ProcessAndSendDigest(application)
-	}
 }

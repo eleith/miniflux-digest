@@ -127,3 +127,7 @@ func (m *MinifluxClientWrapper) GetAllUnreadEntries() (*miniflux.Entries, error)
 	}
 	return &entries.Entries, nil
 }
+
+func (m *MinifluxClientWrapper) UpdateEntries(entryIDs []int64, status string) error {
+	return m.client.UpdateEntries(entryIDs, status)
+}
