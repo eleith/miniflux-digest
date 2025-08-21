@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -116,12 +114,17 @@ func main() {
 	}
 	log.Println("main: HTML generated.")
 
+	log.Printf("overviewFile.Name(): %s", overviewFile.Name())
+	log.Printf("webserver.ArchiveBasePath: %s", webserver.ArchiveBasePath)
+
 	// Construct overviewURL (needed for email and browser preview)
 	relativePath, err := filepath.Rel(webserver.ArchiveBasePath, overviewFile.Name())
 	if err != nil {
 		log.Fatalf("Failed to get relative path: %v", err)
 	}
+	log.Printf("relativePath: %s", relativePath)
 	overviewURL := fmt.Sprintf("http://localhost%s/archive/%s", webserver.Port, relativePath)
+	log.Printf("overviewURL: %s", overviewURL)
 
 	if *emailFlag {
 		log.Println("main: Email flag is true, sending email...")
@@ -136,33 +139,20 @@ func main() {
 	} else {
 		log.Printf("Successfully generated.")
 
-		// Start web server
-		mux := webserver.SetupServer(webserver.ArchiveBasePath)
-		server := &http.Server{Addr: webserver.Port, Handler: webserver.RequestSanitizerMiddleware(mux)}
-
 		go func() {
-			webserver.StartServer(webserver.Port, webserver.RequestSanitizerMiddleware(mux))
+			webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)
 		}()
 
-		// Open browser
-		log.Printf("Preview available at: %s", overviewURL)
-		log.Println("main: Attempting to open browser...")
+		log.Printf("Attempting to open %s with the browser...", overviewURL)
 		if err := openBrowser(overviewURL); err != nil {
 			log.Printf("Failed to open browser: %v", err)
 		}
-		log.Println("main: Browser open attempt finished.")
 
-		log.Println("Press Ctrl+C to stop the preview server.")
-		// Handle graceful shutdown
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
-		log.Println("Shutting down preview server...")
+		// Keep the main goroutine alive until an interrupt signal is received
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
 
-		if err := server.Shutdown(context.Background()); err != nil {
-			log.Fatalf("Server shutdown failed: %v", err)
-		}
-		log.Println("Preview server gracefully stopped.")
-		os.Exit(0)
+		log.Println("Shutting down web server...")
 	}
 }

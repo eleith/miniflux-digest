@@ -85,10 +85,7 @@ func main() {
 		go digestJob(application)
 	}
 
-	go func() {
-		mux := webserver.SetupServer(webserver.ArchiveBasePath)
-		webserver.StartServer(webserver.Port, webserver.RequestSanitizerMiddleware(mux))
-	}()
+	go webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)
 
 	scheduler.Start()
 
