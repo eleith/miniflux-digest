@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"miniflux-digest/internal/webserver"
 )
 
 func setupTestArchive(t *testing.T) string {
@@ -38,8 +40,8 @@ func setupTestArchive(t *testing.T) string {
 func TestHealthCheckHandler(t *testing.T) {
 	req := httptest.NewRequest("GET", "/healthcheck", nil)
 	rr := httptest.NewRecorder()
-	mux := SetupServer("") // archive base path is not needed for this test
-	h := requestSanitizerMiddleware(mux)
+	mux := webserver.SetupServer("") // archive base path is not needed for this test
+	h := webserver.RequestSanitizerMiddleware(mux)
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -56,11 +58,11 @@ func TestHealthCheckHandler(t *testing.T) {
 
 func TestServeArchiveFile_Success(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
-	mux := SetupServer(archiveBasePath)
+	mux := webserver.SetupServer(archiveBasePath)
 
 	req := httptest.NewRequest("GET", "/archive/test-category/test-file.html", nil)
 	rr := httptest.NewRecorder()
-	h := requestSanitizerMiddleware(mux)
+	h := webserver.RequestSanitizerMiddleware(mux)
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -81,11 +83,11 @@ func TestServeArchiveFile_Success(t *testing.T) {
 
 func TestServeArchiveFile_NotFound(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
-	mux := SetupServer(archiveBasePath)
+	mux := webserver.SetupServer(archiveBasePath)
 
 	req := httptest.NewRequest("GET", "/archive/test-category/not-found.html", nil)
 	rr := httptest.NewRecorder()
-	h := requestSanitizerMiddleware(mux)
+	h := webserver.RequestSanitizerMiddleware(mux)
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusNotFound {
@@ -96,13 +98,13 @@ func TestServeArchiveFile_NotFound(t *testing.T) {
 
 func TestServeArchiveFile_PathTraversal(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
-	mux := SetupServer(archiveBasePath)
+	mux := webserver.SetupServer(archiveBasePath)
 
 	// Attempt to access a file outside the archive base path
 	// The http.FileServer should prevent this, resulting in a 400
 	req := httptest.NewRequest("GET", "/archive/../main_test.go", nil)
 	rr := httptest.NewRecorder()
-	h := requestSanitizerMiddleware(mux)
+	h := webserver.RequestSanitizerMiddleware(mux)
 	h.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusBadRequest {
@@ -113,15 +115,32 @@ func TestServeArchiveFile_PathTraversal(t *testing.T) {
 
 func TestServeArchiveFile_DirectoryRequest(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
-	mux := SetupServer(archiveBasePath)
+	mux := webserver.SetupServer(archiveBasePath)
+
+	// Create a dummy index.html file in the test category directory
+	filePath := filepath.Join(archiveBasePath, "test-category", "index.html")
+	fileContent := "<html><body><h1>Index File</h1></body></html>"
+	if err := os.WriteFile(filePath, []byte(fileContent), 0644); err != nil {
+		t.Fatalf("Failed to write test index file: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/archive/test-category/", nil)
 	rr := httptest.NewRecorder()
-	h := requestSanitizerMiddleware(mux)
+	h := webserver.RequestSanitizerMiddleware(mux)
 	h.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusNotFound {
+	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code for directory request: got %v want %v",
-			status, http.StatusNotFound)
+			status, http.StatusOK)
+	}
+
+	expected := "<html><body><h1>Index File</h1></body></html>"
+	body, err := io.ReadAll(rr.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+	if string(body) != expected {
+		t.Errorf("handler returned unexpected body: got %q want %q",
+			string(body), expected)
 	}
 }

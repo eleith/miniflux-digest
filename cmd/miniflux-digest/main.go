@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
-	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -18,13 +15,12 @@ import (
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/processor"
 	"miniflux-digest/internal/templates"
+	"miniflux-digest/internal/webserver"
 )
 
 const (
 	JitterSeconds         = 30
 	ArchiveCleanupDays    = 21
-	ArchiveBasePath       = "web/miniflux-archive"
-	HealthCheckPort       = ":8080"
 )
 
 func digestJob(application *app.App) {
@@ -60,35 +56,7 @@ func registerArchiveCleanupJob(application *app.App, scheduler gocron.Scheduler)
 	}
 }
 
-func SetupServer(archiveBasePath string) *http.ServeMux {
-	mux := http.NewServeMux()
 
-	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		if _, err := fmt.Fprintf(w, "OK"); err != nil {
-			log.Printf("Error writing healthcheck response: %v", err)
-		}
-	})
-
-	fs := http.FileServer(http.Dir(archiveBasePath))
-	mux.Handle("/archive/", http.StripPrefix("/archive/", fs))
-
-	return mux
-}
-
-func requestSanitizerMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "..") {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-		if strings.HasSuffix(r.URL.Path, "/") && len(r.URL.Path) > 1 {
-			http.NotFound(w, r)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 func main() {
 	cfg, err := config.Load("./config.yaml")
@@ -121,12 +89,8 @@ func main() {
 	}
 
 	go func() {
-		mux := SetupServer(ArchiveBasePath)
-		log.Printf("Internal web server starting on port %s", HealthCheckPort)
-
-		if err := http.ListenAndServe(HealthCheckPort, requestSanitizerMiddleware(mux)); err != nil {
-			log.Fatalf("Internal web server failed to start: %v", err)
-		}
+		mux := webserver.SetupServer(webserver.ArchiveBasePath)
+		webserver.StartServer(webserver.Port, webserver.RequestSanitizerMiddleware(mux))
 	}()
 
 	scheduler.Start()
@@ -144,7 +108,7 @@ func initServices(cfg *config.Config) (*app.App, error) {
 		return nil, err
 	}
 
-	archiveSvc := archive.NewArchiveService(ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
+	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
 	emailSvc := &email.EmailServiceImpl{}
 	digestService := digest.NewDigestService(llmService)
 
