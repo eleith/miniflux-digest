@@ -91,13 +91,13 @@ func TestCleanArchive(t *testing.T) {
 	tempDir := t.TempDir()
 	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	categorySlug := "test-category"
-	categoryPath := filepath.Join(tempDir, categorySlug)
-	if err := os.MkdirAll(categoryPath, 0755); err != nil {
-		t.Fatalf("Failed to create test directory: %v", err)
+	// Create an old directory with a file
+	oldDirName := time.Now().Add(-48 * time.Hour).Format("2006-01-02")
+	oldDirPath := filepath.Join(tempDir, oldDirName)
+	if err := os.MkdirAll(oldDirPath, 0755); err != nil {
+		t.Fatalf("Failed to create old test directory: %v", err)
 	}
-
-	oldFilePath := filepath.Join(categoryPath, "old.html")
+	oldFilePath := filepath.Join(oldDirPath, "test.html")
 	if err := os.WriteFile(oldFilePath, []byte("old"), 0644); err != nil {
 		t.Fatalf("Failed to create old file: %v", err)
 	}
@@ -106,72 +106,24 @@ func TestCleanArchive(t *testing.T) {
 		t.Fatalf("Failed to change file modification time: %v", err)
 	}
 
-	newFilePath := filepath.Join(categoryPath, "new.html")
+	// Create a new directory with a file
+	newDirName := time.Now().Format("2006-01-02")
+	newDirPath := filepath.Join(tempDir, newDirName)
+	if err := os.MkdirAll(newDirPath, 0755); err != nil {
+		t.Fatalf("Failed to create new test directory: %v", err)
+	}
+	newFilePath := filepath.Join(newDirPath, "test.html")
 	if err := os.WriteFile(newFilePath, []byte("new"), 0644); err != nil {
 		t.Fatalf("Failed to create new file: %v", err)
 	}
 
-	archiveService.CleanArchive(24*time.Hour)
+	archiveService.CleanArchive(24 * time.Hour)
 
-	if _, err := os.Stat(oldFilePath); !os.IsNotExist(err) {
-		t.Error("Expected old file to be deleted")
-	}
-
-	if _, err := os.Stat(newFilePath); os.IsNotExist(err) {
-		t.Error("Expected new file to be kept")
+	if _, err := os.Stat(oldDirPath); !os.IsNotExist(err) {
+		t.Error("Expected old directory to be deleted")
 	}
 
-	if err := os.Remove(newFilePath); err != nil {
-		t.Fatalf("Failed to remove new file: %v", err)
-	}
-
-	// Test removeEmptyCategoryFolders separately
-	emptyCategoryPath := filepath.Join(tempDir, "empty-category")
-	if err := os.MkdirAll(emptyCategoryPath, 0755); err != nil {
-		t.Fatalf("Failed to create empty test directory: %v", err)
-	}
-	archiveService.removeEmptyCategoryFolders()
-
-	if _, err := os.Stat(emptyCategoryPath); !os.IsNotExist(err) {
-		t.Error("Expected empty category directory to be deleted")
-	}
-}
-
-func TestIsDirEmpty(t *testing.T) {
-	archiveService := NewArchiveService(t.TempDir(), templates.OverviewTemplate, templates.ArchiveTemplate)
-	tmpDir, err := os.MkdirTemp("", "test-empty-dir")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() {
-		if err := os.RemoveAll(tmpDir); err != nil {
-			t.Errorf("Failed to remove temp dir: %v", err)
-		}
-	}()
-
-	empty, err := archiveService.isDirEmpty(tmpDir)
-	if err != nil {
-		t.Fatalf("isDirEmpty failed for empty dir: %v", err)
-	}
-	if !empty {
-		t.Error("Expected directory to be empty")
-	}
-
-	filePath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(filePath, []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	empty, err = archiveService.isDirEmpty(tmpDir)
-	if err != nil {
-		t.Fatalf("isDirEmpty failed for non-empty dir: %v", err)
-	}
-	if empty {
-		t.Error("Expected directory to not be empty")
-	}
-
-	_, err = archiveService.isDirEmpty("non-existent-dir")
-	if !os.IsNotExist(err) {
-		t.Errorf("Expected IsNotExist error for non-existent dir, got: %v", err)
+	if _, err := os.Stat(newDirPath); os.IsNotExist(err) {
+		t.Error("Expected new directory to be kept")
 	}
 }

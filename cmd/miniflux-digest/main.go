@@ -55,8 +55,6 @@ func registerArchiveCleanupJob(application *app.App, scheduler gocron.Scheduler)
 	}
 }
 
-
-
 func main() {
 	cfg, err := config.Load("./config.yaml")
 

@@ -27,7 +27,7 @@ func NewArchiveService(archiveBaseDir string, archiveTemplate *htmlTemplate.Temp
 	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir, ArchiveTemplate: archiveTemplate, OverviewTemplate: overviewTemplate}
 }
 
-func (s *ArchiveServiceImpl) getHTML(template *htmlTemplate.Template, data interface{}, compress bool) ([]byte, error) {
+func (s *ArchiveServiceImpl) getHTML(template *htmlTemplate.Template, data any, compress bool) ([]byte, error) {
 	var buf bytes.Buffer
 
 	err := template.Execute(&buf, data)
@@ -148,14 +148,54 @@ func (s *ArchiveServiceImpl) removeOldArchiveFiles(maxAge time.Duration) {
 	}
 }
 
+func (s *ArchiveServiceImpl) removeEmptyDirs() {
+	var dirs []string
+
+	// First, collect all directory paths
+	err := filepath.WalkDir(s.ArchiveBaseDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			dirs = append(dirs, path)
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("Error walking directory tree: %v", err)
+		return
+	}
+
+	// Process directories in reverse order (from deepest to shallowest)
+	for i := len(dirs) - 1; i >= 0; i-- {
+		dir := dirs[i]
+		// Don't try to remove the root archive directory
+		if dir == s.ArchiveBaseDir {
+			continue
+		}
+
+		empty, err := s.isDirEmpty(dir)
+		if err != nil {
+			log.Printf("Warning: could not check if directory %s is empty: %v", dir, err)
+			continue
+		}
+
+		if empty {
+			if err := os.Remove(dir); err != nil {
+				log.Printf("Warning: failed to delete empty directory %s: %v", dir, err)
+			}
+		}
+	}
+}
+
 func (s *ArchiveServiceImpl) isDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return false, err
 	}
-
 	defer func() {
-		if err = f.Close(); err != nil {
+		if err := f.Close(); err != nil {
 			log.Printf("Warning: failed to close directory %s: %v", name, err)
 		}
 	}()
@@ -167,31 +207,7 @@ func (s *ArchiveServiceImpl) isDirEmpty(name string) (bool, error) {
 	return false, err
 }
 
-func (s *ArchiveServiceImpl) removeEmptyCategoryFolders() {
-	dirs, err := os.ReadDir(s.ArchiveBaseDir)
-	if err != nil {
-		log.Printf("Warning: could not read archive directory %s: %v", s.ArchiveBaseDir, err)
-		return
-	}
-
-	for _, dir := range dirs {
-		if dir.IsDir() {
-			categoryPath := filepath.Join(s.ArchiveBaseDir, dir.Name())
-			empty, err := s.isDirEmpty(categoryPath)
-			if err != nil {
-				log.Printf("Warning: could not check if directory %s is empty: %v", categoryPath, err)
-				continue
-			}
-			if empty {
-				if err := os.Remove(categoryPath); err != nil {
-					log.Printf("Warning: failed to delete empty directory %s: %v", categoryPath, err)
-				}
-			}
-		}
-	}
-}
-
 func (s *ArchiveServiceImpl) CleanArchive(maxAge time.Duration) {
 	s.removeOldArchiveFiles(maxAge)
-	s.removeEmptyCategoryFolders()
+	s.removeEmptyDirs()
 }
