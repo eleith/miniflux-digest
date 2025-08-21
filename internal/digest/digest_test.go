@@ -299,14 +299,15 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 }
 
 func TestGroupEntries(t *testing.T) {
-	entries := &miniflux.Entries{
+	// Test case for category grouping (default behavior)
+	categoryEntries := &miniflux.Entries{
 		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category A"}}},
 		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category B"}}},
 		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category A"}}},
 		{Feed: &miniflux.Feed{}},
 	}
 
-	categoryGroups := GroupEntries(entries, "category")
+	categoryGroups := GroupEntries(categoryEntries, "category")
 	if len(categoryGroups) != 3 {
 		t.Errorf("Expected 3 category groups, got %d", len(categoryGroups))
 	}
@@ -320,8 +321,25 @@ func TestGroupEntries(t *testing.T) {
 		t.Errorf("Expected 1 entry in Uncategorized, got %d", len(categoryGroups["Uncategorized"]))
 	}
 
-	feedGroups := GroupEntries(entries, "feed")
-	if len(feedGroups) != 1 {
-		t.Errorf("Expected 1 feed group, got %d", len(feedGroups))
+	// Test case for feed grouping
+	feedEntries := &miniflux.Entries{
+		{Feed: &miniflux.Feed{Title: "Feed X"}},
+		{Feed: &miniflux.Feed{Title: "Feed Y"}},
+		{Feed: &miniflux.Feed{Title: "Feed X"}},
+		{Feed: &miniflux.Feed{Title: "Feed Z"}},
+	}
+
+	feedGroups := GroupEntries(feedEntries, "feed")
+	if len(feedGroups) != 3 {
+		t.Errorf("Expected 3 feed groups, got %d", len(feedGroups))
+	}
+	if len(feedGroups["Feed X"]) != 2 {
+		t.Errorf("Expected 2 entries in Feed X, got %d", len(feedGroups["Feed X"]))
+	}
+	if len(feedGroups["Feed Y"]) != 1 {
+		t.Errorf("Expected 1 entry in Feed Y, got %d", len(feedGroups["Feed Y"]))
+	}
+	if len(feedGroups["Feed Z"]) != 1 {
+		t.Errorf("Expected 1 entry in Feed Z, got %d", len(feedGroups["Feed Z"]))
 	}
 }

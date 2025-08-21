@@ -46,7 +46,7 @@ func openBrowser(url string) error {
 	return exec.Command(cmd, args...).Start()
 }
 
-func generateDigestData(cfg *config.Config, useMiniflux bool) *models.OverviewTemplateData {
+func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	log.Println("generateDigestData: Starting...")
 
 	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
@@ -58,18 +58,46 @@ func generateDigestData(cfg *config.Config, useMiniflux bool) *models.OverviewTe
 	log.Println("generateDigestData: DigestService initialized.")
 
 	var entries *miniflux.Entries
-	if useMiniflux {
-		log.Println("generateDigestData: Fetching real Miniflux data...")
-		minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
-		clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
+	log.Println("generateDigestData: Using mock data...")
+	entries = testutil.MockNumEntries(200)
 
-		entries, err = clientWrapper.GetAllUnreadEntries()
-		if err != nil {
-			log.Fatalf("Failed to fetch entries: %v", err)
-		}
-	} else {
-		log.Println("generateDigestData: Using mock data...")
-		entries = testutil.MockNumEntries(200)
+	// For the preview, we'll just use a mock category and all entries.
+	// The full grouping logic will be in the processor.
+	log.Println("generateDigestData: Building digest data...")
+	return digestSvc.BuildDigestData(
+		testutil.NewMockCategory(),
+		entries,
+		map[int64]*models.FeedIcon{
+			1: testutil.NewMockFeedIconRed(),
+			2: testutil.NewMockFeedIconYellow(),
+			3: testutil.NewMockFeedIconGreen(),
+		},
+		cfg.Digest.GroupBy,
+		cfg.Digest.SubGroupBy,
+		cfg.Digest.SortBy,
+		cfg.Miniflux.Host,
+	)
+}
+
+func generateMinifluxDigest(cfg *config.Config) *models.OverviewTemplateData {
+	log.Println("generateDigestData: Starting...")
+
+	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
+	if err != nil {
+		log.Fatalf("Failed to create LLM service: %v", err)
+	}
+
+	digestSvc := digest.NewDigestService(llmService)
+	log.Println("generateDigestData: DigestService initialized.")
+
+	var entries *miniflux.Entries
+	log.Println("generateDigestData: Fetching real Miniflux data...")
+	minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
+	clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
+
+	entries, err = clientWrapper.GetAllUnreadEntries()
+	if err != nil {
+		log.Fatalf("Failed to fetch entries: %v", err)
 	}
 
 	// For the preview, we'll just use a mock category and all entries.
@@ -108,8 +136,16 @@ func loadConfig() *config.Config {
 }
 
 func generateAndArchiveHTML(cfg *config.Config, minifluxFlag bool) (*os.File, []*os.File, string, *models.OverviewTemplateData) {
-	data := generateDigestData(cfg, minifluxFlag)
+	var data *models.OverviewTemplateData
+
+	if minifluxFlag {
+		data = generateMinifluxDigest(cfg)
+	} else {
+		data = generateMockDigest(cfg)
+	}
+
 	log.Println("main: Digest data generated.")
+
 
 	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
 	overviewFile, groupedEntryFiles, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
@@ -177,6 +213,9 @@ func main() {
 		overviewFile, groupedEntryFiles, _, data := generateAndArchiveHTML(cfg, minifluxFlag)
 		handleEmail(cfg, overviewFile, groupedEntryFiles, data)
 	} else if htmlFlag {
+		_, _, overviewURL, _ := generateAndArchiveHTML(cfg, minifluxFlag)
+		handleOpenUrl(overviewURL)
+	} else if minifluxFlag {
 		_, _, overviewURL, _ := generateAndArchiveHTML(cfg, minifluxFlag)
 		handleOpenUrl(overviewURL)
 	} else {

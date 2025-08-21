@@ -27,7 +27,11 @@ func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*minif
 	groups := make(map[string][]*miniflux.Entry)
 
 	switch groupBy {
-	case "category":
+	case "feed":
+		for _, entry := range *entries {
+			groups[entry.Feed.Title] = append(groups[entry.Feed.Title], entry)
+		}
+	default:
 		for _, entry := range *entries {
 			var groupName string
 			if entry.Feed.Category != nil {
@@ -37,10 +41,6 @@ func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*minif
 			}
 			groups[groupName] = append(groups[groupName], entry)
 		}
-	case "feed":
-		for _, entry := range *entries {
-			groups[entry.Feed.Title] = append(groups[entry.Feed.Title], entry)
-		}
 	}
 
 	return groups
@@ -48,7 +48,7 @@ func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*minif
 
 func NewSubGrouper(subGroupBy string, llmService services.LLMService) SubGrouper {
 	switch subGroupBy {
-	case "ai_topic":
+	case "ai":
 		return &LLMGrouper{LLMService: llmService}
 	case "feed":
 		return &FeedGrouper{}
