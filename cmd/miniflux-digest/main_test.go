@@ -34,6 +34,23 @@ func setupTestArchive(t *testing.T) string {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
+	// Create a directory with an index.html
+	categoryWithIndexDir := filepath.Join(tmpDir, "test-category-with-index")
+	if err := os.Mkdir(categoryWithIndexDir, 0755); err != nil {
+		t.Fatalf("Failed to create category with index dir: %v", err)
+	}
+	indexPath := filepath.Join(categoryWithIndexDir, "index.html")
+	indexContent := "<html><body><h1>Index File</h1></body></html>"
+	if err := os.WriteFile(indexPath, []byte(indexContent), 0644); err != nil {
+		t.Fatalf("Failed to write index file: %v", err)
+	}
+
+	// Create a directory without an index.html
+	categoryNoIndexDir := filepath.Join(tmpDir, "test-category-no-index")
+	if err := os.Mkdir(categoryNoIndexDir, 0755); err != nil {
+		t.Fatalf("Failed to create category no index dir: %v", err)
+	}
+
 	return tmpDir
 }
 
@@ -171,6 +188,41 @@ func TestServeArchiveFile_DirectoryListingDisabled(t *testing.T) {
 
 	if status := rr.Code; status != http.StatusNotFound {
 		t.Errorf("handler returned wrong status code for directory listing attempt: got %v want %v",
+			status, http.StatusNotFound)
+	}
+}
+
+func TestServeArchiveFile_NoDirectoryListingAndIndexHtml(t *testing.T) {
+	archiveBasePath := setupTestArchive(t)
+	mux := webserver.SetupServer(archiveBasePath)
+
+	// Test case 1: Request a directory with index.html
+	req1 := httptest.NewRequest("GET", "/archive/test-category-with-index/", nil)
+	rr1 := httptest.NewRecorder()
+	mux.ServeHTTP(rr1, req1)
+
+	if status := rr1.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code for directory with index.html: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	expected1 := "<html><body><h1>Index File</h1></body></html>"
+	body1, err := io.ReadAll(rr1.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+	if string(body1) != expected1 {
+		t.Errorf("handler returned unexpected body for directory with index.html: got %q want %q",
+			string(body1), expected1)
+	}
+
+	// Test case 2: Request a directory without index.html
+	req2 := httptest.NewRequest("GET", "/archive/test-category-no-index/", nil)
+	rr2 := httptest.NewRecorder()
+	mux.ServeHTTP(rr2, req2)
+
+	if status := rr2.Code; status != http.StatusNotFound {
+		t.Errorf("handler returned wrong status code for directory without index.html: got %v want %v",
 			status, http.StatusNotFound)
 	}
 }

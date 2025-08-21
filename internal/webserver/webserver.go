@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -13,22 +15,26 @@ const (
 	Port            = ":8080"
 )
 
-// noDirListingFileServer wraps http.FileServer to prevent directory listings.
-func noDirListingFileServer(root http.FileSystem) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the request path ends with a slash (indicating a directory)
-		if strings.HasSuffix(r.URL.Path, "/") {
-			// Try to open index.html within that directory
-			indexPath := path.Join(r.URL.Path, "index.html")
-			if _, err := root.Open(indexPath); err != nil {
-				// If index.html doesn't exist, return 404
-				http.NotFound(w, r)
-				return
-			}
-			// If index.html exists, let FileServer handle it (it will redirect to /path/to/dir/index.html)
-		}
-		http.FileServer(root).ServeHTTP(w, r)
-	})
+type noDirListingFileSystem struct {
+	fs http.FileSystem
+}
+
+func (fs noDirListingFileSystem) Open(name string) (http.File, error) {
+	f, err := fs.fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	stat, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if stat.IsDir() {
+		// If it's a directory, close the file and return os.ErrNotExist
+		// This will cause http.FileServer to return a 404
+		_ = f.Close() // Ignore error on close, as we are returning an error anyway
+		return nil, os.ErrNotExist
+	}
+	return f, nil
 }
 
 func SetupServer(archiveBasePath string) *http.ServeMux {
@@ -41,8 +47,27 @@ func SetupServer(archiveBasePath string) *http.ServeMux {
 		}
 	})
 
-	// Use the new noDirListingFileServer
-	mux.Handle("/archive/", http.StripPrefix("/archive/", noDirListingFileServer(http.Dir(archiveBasePath))))
+	// Create a file server that prevents directory listings
+	fs := http.FileServer(noDirListingFileSystem{http.Dir(archiveBasePath)})
+
+	// Handle /archive/ requests
+	mux.Handle("/archive/", http.StripPrefix("/archive/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// If the request is for a directory (ends with /)
+		if strings.HasSuffix(r.URL.Path, "/") {
+			// Construct the path to index.html relative to the stripped path
+			strippedPath := strings.TrimPrefix(r.URL.Path, "/")
+			indexPath := path.Join(strippedPath, "index.html")
+
+			// Check if index.html exists using our noDirListingFileSystem
+			if _, err := (noDirListingFileSystem{http.Dir(archiveBasePath)}).Open(indexPath); err == nil {
+				// If index.html exists, serve it
+				http.ServeFile(w, r, filepath.Join(archiveBasePath, indexPath))
+				return
+			}
+		}
+		// Otherwise, let the file server handle it (will return 404 for directories without index.html)
+		fs.ServeHTTP(w, r)
+	})))
 
 	return mux
 }
