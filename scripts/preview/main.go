@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
+	"path/filepath"
 	"runtime"
+	"syscall"
 
 	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/archive"
@@ -17,6 +22,7 @@ import (
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
+	"miniflux-digest/internal/webserver"
 
 	miniflux "miniflux.app/v2/client"
 )
@@ -28,6 +34,7 @@ func openBrowser(url string) error {
 	switch runtime.GOOS {
 	case "darwin":
 		cmd = "open"
+		args = []string{url}
 	case "windows":
 		cmd = "cmd"
 		args = []string{"/c", "start"}
@@ -78,6 +85,7 @@ func generateDigestData(cfg *config.Config, useMiniflux bool) *models.OverviewTe
 			2: testutil.NewMockFeedIconYellow(),
 			3: testutil.NewMockFeedIconGreen(),
 		},
+		cfg.Digest.GroupBy,
 		cfg.Digest.SubGroupBy,
 		cfg.Digest.SortBy,
 		cfg.Miniflux.Host,
@@ -101,7 +109,7 @@ func main() {
 	data := generateDigestData(cfg, *minifluxFlag)
 	log.Println("main: Digest data generated.")
 
-	archiveSvc := archive.NewArchiveService("web/miniflux-archive", templates.ArchiveTemplate, templates.OverviewTemplate)
+	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
 	overviewFile, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
 	if err != nil {
 		log.Fatalf("Failed to generate HTML: %v", err)
@@ -120,11 +128,37 @@ func main() {
 		log.Printf("Successfully generated.")
 	}
 
-	log.Printf("Preview available at: file://%s", overviewFile.Name())
+	// Start web server
+	mux := webserver.SetupServer(webserver.ArchiveBasePath)
+	server := &http.Server{Addr: webserver.Port, Handler: webserver.RequestSanitizerMiddleware(mux)}
 
+	go func() {
+		webserver.StartServer(webserver.Port, webserver.RequestSanitizerMiddleware(mux))
+	}()
+
+	// Open browser
+	relativePath, err := filepath.Rel(webserver.ArchiveBasePath, overviewFile.Name())
+	if err != nil {
+		log.Fatalf("Failed to get relative path: %v", err)
+	}
+	previewURL := fmt.Sprintf("http://localhost%s/archive/%s", webserver.Port, relativePath)
+	log.Printf("Preview available at: %s", previewURL)
 	log.Println("main: Attempting to open browser...")
-	if err := openBrowser(fmt.Sprintf("file://%s", overviewFile.Name())); err != nil {
+	if err := openBrowser(previewURL); err != nil {
 		log.Printf("Failed to open browser: %v", err)
 	}
 	log.Println("main: Browser open attempt finished.")
+
+	log.Println("Press Ctrl+C to stop the preview server.")
+	// Handle graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down preview server...")
+
+	if err := server.Shutdown(context.Background()); err != nil {
+		log.Fatalf("Server shutdown failed: %v", err)
+	}
+	log.Println("Preview server gracefully stopped.")
+	os.Exit(0)
 }

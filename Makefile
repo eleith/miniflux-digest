@@ -1,8 +1,8 @@
 build:
 	go build -mod=vendor -o miniflux-digest ./cmd/miniflux-digest
 
-preview-html:
-	go run -mod=vendor ./scripts/preview/main.go
+preview:
+	@trap "exit 0" INT; go run -mod=vendor ./scripts/preview/main.go
 
 preview-email:
 	go run -mod=vendor ./scripts/preview/main.go --email
