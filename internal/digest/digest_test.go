@@ -424,3 +424,79 @@ func TestGroupEntries(t *testing.T) {
 		t.Errorf("Expected 1 entry in Feed Z, got %d", len(feedGroups["Feed Z"]))
 	}
 }
+
+func TestLLMGrouper_GroupEntries_CorrectCounts(t *testing.T) {
+	entries := createDayGrouperMockEntries()
+
+	mockLLM := &mockLLMService{
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
+			return `{
+				"summary": "Test summary for correct counts.",
+				"groups": [
+					{
+						"title": "Group Alpha",
+						"summary": "Summary Alpha",
+						"entry_ids": [1, 2]
+					},
+					{
+						"title": "Group Beta",
+						"summary": "Summary Beta",
+						"entry_ids": [3]
+					},
+					{
+						"title": "Group Gamma",
+						"summary": "Summary Gamma",
+						"entry_ids": []
+					}
+				]
+			}`, nil
+		},
+	}
+
+	grouper := &LLMGrouper{LLMService: mockLLM}
+	groups, summary := grouper.GroupEntries(entries)
+
+	if summary == nil || *summary != "Test summary for correct counts." {
+		t.Errorf("Expected summary 'Test summary for correct counts.', got %q", *summary)
+	}
+
+	if len(groups) != 4 { // Expect 4 groups (Alpha, Beta, Gamma, Uncategorized)
+		t.Fatalf("Expected 3 groups, got %d", len(groups))
+	}
+
+	// Check Group Alpha
+	groupAlpha := findGroup(groups, "Group Alpha")
+	if groupAlpha == nil {
+		t.Fatal("Expected 'Group Alpha' not found")
+	}
+	if groupAlpha.TotalEntries != 2 {
+		t.Errorf("Expected TotalEntries 2 for 'Group Alpha', got %d", groupAlpha.TotalEntries)
+	}
+	if groupAlpha.TotalFeeds != 2 { // Entry 1 (Feed A), Entry 2 (Feed B)
+		t.Errorf("Expected TotalFeeds 2 for 'Group Alpha', got %d", groupAlpha.TotalFeeds)
+	}
+
+	// Check Group Beta
+	groupBeta := findGroup(groups, "Group Beta")
+	if groupBeta == nil {
+		t.Fatal("Expected 'Group Beta' not found")
+	}
+	if groupBeta.TotalEntries != 1 {
+		t.Errorf("Expected TotalEntries 1 for 'Group Beta', got %d", groupBeta.TotalEntries)
+	}
+	if groupBeta.TotalFeeds != 1 { // Entry 3 (Feed A)
+		t.Errorf("Expected TotalFeeds 1 for 'Group Beta', got %d", groupBeta.TotalFeeds)
+	}
+
+	// Check Group C (empty entries)
+	groupGamma := findGroup(groups, "Group Gamma")
+	if groupGamma == nil {
+		t.Fatal("Expected 'Group Gamma' not found")
+	}
+	if groupGamma.TotalEntries != 0 {
+		t.Errorf("Expected TotalEntries 0 for 'Group Gamma', got %d", groupGamma.TotalEntries)
+	}
+	if groupGamma.TotalFeeds != 0 {
+		t.Errorf("Expected TotalFeeds 0 for 'Group Gamma', got %d", groupGamma.TotalFeeds)
+	}
+}
