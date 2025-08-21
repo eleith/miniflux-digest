@@ -5,7 +5,6 @@ import (
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/testutil"
 	"testing"
-	"time"
 )
 
 func TestTemplates(t *testing.T) {
@@ -19,19 +18,27 @@ func TestTemplates(t *testing.T) {
 }
 
 func TestArchiveTemplateExecution(t *testing.T) {
-	// Create a mock EntryGroup
-	mockEntryGroup := &models.EntryGroup{
-		Title:   "Test Group Title",
-		Summary: "Test Group Summary",
+	// Create a mock EntryGroup (sub-group)
+	mockSubGroup := &models.EntryGroup{
+		Title:   "Test SubGroup Title",
+		Summary: "Test SubGroup Summary",
 		Entries: *testutil.NewMockEntries(),
+		Slug:    "test-subgroup-title",
 	}
 
-	// Create GroupedEntriesTemplateData
-	data := models.GroupedEntriesTemplateData{
-		EntryGroup:    mockEntryGroup,
-		GeneratedDate: time.Now(),
-		FeedIcons:     testutil.NewMockFeedIcons(),
-		MinifluxHost:  "http://localhost:8080",
+	// Create PrimaryGroupDigestData
+	mockPrimaryGroup := &models.PrimaryGroupDigestData{
+		Title:     "Test Primary Group Title",
+		Slug:      "test-primary-group-title",
+		SubGroups: []*models.EntryGroup{mockSubGroup},
+		Summary:   "Test Primary Group Summary",
+	}
+
+	// Create GroupedDigestPageData
+	data := models.GroupedDigestPageData{
+		PrimaryGroup: mockPrimaryGroup,
+		FeedIcons:    testutil.NewMockFeedIcons(),
+		MinifluxHost: "http://localhost:8080",
 	}
 
 	var buf bytes.Buffer

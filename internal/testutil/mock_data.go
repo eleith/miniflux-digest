@@ -33,24 +33,56 @@ func NewMockCategory() *miniflux.Category {
 	}
 }
 
+func NewMockCategoryTech() *miniflux.Category {
+	return &miniflux.Category{
+		ID:    100,
+		Title: "Technology",
+	}
+}
+
+func NewMockCategoryComics() *miniflux.Category {
+	return &miniflux.Category{
+		ID:    101,
+		Title: "Comics",
+	}
+}
+
+func NewMockCategoryNews() *miniflux.Category {
+	return &miniflux.Category{
+		ID:    102,
+		Title: "News",
+	}
+}
+
 func NewMockFeedRed() *miniflux.Feed {
 	return &miniflux.Feed{
-		ID:    1,
-		Title: "Tech News",
+		ID:       1,
+		Title:    "Tech News",
+		Category: NewMockCategoryTech(),
 	}
 }
 
 func NewMockFeedYellow() *miniflux.Feed {
 	return &miniflux.Feed{
-		ID:    2,
-		Title: "The Daily Bugle - A Very Long Feed Name to Test Overflow",
+		ID:       2,
+		Title:    "The Daily Bugle - A Very Long Feed Name to Test Overflow",
+		Category: NewMockCategoryNews(),
 	}
 }
 
 func NewMockFeedGreen() *miniflux.Feed {
 	return &miniflux.Feed{
-		ID:    3,
-		Title: "Comics",
+		ID:       3,
+		Title:    "Comics",
+		Category: NewMockCategoryComics(),
+	}
+}
+
+func NewMockFeedUncategorized() *miniflux.Feed {
+	return &miniflux.Feed{
+		ID:       4,
+		Title:    "Uncategorized Feed",
+		Category: nil,
 	}
 }
 
@@ -107,13 +139,15 @@ func MockNumEntries(n int) *miniflux.Entries {
 
 	for i := 1; i <= n; i++ {
 		var feed *miniflux.Feed
-		switch (i - 1) % 3 {
+		switch (i - 1) % 4 {
 		case 0:
 			feed = NewMockFeedRed()
 		case 1:
 			feed = NewMockFeedYellow()
 		case 2:
 			feed = NewMockFeedGreen()
+		case 3:
+			feed = NewMockFeedUncategorized()
 		}
 
 		title := titleTemplates[(i-1)%len(titleTemplates)]

@@ -4,7 +4,6 @@ import (
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
-	"miniflux-digest/internal/utils"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,19 +13,27 @@ import (
 func TestGetHTML(t *testing.T) {
 	archiveService := NewArchiveService(t.TempDir(), templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	// Create a mock EntryGroup
-	mockEntryGroup := &models.EntryGroup{
-		Title:   "Test Group Title",
-		Summary: "Test Group Summary",
+	// Create a mock EntryGroup (sub-group)
+	mockSubGroup := &models.EntryGroup{
+		Title:   "Test SubGroup Title",
+		Summary: "Test SubGroup Summary",
 		Entries: *testutil.NewMockEntries(),
+		Slug:    "test-subgroup-title",
 	}
 
-	// Create GroupedEntriesTemplateData
-	data := models.GroupedEntriesTemplateData{
-		EntryGroup:    mockEntryGroup,
-		GeneratedDate: time.Now(),
-		FeedIcons:     testutil.NewMockFeedIcons(),
-		MinifluxHost:  "http://localhost:8080",
+	// Create PrimaryGroupDigestData
+	mockPrimaryGroup := &models.PrimaryGroupDigestData{
+		Title:     "Test Primary Group Title",
+		Slug:      "test-primary-group-title",
+		SubGroups: []*models.EntryGroup{mockSubGroup},
+		Summary:   "Test Primary Group Summary",
+	}
+
+	// Create GroupedDigestPageData
+	data := models.GroupedDigestPageData{
+		PrimaryGroup: mockPrimaryGroup,
+		FeedIcons:    testutil.NewMockFeedIcons(),
+		MinifluxHost: "http://localhost:8080",
 	}
 
 	html, err := archiveService.getHTML(templates.ArchiveTemplate, &data, true)
@@ -43,18 +50,29 @@ func TestMakeArchiveFile(t *testing.T) {
 	tempDir := t.TempDir()
 	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	data := models.GroupedEntriesTemplateData{
-		FeedIcons:     testutil.NewMockFeedIcons(),
-		GeneratedDate: time.Now(),
-		MinifluxHost: "test-host",
-		EntryGroup: &models.EntryGroup{
-			Summary: "Test Summary",
-			Title:   "Test Title",
-			Entries: *testutil.NewMockEntries(),
-		},
+	// Create a mock EntryGroup (sub-group)
+	mockSubGroup := &models.EntryGroup{
+		Title:   "Test SubGroup Title",
+		Summary: "Test SubGroup Summary",
+		Entries: *testutil.NewMockEntries(),
+		Slug:    "test-subgroup-title",
 	}
 
-	file, err := archiveService.makeGroupedEntriesArchiveFile(&data)
+	// Create PrimaryGroupDigestData
+	data := models.PrimaryGroupDigestData{
+		Title:     "Test Primary Group Title",
+		Slug:      "test-primary-group-title",
+		SubGroups: []*models.EntryGroup{mockSubGroup},
+		Summary:   "Test Primary Group Summary",
+	}
+
+	dateFolderPath := filepath.Join(tempDir, time.Now().Format("2006-01-02"))
+	// Ensure the date folder exists for the test
+	if err := os.MkdirAll(dateFolderPath, 0755); err != nil {
+		t.Fatalf("Failed to create date folder for test: %v", err)
+	}
+
+	file, err := archiveService.makeGroupedEntriesArchiveFile(&data, dateFolderPath)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
 	}
@@ -62,7 +80,7 @@ func TestMakeArchiveFile(t *testing.T) {
 		t.Fatal("Expected file to be non-nil")
 	}
 	// Check if the file was created in the correct hardcoded path
-	expectedPath := filepath.Join(tempDir, utils.Slugify(data.EntryGroup.Title), data.GeneratedDate.Format("2006-01-02")+".html")
+	expectedPath := filepath.Join(dateFolderPath, "digests", data.Slug+".html")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("Expected file %s to exist", expectedPath)
 	}

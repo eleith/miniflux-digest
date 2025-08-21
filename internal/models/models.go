@@ -16,6 +16,7 @@ type OverviewTemplateData struct {
 	GeneratedDate time.Time
 	FeedIcons     []*FeedIcon
 	EntryGroups   []*EntryGroup
+	PrimaryGroups []*PrimaryGroupDigestData
 	OverviewSummary       string
 	MinifluxHost  string
 }
@@ -24,6 +25,7 @@ type EntryGroup struct {
 	Title   string
 	Summary string
 	Entries []*miniflux.Entry
+	Slug    string
 }
 
 type GroupTemplateData struct {
@@ -48,4 +50,18 @@ type GroupedEntriesTemplateData struct {
 	GeneratedDate time.Time
 	FeedIcons     []*FeedIcon
 	MinifluxHost  string
+}
+
+type PrimaryGroupDigestData struct {
+	Title     string
+	Slug      string
+	SubGroups []*EntryGroup
+	Summary   string
+}
+
+type GroupedDigestPageData struct {
+	PrimaryGroup  *PrimaryGroupDigestData
+	FeedIcons     []*FeedIcon
+	MinifluxHost  string
+	GeneratedDate time.Time
 }
