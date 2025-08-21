@@ -49,7 +49,7 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 	)
 
 	// Generate HTML files
-	overviewFile, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
+	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
 	if err != nil {
 		log.Printf("Error generating archive HTML: %v", err)
 		return nil, nil, nil, err
@@ -57,7 +57,7 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 
 	// TODO: Mark as read
 
-	return overviewFile, []*os.File{}, data, nil
+	return overviewFile, groupedEntryFiles, data, nil
 }
 
 func RunOnStartup(application *app.App) {

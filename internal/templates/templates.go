@@ -10,7 +10,7 @@ import (
 
 type EmailTemplateData struct {
 	models.OverviewTemplateData
-	URL string
+	URL     string
 	Summary string
 }
 
@@ -18,9 +18,9 @@ type EmailTemplateData struct {
 var embedFS embed.FS
 
 var (
-	ArchiveTemplate *htmlTemplate.Template
+	ArchiveTemplate  *htmlTemplate.Template
 	OverviewTemplate *htmlTemplate.Template
-	EmailTemplate   *textTemplate.Template
+	EmailTemplate    *textTemplate.Template
 )
 
 func init() {

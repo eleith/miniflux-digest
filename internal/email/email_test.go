@@ -20,10 +20,10 @@ func TestSend(t *testing.T) {
 		},
 		Digest: config.ConfigDigest{
 			Email: config.ConfigDigestEmail{
-				To:			 "to@example.com",
-				From:       "from@example.com",
+				To:   "to@example.com",
+				From: "from@example.com",
 			},
-			Host:      "https://example.com",
+			Host: "https://example.com",
 		},
 	}
 
@@ -54,15 +54,23 @@ func TestSend(t *testing.T) {
 	}()
 
 	data := models.OverviewTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
+		Category:        testutil.NewMockCategory(),
+		Entries:         testutil.NewMockEntries(),
+		FeedIcons:       testutil.NewMockFeedIcons(),
+		OverviewSummary: "Test summary",
+		EntryGroups: []*models.EntryGroup{
+			testutil.NewMockEntryGroup(),
+		},
+		PrimaryGroups: []*models.PrimaryGroupDigestData{},
+		MinifluxHost: "https://example.com",
 	}
 
 	// In a real scenario, you would use a mock SMTP server.
 	// For this test, we are just checking if the function executes without error.
 	// The go-mail library does not make it easy to mock the SMTP client.
-	emailService := &EmailServiceImpl{}
+	emailService := &EmailServiceImpl{
+		EmailTemplate: templates.EmailTemplate,
+	}
 	err = emailService.Send(cfg, file, []*os.File{}, &data)
 	if err != nil {
 		// We expect an error because we are not running a real SMTP server.
@@ -75,15 +83,15 @@ func TestSend(t *testing.T) {
 
 func TestTextTemplateData(t *testing.T) {
 	htmlTemplateData := models.OverviewTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
+		Category:  testutil.NewMockCategory(),
+		Entries:   testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
 	url := "https://example.com"
 
 	textData := templates.EmailTemplateData{
 		OverviewTemplateData: htmlTemplateData,
-		URL:              url,
+		URL:                  url,
 	}
 
 	if textData.URL != url {

@@ -62,22 +62,31 @@ func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.OverviewTempla
 	return nil, "", err
 }
 
-func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, compress bool) (*os.File, error) {
+func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, compress bool) (*os.File, []*os.File, error) {
 	// Generate overview HTML
 	overviewFile, dateFolderPath, err := s.makeOverviewArchiveFile(data)
 	if err != nil {
 		log.Printf("Error creating overview HTML file: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	overviewHTML, err := s.getHTML(s.OverviewTemplate, data, compress)
 	if err != nil {
 		log.Printf("Error generating overview HTML: %v", err)
-		return overviewFile, err
+		return overviewFile, nil, err
 	}
 	_, err = overviewFile.Write(overviewHTML)
 	if err != nil {
 		log.Printf("Error writing overview HTML to file: %v", err)
 	}
+
+	// Rewind the file pointer to the beginning for subsequent reads
+	_, err = overviewFile.Seek(0, io.SeekStart)
+	if err != nil {
+		log.Printf("Error rewinding overview HTML file: %v", err)
+		return overviewFile, nil, err
+	}
+
+	var groupedEntryFiles []*os.File
 
 	// Generate grouped entries HTML
 	for _, primaryGroup := range data.PrimaryGroups {
@@ -90,12 +99,13 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, 
 		groupedEntriesFile, err := s.makeGroupedEntriesArchiveFile(primaryGroup, dateFolderPath)
 		if err != nil {
 			log.Printf("Error creating grouped entries HTML file: %v", err)
-			return nil, err
+			return nil, nil, err
 		}
+		groupedEntryFiles = append(groupedEntryFiles, groupedEntriesFile)
 		groupedEntriesHTML, err := s.getHTML(s.ArchiveTemplate, groupedPageData, compress)
 		if err != nil {
 			log.Printf("Error generating grouped entries HTML: %v", err)
-			return groupedEntriesFile, err
+			return overviewFile, groupedEntryFiles, err
 		}
 		_, err = groupedEntriesFile.Write(groupedEntriesHTML)
 		if err != nil {
@@ -103,7 +113,7 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, 
 		}
 	}
 
-	return overviewFile, err
+	return overviewFile, groupedEntryFiles, err
 }
 
 func (s *ArchiveServiceImpl) removeOldArchiveFiles(maxAge time.Duration) {

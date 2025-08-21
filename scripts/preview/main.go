@@ -110,55 +110,59 @@ func main() {
 	log.Println("main: Digest data generated.")
 
 	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
-	overviewFile, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
+	overviewFile, groupedEntryFiles, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
 	if err != nil {
 		log.Fatalf("Failed to generate HTML: %v", err)
 	}
 	log.Println("main: HTML generated.")
 
+	// Construct overviewURL (needed for email and browser preview)
+	relativePath, err := filepath.Rel(webserver.ArchiveBasePath, overviewFile.Name())
+	if err != nil {
+		log.Fatalf("Failed to get relative path: %v", err)
+	}
+	overviewURL := fmt.Sprintf("http://localhost%s/archive/%s", webserver.Port, relativePath)
+
 	if *emailFlag {
 		log.Println("main: Email flag is true, sending email...")
-		emailSvc := &email.EmailServiceImpl{}
+		emailSvc := &email.EmailServiceImpl{
+			EmailTemplate: templates.EmailTemplate,
+		}
 		// For preview, we only send the overview file
-		if err := emailSvc.Send(cfg, overviewFile, []*os.File{}, data); err != nil {
+		if err := emailSvc.Send(cfg, overviewFile, groupedEntryFiles, data); err != nil {
 			log.Fatalf("Failed to send email: %v", err)
 		}
 		log.Printf("Successfully generated and sent email.")
 	} else {
 		log.Printf("Successfully generated.")
+
+		// Start web server
+		mux := webserver.SetupServer(webserver.ArchiveBasePath)
+		server := &http.Server{Addr: webserver.Port, Handler: webserver.RequestSanitizerMiddleware(mux)}
+
+		go func() {
+			webserver.StartServer(webserver.Port, webserver.RequestSanitizerMiddleware(mux))
+		}()
+
+		// Open browser
+		log.Printf("Preview available at: %s", overviewURL)
+		log.Println("main: Attempting to open browser...")
+		if err := openBrowser(overviewURL); err != nil {
+			log.Printf("Failed to open browser: %v", err)
+		}
+		log.Println("main: Browser open attempt finished.")
+
+		log.Println("Press Ctrl+C to stop the preview server.")
+		// Handle graceful shutdown
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+		log.Println("Shutting down preview server...")
+
+		if err := server.Shutdown(context.Background()); err != nil {
+			log.Fatalf("Server shutdown failed: %v", err)
+		}
+		log.Println("Preview server gracefully stopped.")
+		os.Exit(0)
 	}
-
-	// Start web server
-	mux := webserver.SetupServer(webserver.ArchiveBasePath)
-	server := &http.Server{Addr: webserver.Port, Handler: webserver.RequestSanitizerMiddleware(mux)}
-
-	go func() {
-		webserver.StartServer(webserver.Port, webserver.RequestSanitizerMiddleware(mux))
-	}()
-
-	// Open browser
-	relativePath, err := filepath.Rel(webserver.ArchiveBasePath, overviewFile.Name())
-	if err != nil {
-		log.Fatalf("Failed to get relative path: %v", err)
-	}
-	previewURL := fmt.Sprintf("http://localhost%s/archive/%s", webserver.Port, relativePath)
-	log.Printf("Preview available at: %s", previewURL)
-	log.Println("main: Attempting to open browser...")
-	if err := openBrowser(previewURL); err != nil {
-		log.Printf("Failed to open browser: %v", err)
-	}
-	log.Println("main: Browser open attempt finished.")
-
-	log.Println("Press Ctrl+C to stop the preview server.")
-	// Handle graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down preview server...")
-
-	if err := server.Shutdown(context.Background()); err != nil {
-		log.Fatalf("Server shutdown failed: %v", err)
-	}
-	log.Println("Preview server gracefully stopped.")
-	os.Exit(0)
 }

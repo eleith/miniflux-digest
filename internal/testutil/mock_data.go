@@ -182,3 +182,12 @@ func NewMockFeedIcons() []*models.FeedIcon {
 		NewMockFeedIconGreen(),
 	}
 }
+
+func NewMockEntryGroup() *models.EntryGroup {
+	return &models.EntryGroup{
+		Title:   "Test Group",
+		Summary: "This is a test group summary.",
+		Entries: *MockNumEntries(5),
+		Slug:    "test-group",
+	}
+}
