@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"google.golang.org/genai"
-	miniflux "miniflux.app/v2/client"
 )
 
 const (
@@ -23,19 +22,19 @@ const (
 	DayGroupTitleLayout = "Jan 2, 2006"
 )
 
-func GroupEntries(entries *miniflux.Entries, groupBy string) map[string][]*miniflux.Entry {
-	groups := make(map[string][]*miniflux.Entry)
+func GroupEntries(entries []*models.Entry, groupBy string) map[string][]*models.Entry {
+	groups := make(map[string][]*models.Entry)
 
 	switch groupBy {
 	case "feed":
-		for _, entry := range *entries {
-			groups[entry.Feed.Title] = append(groups[entry.Feed.Title], entry)
+		for _, entry := range entries {
+			groups[entry.FeedTitle] = append(groups[entry.FeedTitle], entry)
 		}
 	default:
-		for _, entry := range *entries {
+		for _, entry := range entries {
 			var groupName string
-			if entry.Feed.Category != nil {
-				groupName = entry.Feed.Category.Title
+			if entry.GroupTitle != "" {
+				groupName = entry.GroupTitle
 			} else {
 				groupName = "Uncategorized"
 			}
@@ -67,7 +66,7 @@ type digestServiceImpl struct {
 
 
 
-func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
+func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
@@ -82,13 +81,8 @@ func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries
 
 	// Process each primary group
 	for primaryGroupName, primaryGroupEntries := range primaryGroups {
-		// Create a miniflux.Entries wrapper for the primary group entries
-		// This is needed because SubGrouper.GroupEntries expects *miniflux.Entries
-		primaryGroupEntriesWrapper := (*miniflux.Entries)(&primaryGroupEntries)
-
-		// Apply sub-grouping and sorting
 		grouper := NewSubGrouper(subGroupBy, s.llmService)
-		subEntryGroups, subSummary := grouper.GroupEntries(primaryGroupEntriesWrapper)
+		subEntryGroups, subSummary := grouper.GroupEntries(primaryGroupEntries)
 
 		// Add primary group title to sub-groups if not already present
 		if subGroupBy != "category" && subGroupBy != "feed" {
@@ -118,7 +112,6 @@ func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries
 	}
 
 	return &models.OverviewTemplateData{
-		Category:        category,
 		Entries:         entries,
 		GeneratedDate:   time.Now(),
 		FeedIcons:       iconsSlice,
@@ -130,19 +123,19 @@ func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries
 }
 
 type SubGrouper interface {
-	GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string)
+	GroupEntries(entries []*models.Entry) ([]*models.EntryGroup, string)
 }
 
 type DayGrouper struct{}
 
-func (g *DayGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string) {
+func (g *DayGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup, string) {
 	entryGroupsMap := make(map[string]*models.EntryGroup)
-	for _, entry := range *entries {
+	for _, entry := range entries {
 		dateKey := entry.Date.Format(DayGroupLayout)
 		if _, ok := entryGroupsMap[dateKey]; !ok {
 			entryGroupsMap[dateKey] = &models.EntryGroup{
 				Title:   entry.Date.Format(DayGroupTitleLayout),
-				Entries: []*miniflux.Entry{},
+				Entries: []*models.Entry{},
 				Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
 			}
 		}
@@ -170,19 +163,19 @@ func (g *DayGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 		})
 	}
 
-	return sortedEntryGroups, fmt.Sprintf("You have %d entries from %d different days", len(*entries), len(sortedEntryGroups))
+	return sortedEntryGroups, fmt.Sprintf("You have %d entries from %d different days", len(entries), len(sortedEntryGroups))
 }
 
 type FeedGrouper struct{}
 
-func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string) {
+func (g *FeedGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup, string) {
 	entryGroupsMap := make(map[int64]*models.EntryGroup)
-	for _, entry := range *entries {
+	for _, entry := range entries {
 		if _, ok := entryGroupsMap[entry.FeedID]; !ok {
 			entryGroupsMap[entry.FeedID] = &models.EntryGroup{
-				Title:   entry.Feed.Title,
-				Entries: []*miniflux.Entry{},
-				Slug:    utils.Slugify(entry.Feed.Title),
+				Title:   entry.FeedTitle,
+				Entries: []*models.Entry{},
+				Slug:    utils.Slugify(entry.FeedTitle),
 			}
 		}
 		entryGroupsMap[entry.FeedID].Entries = append(entryGroupsMap[entry.FeedID].Entries, entry)
@@ -206,7 +199,7 @@ func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGr
 		})
 	}
 
-	return entryGroups, fmt.Sprintf("You have %d entries from %d feeds", len(*entries), len(entryGroups))
+	return entryGroups, fmt.Sprintf("You have %d entries from %d feeds", len(entries), len(entryGroups))
 }
 
 type LLMGrouper struct {
@@ -272,15 +265,15 @@ var llmResponseSchema = &genai.Schema{
 	},
 }
 
-func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGroup, string) {
-	llmEntries := make([]llmEntry, len(*entries))
-	for i, entry := range *entries {
+func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup, string) {
+	llmEntries := make([]llmEntry, len(entries))
+	for i, entry := range entries {
 		llmEntries[i] = llmEntry{
 			ID:        entry.ID,
 			Title:     entry.Title,
 			URL:       entry.URL,
 			Content:   entry.Content,
-			FeedTitle: entry.Feed.Title,
+			FeedTitle: entry.FeedTitle,
 		}
 	}
 
@@ -307,8 +300,8 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 		return (&DayGrouper{}).GroupEntries(entries)
 	}
 
-	entryMap := make(map[int64]*miniflux.Entry)
-	for _, entry := range *entries {
+	entryMap := make(map[int64]*models.Entry)
+	for _, entry := range entries {
 		entryMap[entry.ID] = entry
 	}
 
@@ -317,7 +310,7 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 	groupedEntryIDs := make(map[int64]bool)
 
 	for _, groupData := range response.GroupSummaries {
-		var groupEntries []*miniflux.Entry
+		var groupEntries []*models.Entry
 		for _, entryID := range groupData.EntryIDs {
 			if _, exists := groupedEntryIDs[int64(entryID)]; !exists {
 				if entry, ok := entryMap[int64(entryID)]; ok {
@@ -334,8 +327,8 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 		})
 	}
 
-	var ungroupedEntries []*miniflux.Entry
-	for _, entry := range *entries {
+	var ungroupedEntries []*models.Entry
+	for _, entry := range entries {
 		if !groupedEntryIDs[entry.ID] {
 			ungroupedEntries = append(ungroupedEntries, entry)
 		}
@@ -360,11 +353,11 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 	}
 
 	feedIDs := make(map[int64]bool)
-	for _, entry := range *entries {
+	for _, entry := range entries {
 		feedIDs[entry.FeedID] = true
 	}
 	
-	statsSummary := fmt.Sprintf("You have %d entries from %d feeds.", len(*entries), len(feedIDs))
+	statsSummary := fmt.Sprintf("You have %d entries from %d feeds.", len(entries), len(feedIDs))
 
 	return entryGroups, fmt.Sprintf("%s\n\n%s", response.OverviewSummary, statsSummary)
 }

@@ -1,9 +1,20 @@
 package models
 
 import (
-	miniflux "miniflux.app/v2/client"
 	"time"
 )
+
+type Entry struct {
+	ID        int64
+	Title     string
+	URL       string
+	Content   string
+	FeedID    int64
+	FeedTitle string
+	GroupTitle string
+	CommentsURL string
+	Date      time.Time
+}
 
 type FeedIcon struct {
 	FeedID int64
@@ -11,8 +22,7 @@ type FeedIcon struct {
 }
 
 type OverviewTemplateData struct {
-	Category      *miniflux.Category
-	Entries       *miniflux.Entries
+	Entries       []*Entry
 	GeneratedDate time.Time
 	FeedIcons     []*FeedIcon
 	EntryGroups   []*EntryGroup
@@ -24,20 +34,18 @@ type OverviewTemplateData struct {
 type EntryGroup struct {
 	Title   string
 	Summary string
-	Entries []*miniflux.Entry
+	Entries []*Entry
 	Slug    string
 }
 
 type GroupTemplateData struct {
 	Title         string
 	Summary       string
-	Entries       []*miniflux.Entry
+	Entries       []*Entry
 	GeneratedDate time.Time
 	FeedIcons     []*FeedIcon
 	MinifluxHost  string
 }
-
-
 
 type GroupedEntriesTemplateData struct {
 	EntryGroup    *EntryGroup
