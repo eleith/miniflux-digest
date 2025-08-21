@@ -41,8 +41,7 @@ func TestHealthCheckHandler(t *testing.T) {
 	req := httptest.NewRequest("GET", "/healthcheck", nil)
 	rr := httptest.NewRecorder()
 	mux := webserver.SetupServer("") // archive base path is not needed for this test
-	h := webserver.RequestSanitizerMiddleware(mux)
-	h.ServeHTTP(rr, req)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -62,8 +61,7 @@ func TestServeArchiveFile_Success(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/archive/test-category/test-file.html", nil)
 	rr := httptest.NewRecorder()
-	h := webserver.RequestSanitizerMiddleware(mux)
-	h.ServeHTTP(rr, req)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -87,8 +85,7 @@ func TestServeArchiveFile_NotFound(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/archive/test-category/not-found.html", nil)
 	rr := httptest.NewRecorder()
-	h := webserver.RequestSanitizerMiddleware(mux)
-	h.ServeHTTP(rr, req)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusNotFound {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -99,48 +96,81 @@ func TestServeArchiveFile_NotFound(t *testing.T) {
 func TestServeArchiveFile_PathTraversal(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
 	mux := webserver.SetupServer(archiveBasePath)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // Do not follow redirects automatically
+		},
+	}
 
 	// Attempt to access a file outside the archive base path
-	// The http.FileServer should prevent this, resulting in a 400
-	req := httptest.NewRequest("GET", "/archive/../main_test.go", nil)
-	rr := httptest.NewRecorder()
-	h := webserver.RequestSanitizerMiddleware(mux)
-	h.ServeHTTP(rr, req)
+	req, err := http.NewRequest("GET", ts.URL+"/archive/../main_test.go", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 
-	if status := rr.Code; status != http.StatusBadRequest {
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to perform request: %v", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Errorf("Error closing response body: %v", err)
+		}
+	}()
+
+	// The first response should be a 301 redirect
+	if resp.StatusCode != http.StatusMovedPermanently {
 		t.Errorf("handler returned wrong status code for path traversal attempt: got %v want %v",
-			status, http.StatusBadRequest)
+			resp.StatusCode, http.StatusMovedPermanently)
+	}
+
+	// Now, follow the redirect and expect a 404
+	redirectURL, err := resp.Location()
+	if err != nil {
+		t.Fatalf("Failed to get redirect location: %v", err)
+	}
+
+	req, err = http.NewRequest("GET", redirectURL.String(), nil)
+	if err != nil {
+		t.Fatalf("Failed to create redirect request: %v", err)
+	}
+
+	// Use a client that follows redirects for the second request
+	clientWithRedirect := &http.Client{}
+	resp, err = clientWithRedirect.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to perform redirect request: %v", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Errorf("Error closing response body: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("handler returned wrong status code after redirect for path traversal attempt: got %v want %v",
+			resp.StatusCode, http.StatusNotFound)
 	}
 }
 
-func TestServeArchiveFile_DirectoryRequest(t *testing.T) {
+func TestServeArchiveFile_DirectoryListingDisabled(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
-	mux := webserver.SetupServer(archiveBasePath)
+	handler := webserver.SetupServer(archiveBasePath)
 
-	// Create a dummy index.html file in the test category directory
-	filePath := filepath.Join(archiveBasePath, "test-category", "index.html")
-	fileContent := "<html><body><h1>Index File</h1></body></html>"
-	if err := os.WriteFile(filePath, []byte(fileContent), 0644); err != nil {
-		t.Fatalf("Failed to write test index file: %v", err)
+	// Create a directory without an index.html file
+	if err := os.Mkdir(filepath.Join(archiveBasePath, "empty-dir"), 0755); err != nil {
+		t.Fatalf("Failed to create empty directory: %v", err)
 	}
 
-	req := httptest.NewRequest("GET", "/archive/test-category/", nil)
+	req := httptest.NewRequest("GET", "/archive/empty-dir/", nil)
 	rr := httptest.NewRecorder()
-	h := webserver.RequestSanitizerMiddleware(mux)
-	h.ServeHTTP(rr, req)
+	handler.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code for directory request: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "<html><body><h1>Index File</h1></body></html>"
-	body, err := io.ReadAll(rr.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %v", err)
-	}
-	if string(body) != expected {
-		t.Errorf("handler returned unexpected body: got %q want %q",
-			string(body), expected)
+	if status := rr.Code; status != http.StatusNotFound {
+		t.Errorf("handler returned wrong status code for directory listing attempt: got %v want %v",
+			status, http.StatusNotFound)
 	}
 }
