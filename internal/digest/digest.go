@@ -108,15 +108,15 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 			currentSummary = *subSummary
 		}
 
-		allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
-			Title:     primaryGroupName,
-			Slug:      utils.Slugify(primaryGroupName),
-			SubGroups: subEntryGroups,
-			Summary:   currentSummary,
-		})
+			allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
+				Title:     primaryGroupName,
+				Slug:      utils.Slugify(primaryGroupName),
+				SubGroups: subEntryGroups,
+				Summary:   currentSummary,
+			})
 			if (subSummary != nil) {
-		overallDigestSummary += *subSummary + "\n" // Accumulate summaries for non-AI grouping
-	}
+			overallDigestSummary += *subSummary + "\n" // Accumulate summaries for non-AI grouping
+		}
 		}
 	}
 
@@ -176,9 +176,9 @@ func (g *DayGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 		dateKey := entry.Date.Format(DayGroupLayout)
 		if _, ok := entryGroupsMap[dateKey]; !ok {
 			entryGroupsMap[dateKey] = &models.EntryGroup{
-				Title:   entry.Date.Format(DayGroupTitleLayout),
-				Entries: []*models.Entry{},
-				Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
+					Title:   entry.Date.Format(DayGroupTitleLayout),
+					Entries: []*models.Entry{},
+					Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
 			}
 		}
 		entryGroupsMap[dateKey].Entries = append(entryGroupsMap[dateKey].Entries, entry)
@@ -222,9 +222,9 @@ func (g *FeedGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGrou
 	for _, entry := range entries {
 		if _, ok := entryGroupsMap[entry.FeedID]; !ok {
 			entryGroupsMap[entry.FeedID] = &models.EntryGroup{
-				Title:   entry.FeedTitle,
-				Entries: []*models.Entry{},
-				Slug:    utils.Slugify(entry.FeedTitle),
+					Title:   entry.FeedTitle,
+					Entries: []*models.Entry{},
+					Slug:    utils.Slugify(entry.FeedTitle),
 			}
 		}
 		entryGroupsMap[entry.FeedID].Entries = append(entryGroupsMap[entry.FeedID].Entries, entry)
@@ -352,6 +352,8 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 
 	var response llm.LLMResponse
 	if err := json.Unmarshal([]byte(llmResponse), &response); err != nil {
+		log.Printf("Unmarshaled LLM Response Object: %+v", response)
+		log.Printf("Unmarshaled LLM Response Object: %+v", response)
 		log.Printf("Failed to parse LLM response, falling back to day grouping: %v\n", err)
 		return (&DayGrouper{}).GroupEntries(entries)
 	}

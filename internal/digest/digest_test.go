@@ -173,8 +173,8 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	mockLLM := &mockLLMService{
 		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
 			return `{
-				"overview_summary": "This is a summary of all entries.",
-				"group_summaries": [
+				"summary": "This is a summary of all entries.",
+				"groups": [
 					{
 						"title": "Go Programming",
 						"summary": "summary",
@@ -233,8 +233,8 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	// Test ungrouped entries
 	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
 			return `{
-				"overview_summary": "Summary with missing entry.",
-				"group_summaries": [
+				"summary": "Summary with missing entry.",
+				"groups": [
 					{
 						"title": "Go Programming",
 						"summary": "summary",
@@ -261,8 +261,8 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 	mockLLM := &mockLLMService{
 		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
 			return `{
-				"overview_summary": "This is a summary of all entries.",
-				"group_summaries": [
+				"summary": "This is a summary of all entries.",
+				"groups": [
 					{
 						"title": "Go Programming",
 						"summary": "summary",
@@ -298,6 +298,84 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 	pythonGroup := findGroup(groups, "Python Programming")
 	if pythonGroup == nil || len(pythonGroup.Entries) != 1 {
 		t.Errorf("Incorrect Python Programming group: %+v", pythonGroup)
+	}
+}
+
+func TestLLMGrouper_GroupEntries_Counts(t *testing.T) {
+	entries := createDayGrouperMockEntries()
+
+	mockLLM := &mockLLMService{
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
+			return `{
+				"summary": "Test summary for counts.",
+				"groups": [
+					{
+						"title": "Group A (2 entries, 2 feeds)",
+						"summary": "Summary A",
+						"entry_ids": [1, 2]
+					},
+					{
+						"title": "Group B (1 entry, 1 feed)",
+						"summary": "Summary B",
+						"entry_ids": [3]
+					},
+					{
+						"title": "Group C (0 entries, 0 feeds)",
+						"summary": "Summary C",
+						"entry_ids": []
+					}
+				]
+			}`, nil
+		},
+	}
+
+	grouper := &LLMGrouper{LLMService: mockLLM}
+	groups, summary := grouper.GroupEntries(entries)
+
+	// Assert overview summary
+	if summary == nil || *summary != "Test summary for counts." {
+		t.Errorf("Expected overview summary 'Test summary for counts.', got %q", *summary)
+	}
+
+	// Expect 4 groups (A, B, C, and Uncategorized for entry 4)
+	if len(groups) != 4 {
+		t.Fatalf("Expected 4 groups, got %d", len(groups))
+	}
+
+	// Check Group A
+	groupA := findGroup(groups, "Group A (2 entries, 2 feeds)")
+	if groupA == nil {
+		t.Fatal("Expected 'Group A' not found")
+	}
+	if groupA.TotalEntries != 2 {
+		t.Errorf("Expected TotalEntries 2 for 'Group A', got %d", groupA.TotalEntries)
+	}
+	if groupA.TotalFeeds != 2 {
+		t.Errorf("Expected TotalFeeds 2 for 'Group A', got %d", groupA.TotalFeeds)
+	}
+
+	// Check Group B
+	groupB := findGroup(groups, "Group B (1 entry, 1 feed)")
+	if groupB == nil {
+		t.Fatal("Expected 'Group B' not found")
+	}
+	if groupB.TotalEntries != 1 {
+		t.Errorf("Expected TotalEntries 1 for 'Group B', got %d", groupB.TotalEntries)
+	}
+	if groupB.TotalFeeds != 1 {
+		t.Errorf("Expected TotalFeeds 1 for 'Group B', got %d", groupB.TotalFeeds)
+	}
+
+	// Check Group C (empty entries)
+	groupC := findGroup(groups, "Group C (0 entries, 0 feeds)")
+	if groupC == nil {
+		t.Fatal("Expected 'Group C' not found")
+	}
+	if groupC.TotalEntries != 0 {
+		t.Errorf("Expected TotalEntries 0 for 'Group C', got %d", groupC.TotalEntries)
+	}
+	if groupC.TotalFeeds != 0 {
+		t.Errorf("Expected TotalFeeds 0 for 'Group C', got %d", groupC.TotalFeeds)
 	}
 }
 

@@ -29,8 +29,9 @@
                         <h3><a href="digests/{{.Slug}}.html">{{.Title}}</a></h3>
                         {{if .Summary}}
                         <p>{{.Summary}}</p>
-                        {{end}}
+                        {{else}}
                         <p>{{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</p>
+												{{end}}
                     </li>
                 {{end}}
             </ul>

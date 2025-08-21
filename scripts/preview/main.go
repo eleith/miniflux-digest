@@ -98,8 +98,6 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 		log.Fatalf("Failed to fetch entries: %v", err)
 	}
 
-	// For the preview, we'll just use a mock category and all entries.
-	// The full grouping logic will be in the processor.
 	log.Println("generateDigestData: Building digest data...")
 	return digestSvc.BuildDigestData(
 		entries,
