@@ -8,6 +8,7 @@ import (
 	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/utils"
 	"sort"
 	"strings"
 	"time"
@@ -64,47 +65,59 @@ type digestServiceImpl struct {
 	llmService services.LLMService
 }
 
-func sortEntries(entries []*miniflux.Entry, sortBy string) []*miniflux.Entry {
-	switch sortBy {
-	case "date":
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].Date.Before(entries[j].Date)
-		})
-	case "title":
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].Title < entries[j].Title
-		})
-	case "feed_title":
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].Feed.Title < entries[j].Feed.Title
-		})
-	}
-	return entries
-}
 
-func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
+
+func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
 	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
 		iconsSlice = append(iconsSlice, icon)
 	}
 
-	// Group entries
-	grouper := NewSubGrouper(subGroupBy, s.llmService)
-	entryGroups, summary := grouper.GroupEntries(entries)
+	// Group entries by primary grouping (category or feed)
+	primaryGroups := GroupEntries(entries, groupBy)
 
-	// Sort entries within each group
-	for _, group := range entryGroups {
-		group.Entries = sortEntries(group.Entries, sortBy)
+	var allPrimaryGroups []*models.PrimaryGroupDigestData
+	var overallSummary string
+
+	// Process each primary group
+	for primaryGroupName, primaryGroupEntries := range primaryGroups {
+		// Create a miniflux.Entries wrapper for the primary group entries
+		// This is needed because SubGrouper.GroupEntries expects *miniflux.Entries
+		primaryGroupEntriesWrapper := (*miniflux.Entries)(&primaryGroupEntries)
+
+		// Apply sub-grouping and sorting
+		grouper := NewSubGrouper(subGroupBy, s.llmService)
+		subEntryGroups, subSummary := grouper.GroupEntries(primaryGroupEntriesWrapper)
+
+		// Add primary group title to sub-groups if not already present
+		if subGroupBy != "category" && subGroupBy != "feed" {
+			for _, seg := range subEntryGroups {
+				seg.Title = fmt.Sprintf("%s - %s", primaryGroupName, seg.Title)
+			}
+		}
+
+		allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
+			Title:     primaryGroupName,
+			Slug:      utils.Slugify(primaryGroupName),
+			SubGroups: subEntryGroups,
+			Summary:   subSummary,
+		})
+		overallSummary += subSummary + "\n"
 	}
+
+	// Sort the top-level groups (e.g., by primary group name)
+	sort.Slice(allPrimaryGroups, func(i, j int) bool {
+		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
+	})
 
 	return &models.OverviewTemplateData{
 		Category:      category,
 		Entries:       entries,
 		GeneratedDate: time.Now(),
 		FeedIcons:     iconsSlice,
-		EntryGroups:   entryGroups,
-		OverviewSummary:       summary,
+		PrimaryGroups: allPrimaryGroups,
+		OverviewSummary:       overallSummary,
 		MinifluxHost:  minifluxHost,
 	}
 }
@@ -123,6 +136,7 @@ func (g *DayGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 			entryGroupsMap[dateKey] = &models.EntryGroup{
 				Title:   entry.Date.Format(DayGroupTitleLayout),
 				Entries: []*miniflux.Entry{},
+				Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
 			}
 		}
 		entryGroupsMap[dateKey].Entries = append(entryGroupsMap[dateKey].Entries, entry)
@@ -161,6 +175,7 @@ func (g *FeedGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGr
 			entryGroupsMap[entry.FeedID] = &models.EntryGroup{
 				Title:   entry.Feed.Title,
 				Entries: []*miniflux.Entry{},
+				Slug:    utils.Slugify(entry.Feed.Title),
 			}
 		}
 		entryGroupsMap[entry.FeedID].Entries = append(entryGroupsMap[entry.FeedID].Entries, entry)
@@ -308,6 +323,7 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 		entryGroups = append(entryGroups, &models.EntryGroup{
 			Title:   groupData.Title,
 			Entries: groupEntries,
+			Slug:    utils.Slugify(groupData.Title),
 		})
 	}
 
@@ -331,6 +347,7 @@ func (g *LLMGrouper) GroupEntries(entries *miniflux.Entries) ([]*models.EntryGro
 			entryGroups = append(entryGroups, &models.EntryGroup{
 				Title:   "Uncategorized",
 				Entries: ungroupedEntries,
+				Slug:    utils.Slugify("Uncategorized"),
 			})
 		}
 	}
