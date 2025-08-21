@@ -28,14 +28,18 @@ type OverviewTemplateData struct {
 	EntryGroups   []*EntryGroup
 	PrimaryGroups []*PrimaryGroupDigestData
 	OverviewSummary       string
+	TotalEntries          int
+	TotalFeeds            int
 	MinifluxHost  string
 }
 
 type EntryGroup struct {
-	Title   string
-	Summary string
-	Entries []*Entry
-	Slug    string
+	Title       string
+	Summary     string
+	Entries     []*Entry
+	Slug        string
+	TotalEntries int
+	TotalFeeds  int
 }
 
 type GroupTemplateData struct {
@@ -55,10 +59,12 @@ type GroupedEntriesTemplateData struct {
 }
 
 type PrimaryGroupDigestData struct {
-	Title     string
-	Slug      string
-	SubGroups []*EntryGroup
-	Summary   string
+	Title       string
+	Slug        string
+	SubGroups   []*EntryGroup
+	Summary     string
+	TotalEntries int
+	TotalFeeds  int
 }
 
 type GroupedDigestPageData struct {
@@ -66,4 +72,6 @@ type GroupedDigestPageData struct {
 	FeedIcons     []*FeedIcon
 	MinifluxHost  string
 	GeneratedDate time.Time
+	TotalEntries  int
+	TotalFeeds    int
 }

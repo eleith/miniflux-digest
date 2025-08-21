@@ -15,7 +15,10 @@
 
         <section class="summary">
             <h2>Summary</h2>
+            {{if .OverviewSummary}}
             <p>{{.OverviewSummary}}</p>
+            {{end}}
+            <p>You have {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</p>
         </section>
 
         <section class="grouped-digests">
@@ -24,7 +27,10 @@
                 {{range .PrimaryGroups}}
                     <li>
                         <h3><a href="digests/{{.Slug}}.html">{{.Title}}</a></h3>
+                        {{if .Summary}}
                         <p>{{.Summary}}</p>
+                        {{end}}
+                        <p>{{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</p>
                     </li>
                 {{end}}
             </ul>

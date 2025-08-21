@@ -7,6 +7,8 @@ Overall Summary:
 {{ .OverviewSummary }}
 {{- end }}
 
+You have {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.
+
 {{ if .URL -}}
 You can view the full digest online:
 {{ .URL }}
