@@ -214,7 +214,7 @@ func TestLoad(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing ai.api_key when sub_group_by is ai_topic",
+			name: "missing ai.api_key when sub_group_by is ai",
 			config: map[string]any{
 				"miniflux": map[string]any{
 					"host":      "miniflux.example.com",
@@ -222,7 +222,7 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule":     "@daily",
-					"sub_group_by": "ai_topic",
+					"sub_group_by": "ai",
 				},
 			},
 			wantErr: true,

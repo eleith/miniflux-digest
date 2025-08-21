@@ -18,8 +18,8 @@ digest:
   mark_as_read: true # Mark entries as read after sending
   run_on_startup: false # Run digest on startup
   group_by: "category" # Group entries by "category" or "feed"
-  sub_group_by: "day" # Sub-group entries by "day", "feed", or "ai_topic"
-  sort_by: "date" # Sort entries by "date", "title", "feed_title", or "ai_rank"
+  sub_group_by: "day" # Sub-group entries by "date", "feed", or "ai"
+  sort_by: "date" # Sort entries by "date", "title", or "ai"
 
 ai:
   api_key: "YOUR_GEMINI_API_KEY"

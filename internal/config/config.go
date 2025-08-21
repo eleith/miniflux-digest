@@ -47,8 +47,8 @@ type ConfigDigest struct {
 	Host         string            `koanf:"host"`
 	Compress     bool              `koanf:"compress"`
 	GroupBy      string            `koanf:"group_by" validate:"omitempty,oneof=category feed"`
-	SubGroupBy   string            `koanf:"sub_group_by" validate:"omitempty,oneof=day feed ai_topic"`
-	SortBy       string            `koanf:"sort_by" validate:"omitempty,oneof=date title feed_title ai_rank"`
+	SubGroupBy   string            `koanf:"sub_group_by" validate:"omitempty,oneof=date feed ai"`
+	SortBy       string            `koanf:"sort_by" validate:"omitempty,oneof=date ai"`
 	MarkAsRead   bool              `koanf:"mark_as_read"`
 	RunOnStartup bool              `koanf:"run_on_startup"`
 }
@@ -74,8 +74,8 @@ func (c *Config) Validate() error {
 
 	validate.RegisterStructValidation(func(sl validator.StructLevel) {
 		cfg := sl.Current().Interface().(Config)
-		if cfg.Digest.SubGroupBy == "ai_topic" && cfg.AI.ApiKey == "" {
-			sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.SubGroupBy is 'ai_topic'")
+		if cfg.Digest.SubGroupBy == "ai" && cfg.AI.ApiKey == "" {
+			sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.SubGroupBy is 'ai'")
 		}
 	}, Config{})
 
@@ -120,7 +120,7 @@ func setDefaultValues(k *koanf.Koanf) error {
 	return k.Load(confmap.Provider(map[string]any{
 		"digest.compress":       true,
 		"digest.group_by":       "category",
-		"digest.sub_group_by":   "ai_topic",
+		"digest.sub_group_by":   "feed",
 		"digest.sort_by":        "date",
 		"digest.schedule":       "@weekly",
 		"digest.mark_as_read":   true,
