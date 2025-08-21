@@ -1,17 +1,21 @@
 package email
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"os"
+	"text/template"
 
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/templates"
 
 	"github.com/wneessen/go-mail"
 )
 
-type EmailServiceImpl struct{}
+type EmailServiceImpl struct{
+	EmailTemplate *template.Template
+}
 
 func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
 	message := mail.NewMsg()
@@ -34,16 +38,23 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, group
 		return err
 	}
 
-	subject := fmt.Sprintf("[miniflux digest] %s", data.OverviewSummary)
+	subject := fmt.Sprintf("Your Miniflux Digest for %s", data.GeneratedDate.Format("January 2, 2006"))
+	overviewURL := fmt.Sprintf("%s/archive/%s/index.html", cfg.Digest.Host, data.GeneratedDate.Format("2006-01-02"))
 
 	message.Subject(subject)
 
-	// Set the overview digest as the body
-	overviewHTML, err := io.ReadAll(overviewFile)
-	if err != nil {
+	// Set the email body from the template
+	emailData := templates.EmailTemplateData{
+		OverviewTemplateData: *data,
+		URL:                  overviewURL,
+		Summary:              data.OverviewSummary,
+	}
+
+	var body bytes.Buffer
+	if err := s.EmailTemplate.Execute(&body, emailData); err != nil {
 		return err
 	}
-	message.SetBodyString(mail.TypeTextHTML, string(overviewHTML))
+	message.SetBodyString(mail.TypeTextPlain, body.String())
 
 	// Attach all grouped digest HTML files
 	for _, f := range groupedEntryFiles {

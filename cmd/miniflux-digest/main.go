@@ -30,7 +30,6 @@ func digestJob(application *app.App) {
 		return
 	}
 
-	// Send email
 	if err := application.EmailService.Send(application.Config, overviewFile, groupedEntryFiles, data); err != nil {
 		log.Printf("Error sending digest email: %v", err)
 	}

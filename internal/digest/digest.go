@@ -111,14 +111,21 @@ func (s *digestServiceImpl) BuildDigestData(category *miniflux.Category, entries
 		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 	})
 
+	// Flatten the sub-groups into a single list for the email template
+	var allEntryGroups []*models.EntryGroup
+	for _, primaryGroup := range allPrimaryGroups {
+		allEntryGroups = append(allEntryGroups, primaryGroup.SubGroups...)
+	}
+
 	return &models.OverviewTemplateData{
-		Category:      category,
-		Entries:       entries,
-		GeneratedDate: time.Now(),
-		FeedIcons:     iconsSlice,
-		PrimaryGroups: allPrimaryGroups,
-		OverviewSummary:       overallSummary,
-		MinifluxHost:  minifluxHost,
+		Category:        category,
+		Entries:         entries,
+		GeneratedDate:   time.Now(),
+		FeedIcons:       iconsSlice,
+		PrimaryGroups:   allPrimaryGroups,
+		EntryGroups:     allEntryGroups,
+		OverviewSummary: overallSummary,
+		MinifluxHost:    minifluxHost,
 	}
 }
 
