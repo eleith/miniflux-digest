@@ -22,7 +22,7 @@ func TestArchiveTemplateExecution(t *testing.T) {
 	mockSubGroup := &models.EntryGroup{
 		Title:   "Test SubGroup Title",
 		Summary: "Test SubGroup Summary",
-		Entries: *testutil.NewMockEntries(),
+		Entries: testutil.NewMockEntries(),
 		Slug:    "test-subgroup-title",
 	}
 
@@ -53,7 +53,6 @@ func TestArchiveTemplateExecution(t *testing.T) {
 
 func TestEmailTemplateExecution(t *testing.T) {
 	data := models.OverviewTemplateData{
-		Category: testutil.NewMockCategory(),
 		Entries: testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}

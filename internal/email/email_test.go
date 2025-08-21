@@ -54,7 +54,6 @@ func TestSend(t *testing.T) {
 	}()
 
 	data := models.OverviewTemplateData{
-		Category:        testutil.NewMockCategory(),
 		Entries:         testutil.NewMockEntries(),
 		FeedIcons:       testutil.NewMockFeedIcons(),
 		OverviewSummary: "Test summary",
@@ -83,7 +82,6 @@ func TestSend(t *testing.T) {
 
 func TestTextTemplateData(t *testing.T) {
 	htmlTemplateData := models.OverviewTemplateData{
-		Category:  testutil.NewMockCategory(),
 		Entries:   testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
@@ -96,9 +94,5 @@ func TestTextTemplateData(t *testing.T) {
 
 	if textData.URL != url {
 		t.Errorf("Expected URL to be %s, got %s", url, textData.URL)
-	}
-
-	if textData.Category.Title != "Test Category" {
-		t.Errorf("Expected category title to be 'Test Category', got %s", textData.Category.Title)
 	}
 }

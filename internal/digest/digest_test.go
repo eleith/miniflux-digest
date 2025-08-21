@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"google.golang.org/genai"
-	miniflux "miniflux.app/v2/client"
 )
 
 type mockLLMService struct {
@@ -33,28 +32,31 @@ func findGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
 
 
 
-func createDayGrouperMockEntries() *miniflux.Entries {
-	return &miniflux.Entries{
+func createDayGrouperMockEntries() []*models.Entry {
+	return []*models.Entry{
 		{
 			ID:     1,
 			Title:  "Entry 1 - Jan 2",
 			Date:   time.Date(2024, time.January, 2, 10, 0, 0, 0, time.UTC),
 			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
+			FeedTitle: "Feed A",
+			GroupTitle: "Category A",
 		},
 		{
 			ID:     2,
 			Title:  "Entry 2 - Jan 1",
 			Date:   time.Date(2024, time.January, 1, 10, 0, 0, 0, time.UTC),
 			FeedID: 200,
-			Feed:   &miniflux.Feed{ID: 200, Title: "Feed B"},
+			FeedTitle: "Feed B",
+			GroupTitle: "Category B",
 		},
 		{
 			ID:     3,
 			Title:  "Entry 3 - Jan 2",
 			Date:   time.Date(2024, time.January, 2, 11, 0, 0, 0, time.UTC),
 			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
+			FeedTitle: "Feed A",
+			GroupTitle: "Category A",
 		},
 		{
 			ID:      4,
@@ -62,39 +64,40 @@ func createDayGrouperMockEntries() *miniflux.Entries {
 			Content: "Content of entry 4 about Go concurrency.",
 			Date:    time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC),
 			FeedID:  200,
-			Feed:    &miniflux.Feed{ID: 200, Title: "Feed B"},
+			FeedTitle: "Feed B",
+			GroupTitle: "Category B",
 		},
 	}
 }
 
-func createFeedGrouperMockEntries() *miniflux.Entries {
-	return &miniflux.Entries{
+func createFeedGrouperMockEntries() []*models.Entry {
+	return []*models.Entry{
 		{
 			ID:     1,
 			Title:  "Entry 1 - Feed A",
 			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
+			FeedTitle: "Feed A",
 			Date:   time.Date(2024, time.January, 1, 10, 0, 0, 0, time.UTC),
 		},
 		{
 			ID:     2,
 			Title:  "Entry 2 - Feed B",
 			FeedID: 200,
-			Feed:   &miniflux.Feed{ID: 200, Title: "Feed B"},
+			FeedTitle: "Feed B",
 			Date:   time.Date(2024, time.January, 1, 11, 0, 0, 0, time.UTC),
 		},
 		{
 			ID:     3,
 			Title:  "Entry 3 - Feed A",
 			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
+			FeedTitle: "Feed A",
 			Date:   time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC),
 		},
 		{
 			ID:     4,
 			Title:  "Entry 4 - Feed B",
 			FeedID: 200,
-			Feed:   &miniflux.Feed{ID: 200, Title: "Feed B"},
+			FeedTitle: "Feed B",
 			Date:   time.Date(2024, time.January, 1, 13, 0, 0, 0, time.UTC),
 		},
 	}
@@ -300,11 +303,11 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 
 func TestGroupEntries(t *testing.T) {
 	// Test case for category grouping (default behavior)
-	categoryEntries := &miniflux.Entries{
-		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category A"}}},
-		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category B"}}},
-		{Feed: &miniflux.Feed{Category: &miniflux.Category{Title: "Category A"}}},
-		{Feed: &miniflux.Feed{}},
+	categoryEntries := []*models.Entry{
+		{GroupTitle: "Category A"},
+		{GroupTitle: "Category B"},
+		{GroupTitle: "Category A"},
+		{GroupTitle: ""},
 	}
 
 	categoryGroups := GroupEntries(categoryEntries, "category")
@@ -322,11 +325,11 @@ func TestGroupEntries(t *testing.T) {
 	}
 
 	// Test case for feed grouping
-	feedEntries := &miniflux.Entries{
-		{Feed: &miniflux.Feed{Title: "Feed X"}},
-		{Feed: &miniflux.Feed{Title: "Feed Y"}},
-		{Feed: &miniflux.Feed{Title: "Feed X"}},
-		{Feed: &miniflux.Feed{Title: "Feed Z"}},
+	feedEntries := []*models.Entry{
+		{FeedTitle: "Feed X"},
+		{FeedTitle: "Feed Y"},
+		{FeedTitle: "Feed X"},
+		{FeedTitle: "Feed Z"},
 	}
 
 	feedGroups := GroupEntries(feedEntries, "feed")

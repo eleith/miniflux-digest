@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"miniflux-digest/internal/models"
-	miniflux "miniflux.app/v2/client"
 )
 
 func loadImageAsBase64(path string) string {
@@ -26,104 +25,34 @@ func loadImageAsBase64(path string) string {
 	return base64.StdEncoding.EncodeToString(file)
 }
 
-func NewMockCategory() *miniflux.Category {
-	return &miniflux.Category{
-		ID:    1,
-		Title: "Test Category",
-	}
-}
 
-func NewMockCategoryTech() *miniflux.Category {
-	return &miniflux.Category{
-		ID:    100,
-		Title: "Technology",
-	}
-}
-
-func NewMockCategoryComics() *miniflux.Category {
-	return &miniflux.Category{
-		ID:    101,
-		Title: "Comics",
-	}
-}
-
-func NewMockCategoryNews() *miniflux.Category {
-	return &miniflux.Category{
-		ID:    102,
-		Title: "News",
-	}
-}
-
-func NewMockFeedRed() *miniflux.Feed {
-	return &miniflux.Feed{
-		ID:       1,
-		Title:    "Tech News",
-		Category: NewMockCategoryTech(),
-	}
-}
-
-func NewMockFeedYellow() *miniflux.Feed {
-	return &miniflux.Feed{
-		ID:       2,
-		Title:    "The Daily Bugle - A Very Long Feed Name to Test Overflow",
-		Category: NewMockCategoryNews(),
-	}
-}
-
-func NewMockFeedGreen() *miniflux.Feed {
-	return &miniflux.Feed{
-		ID:       3,
-		Title:    "Comics",
-		Category: NewMockCategoryComics(),
-	}
-}
-
-func NewMockFeedUncategorized() *miniflux.Feed {
-	return &miniflux.Feed{
-		ID:       4,
-		Title:    "Uncategorized Feed",
-		Category: nil,
-	}
-}
-
-func NewMockEntry() *miniflux.Entry {
-	return &miniflux.Entry{
-		ID:      1,
-		Title:   "Test Entry",
-		Content: "<p>Test Content</p>",
-		Feed:    NewMockFeedRed(),
-	}
-}
 
 func NewMockFeedIconRed() *models.FeedIcon {
-	feed := NewMockFeedRed()
 	icon := loadImageAsBase64("internal/testutil/images/red.png")
 	return &models.FeedIcon{
-		FeedID: feed.ID,
+		FeedID: 1,
 		Data:   "image/png;base64," + icon,
 	}
 }
 
 func NewMockFeedIconYellow() *models.FeedIcon {
-	feed := NewMockFeedYellow()
 	icon := loadImageAsBase64("internal/testutil/images/yellow.png")
 	return &models.FeedIcon{
-		FeedID: feed.ID,
+		FeedID: 2,
 		Data:   "image/png;base64," + icon,
 	}
 }
 
 func NewMockFeedIconGreen() *models.FeedIcon {
-	feed := NewMockFeedGreen()
 	icon := loadImageAsBase64("internal/testutil/images/green.png")
 	return &models.FeedIcon{
-		FeedID: feed.ID,
+		FeedID: 3,
 		Data:   "image/png;base64," + icon,
 	}
 }
 
-func MockNumEntries(n int) *miniflux.Entries {
-	entries := make(miniflux.Entries, 0, n)
+func MockNumEntries(n int) []*models.Entry {
+	entries := make([]*models.Entry, 0, n)
 	titleTemplates := []string{
 		"Short title",
 		"This is a much longer title to test how the UI handles overflow",
@@ -138,39 +67,42 @@ func MockNumEntries(n int) *miniflux.Entries {
 	}
 
 	for i := 1; i <= n; i++ {
-		var feed *miniflux.Feed
+		var feedTitle string
+		var groupTitle string
 		switch (i - 1) % 4 {
 		case 0:
-			feed = NewMockFeedRed()
+			feedTitle = "Tech News"
+			groupTitle = "Technology"
 		case 1:
-			feed = NewMockFeedYellow()
+			feedTitle = "The Daily Bugle - A Very Long Feed Name to Test Overflow"
+			groupTitle = "News"
 		case 2:
-			feed = NewMockFeedGreen()
+			feedTitle = "Comics"
+			groupTitle = "Comics"
 		case 3:
-			feed = NewMockFeedUncategorized()
+			feedTitle = "Uncategorized Feed"
+			groupTitle = "Uncategorized" // Or empty string if truly uncategorized
 		}
 
 		title := titleTemplates[(i-1)%len(titleTemplates)]
 		content := contentTemplates[(i-1)%len(contentTemplates)]
 
-		entry := &miniflux.Entry{
-			ID:          int64(i),
-			UserID:      1,
-			FeedID:      feed.ID,
-			Status:      miniflux.EntryStatusUnread,
-			Title:       fmt.Sprintf("Entry %d - %s", i, title),
-			URL:         fmt.Sprintf("https://example.com/%d", i),
-			Date:        time.Now().Add(time.Duration(-i) * time.Hour),
-			Content:     content,
-			Author:      fmt.Sprintf("Test Author %d", i),
-			Feed:        feed,
+		entry := &models.Entry{
+			ID:            int64(i),
+			Title:         fmt.Sprintf("Entry %d - %s", i, title),
+			URL:           fmt.Sprintf("https://example.com/%d", i),
+			Date:          time.Now().Add(time.Duration(-i) * time.Hour),
+			Content:       content,
+			FeedID:        int64((i-1)%4 + 1), // Assign a dummy FeedID
+			FeedTitle:     feedTitle,
+			GroupTitle:    groupTitle,
 		}
 		entries = append(entries, entry)
 	}
-	return &entries
+	return entries
 }
 
-func NewMockEntries() *miniflux.Entries {
+func NewMockEntries() []*models.Entry {
 	return MockNumEntries(20)
 }
 
@@ -187,7 +119,7 @@ func NewMockEntryGroup() *models.EntryGroup {
 	return &models.EntryGroup{
 		Title:   "Test Group",
 		Summary: "This is a test group summary.",
-		Entries: *MockNumEntries(5),
+		Entries: MockNumEntries(5),
 		Slug:    "test-group",
 	}
 }

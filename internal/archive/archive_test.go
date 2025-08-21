@@ -17,7 +17,7 @@ func TestGetHTML(t *testing.T) {
 	mockSubGroup := &models.EntryGroup{
 		Title:   "Test SubGroup Title",
 		Summary: "Test SubGroup Summary",
-		Entries: *testutil.NewMockEntries(),
+		Entries: testutil.NewMockEntries(),
 		Slug:    "test-subgroup-title",
 	}
 
@@ -54,7 +54,7 @@ func TestMakeArchiveFile(t *testing.T) {
 	mockSubGroup := &models.EntryGroup{
 		Title:   "Test SubGroup Title",
 		Summary: "Test SubGroup Summary",
-		Entries: *testutil.NewMockEntries(),
+		Entries: testutil.NewMockEntries(),
 		Slug:    "test-subgroup-title",
 	}
 

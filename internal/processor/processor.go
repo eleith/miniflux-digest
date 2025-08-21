@@ -19,11 +19,11 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 		return nil, nil, nil, err
 	}
 
-	log.Printf("Found %d unread entries", len(*entries))
+	log.Printf("Found %d unread entries", len(entries))
 
 	// Fetch feed icons
 	icons := make(map[int64]*models.FeedIcon)
-	for _, entry := range *entries {
+	for _, entry := range entries {
 		if _, ok := icons[entry.FeedID]; !ok {
 			icon, err := application.MinifluxClientService.FeedIcon(entry.FeedID)
 			if err != nil {
@@ -31,7 +31,7 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 				continue
 			}
 			icons[entry.FeedID] = &models.FeedIcon{
-				FeedID: icon.ID,
+				FeedID: icon.FeedID,
 				Data:   icon.Data,
 			}
 		}
@@ -39,7 +39,6 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 
 	// Generate digest data
 	data := application.DigestService.BuildDigestData(
-		&miniflux.Category{Title: "All"},
 		entries,
 		icons,
 		application.Config.Digest.GroupBy,
@@ -58,7 +57,7 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 	// Mark as read
 	if application.Config.Digest.MarkAsRead {
 		var entryIDs []int64
-		for _, entry := range *entries {
+		for _, entry := range entries {
 			entryIDs = append(entryIDs, entry.ID)
 		}
 
