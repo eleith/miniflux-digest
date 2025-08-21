@@ -4,15 +4,14 @@ build:
 preview:
 	@trap "exit 0" INT; go run -mod=vendor ./scripts/preview/main.go
 
+preview-html:
+	go run -mod=vendor ./scripts/preview/main.go --html
+
 preview-email:
 	go run -mod=vendor ./scripts/preview/main.go --email
 
 preview-miniflux:
-ifdef category
-	go run -mod=vendor ./scripts/preview/main.go --miniflux=${category}
-else
-	@echo "use 'preview-miniflux category=' to preview a category from miniflux"
-endif
+	go run -mod=vendor ./scripts/preview/main.go --miniflux
 
 test:
 	go test -mod=vendor ./... ./cmd/miniflux-digest

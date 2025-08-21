@@ -90,21 +90,25 @@ func generateDigestData(cfg *config.Config, useMiniflux bool) *models.OverviewTe
 	)
 }
 
-
-
-func main() {
-	log.Println("main: Starting preview script...")
-	emailFlag := flag.Bool("email", false, "Send the generated HTML as an email")
-	minifluxFlag := flag.Bool("miniflux", false, "Use live data from Miniflux")
+func setupAndParseFlags() (emailFlag, minifluxFlag, serveOnlyFlag bool) {
+	email := flag.Bool("email", false, "send mock data derived digest as an email")
+	miniflux := flag.Bool("miniflux", false, "use live data from miniflux to generate digest")
+	html := flag.Bool("html", false, "use mock data to generate digest")
 	flag.Parse()
+	return *email, *miniflux, *html
+}
 
+func loadConfig() *config.Config {
 	cfg, err := config.Load("./config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	log.Println("main: Config loaded.")
+	return cfg
+}
 
-	data := generateDigestData(cfg, *minifluxFlag)
+func generateAndArchiveHTML(cfg *config.Config, minifluxFlag bool) (*os.File, []*os.File, string, *models.OverviewTemplateData) {
+	data := generateDigestData(cfg, minifluxFlag)
 	log.Println("main: Digest data generated.")
 
 	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
@@ -126,33 +130,57 @@ func main() {
 	overviewURL := fmt.Sprintf("http://localhost%s/archive/%s", webserver.Port, relativePath)
 	log.Printf("overviewURL: %s", overviewURL)
 
-	if *emailFlag {
-		log.Println("main: Email flag is true, sending email...")
-		emailSvc := &email.EmailServiceImpl{
-			EmailTemplate: templates.EmailTemplate,
-		}
-		// For preview, we only send the overview file
-		if err := emailSvc.Send(cfg, overviewFile, groupedEntryFiles, data); err != nil {
-			log.Fatalf("Failed to send email: %v", err)
-		}
-		log.Printf("Successfully generated and sent email.")
+	return overviewFile, groupedEntryFiles, overviewURL, data
+}
+
+func handleEmail(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) {
+	log.Println("main: Email flag is true, sending email...")
+	emailSvc := &email.EmailServiceImpl{
+		EmailTemplate: templates.EmailTemplate,
+	}
+	// For preview, we only send the overview file
+	if err := emailSvc.Send(cfg, overviewFile, groupedEntryFiles, data); err != nil {
+		log.Fatalf("Failed to send email: %v", err)
+	}
+	log.Printf("Successfully generated and sent email.")
+}
+
+func handleWebServer() {
+	log.Printf("Successfully generated.")
+
+	go func() {
+		webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)
+	}()
+
+	// Keep the main goroutine alive until an interrupt signal is received
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Shutting down web server...")
+}
+
+func handleOpenUrl(url string) {
+	log.Printf("Attempting to open %s with the browser...", url)
+	if err := openBrowser(url); err != nil {
+		log.Printf("Failed to open browser: %v", err)
+	}
+}
+
+func main() {
+	log.Println("main: Starting preview script...")
+	emailFlag, minifluxFlag, htmlFlag := setupAndParseFlags()
+
+	cfg := loadConfig()
+
+	if emailFlag {
+		overviewFile, groupedEntryFiles, _, data := generateAndArchiveHTML(cfg, minifluxFlag)
+		handleEmail(cfg, overviewFile, groupedEntryFiles, data)
+	} else if htmlFlag {
+		_, _, overviewURL, _ := generateAndArchiveHTML(cfg, minifluxFlag)
+		handleOpenUrl(overviewURL)
 	} else {
-		log.Printf("Successfully generated.")
-
-		go func() {
-			webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)
-		}()
-
-		log.Printf("Attempting to open %s with the browser...", overviewURL)
-		if err := openBrowser(overviewURL); err != nil {
-			log.Printf("Failed to open browser: %v", err)
-		}
-
-		// Keep the main goroutine alive until an interrupt signal is received
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-		<-sigChan
-
-		log.Println("Shutting down web server...")
+		log.Println("main: Starting web server")
+		handleWebServer()
 	}
 }
