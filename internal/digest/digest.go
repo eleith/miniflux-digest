@@ -130,7 +130,7 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 		primaryGroupTotalEntries := 0
 		primaryGroupUniqueFeedIDs := make(map[int64]bool)
 		for _, subGroup := range primaryGroup.SubGroups {
-			primaryGroupTotalEntries += subGroup.TotalEntries
+			primaryGroupTotalEntries += len(subGroup.Entries)
 			for _, entry := range subGroup.Entries {
 				primaryGroupUniqueFeedIDs[entry.FeedID] = true
 			}
