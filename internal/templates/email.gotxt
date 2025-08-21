@@ -2,6 +2,11 @@ Hello,
 
 Your daily digest of {{ .Entries | len }} entries from {{ .EntryGroups | len }} feeds is ready.
 
+{{ if .OverviewSummary -}}
+Overall Summary:
+{{ .OverviewSummary }}
+{{- end }}
+
 {{ if .URL -}}
 You can view the full digest online:
 {{ .URL }}

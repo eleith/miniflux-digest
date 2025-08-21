@@ -77,27 +77,40 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 	primaryGroups := GroupEntries(entries, groupBy)
 
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
-	var overallSummary string
+	var overallDigestSummary string // This will hold the overall summary for the digest
 
 	// Process each primary group
 	for primaryGroupName, primaryGroupEntries := range primaryGroups {
 		grouper := NewSubGrouper(subGroupBy, s.llmService)
 		subEntryGroups, subSummary := grouper.GroupEntries(primaryGroupEntries)
 
-		// Add primary group title to sub-groups if not already present
-		if subGroupBy != "category" && subGroupBy != "feed" {
+		// If sub-grouping is AI, the subSummary is the overall summary for that primary group
+		if subGroupBy == "ai" {
+			allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
+				Title:     primaryGroupName,
+				Slug:      utils.Slugify(primaryGroupName),
+				SubGroups: subEntryGroups,
+				Summary:   subSummary, // This is the overall summary for this primary group from LLM
+			})
+			if overallDigestSummary == "" { // Take the first LLM summary as the overall digest summary
+				overallDigestSummary = subSummary
+			}
+		} else {
+			// Add primary group title to sub-groups if not already present
+		if subGroupBy != "ai" {
 			for _, seg := range subEntryGroups {
 				seg.Title = fmt.Sprintf("%s - %s", primaryGroupName, seg.Title)
 			}
 		}
 
-		allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
-			Title:     primaryGroupName,
-			Slug:      utils.Slugify(primaryGroupName),
-			SubGroups: subEntryGroups,
-			Summary:   subSummary,
-		})
-		overallSummary += subSummary + "\n"
+			allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
+				Title:     primaryGroupName,
+				Slug:      utils.Slugify(primaryGroupName),
+				SubGroups: subEntryGroups,
+				Summary:   subSummary,
+			})
+			overallDigestSummary += subSummary + "\n" // Accumulate summaries for non-AI grouping
+		}
 	}
 
 	// Sort the top-level groups (e.g., by primary group name)
@@ -117,7 +130,7 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 		FeedIcons:       iconsSlice,
 		PrimaryGroups:   allPrimaryGroups,
 		EntryGroups:     allEntryGroups,
-		OverviewSummary: overallSummary,
+		OverviewSummary: overallDigestSummary,
 		MinifluxHost:    minifluxHost,
 	}
 }
@@ -324,6 +337,7 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 			Title:   groupData.Title,
 			Entries: groupEntries,
 			Slug:    utils.Slugify(groupData.Title),
+			Summary: groupData.Summary,
 		})
 	}
 
