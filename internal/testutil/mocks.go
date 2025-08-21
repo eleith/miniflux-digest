@@ -12,42 +12,23 @@ import (
 
 type MockMinifluxClient struct {
 	services.MinifluxClientService
-	MarkAsReadFunc func(categoryID int64) error
-	CategoriesFunc func() ([]*miniflux.Category, error)
-	CategoryEntriesFunc func(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error)
-	CategoryFeedsFunc func(categoryID int64) ([]*miniflux.Feed, error)
+	
+	
+	
+	
 	FeedIconFunc func(feedID int64) (*miniflux.FeedIcon, error)
-	StreamAllCategoryDataFunc func() <-chan *models.RawCategoryData
+	
 	GetAllUnreadEntriesFunc func() (*miniflux.Entries, error)
+	UpdateEntriesFunc func(entryIDs []int64, status string) error
 }
 
-func (m *MockMinifluxClient) MarkCategoryAsRead(categoryID int64) error {
-	if m.MarkAsReadFunc != nil {
-		return m.MarkAsReadFunc(categoryID)
-	}
-	return nil
-}
 
-func (m *MockMinifluxClient) Categories() ([]*miniflux.Category, error) {
-	if m.CategoriesFunc != nil {
-		return m.CategoriesFunc()
-	}
-	return nil, nil
-}
 
-func (m *MockMinifluxClient) CategoryEntries(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error) {
-	if m.CategoryEntriesFunc != nil {
-		return m.CategoryEntriesFunc(categoryID, filter)
-	}
-	return &miniflux.Entries{}, nil
-}
 
-func (m *MockMinifluxClient) CategoryFeeds(categoryID int64) ([]*miniflux.Feed, error) {
-	if m.CategoryFeedsFunc != nil {
-		return m.CategoryFeedsFunc(categoryID)
-	}
-	return nil, nil
-}
+
+
+
+
 
 func (m *MockMinifluxClient) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) {
 	if m.FeedIconFunc != nil {
@@ -58,20 +39,20 @@ func (m *MockMinifluxClient) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) 
 
 
 
-func (m *MockMinifluxClient) StreamAllCategoryData() <-chan *models.RawCategoryData {
-	if m.StreamAllCategoryDataFunc != nil {
-		return m.StreamAllCategoryDataFunc()
-	}
-	out := make(chan *models.RawCategoryData)
-	close(out)
-	return out
-}
+
 
 func (m *MockMinifluxClient) GetAllUnreadEntries() (*miniflux.Entries, error) {
 	if m.GetAllUnreadEntriesFunc != nil {
 		return m.GetAllUnreadEntriesFunc()
 	}
 	return &miniflux.Entries{}, nil
+}
+
+func (m *MockMinifluxClient) UpdateEntries(entryIDs []int64, status string) error {
+	if m.UpdateEntriesFunc != nil {
+		return m.UpdateEntriesFunc(entryIDs, status)
+	}
+	return nil
 }
 
 type MockArchiveService struct {

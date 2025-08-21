@@ -37,13 +37,7 @@ type GroupTemplateData struct {
 	MinifluxHost  string
 }
 
-type RawCategoryData struct {
-	Category *miniflux.Category
-	Entries  *miniflux.Entries
-	Feeds    []*miniflux.Feed
-	Icons    map[int64]*FeedIcon
-	Err      error
-}
+
 
 type GroupedEntriesTemplateData struct {
 	EntryGroup    *EntryGroup
