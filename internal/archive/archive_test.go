@@ -14,7 +14,6 @@ import (
 func TestGetHTML(t *testing.T) {
 	archiveService := NewArchiveService(t.TempDir(), templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	// Create a mock EntryGroup (sub-group)
 	mockSubGroup := &models.EntryGroup{
 		Title:   "Test SubGroup Title",
 		Summary: "Test SubGroup Summary",
@@ -22,7 +21,6 @@ func TestGetHTML(t *testing.T) {
 		Slug:    "test-subgroup-title",
 	}
 
-	// Create PrimaryGroupDigestData
 	mockPrimaryGroup := &models.PrimaryGroupDigestData{
 		Title:     "Test Primary Group Title",
 		Slug:      "test-primary-group-title",
@@ -30,7 +28,6 @@ func TestGetHTML(t *testing.T) {
 		Summary:   "Test Primary Group Summary",
 	}
 
-	// Create GroupedDigestPageData
 	data := models.GroupedDigestPageData{
 		PrimaryGroup: mockPrimaryGroup,
 		FeedIcons:    testutil.NewMockFeedIcons(),
@@ -47,11 +44,9 @@ func TestGetHTML(t *testing.T) {
 }
 
 func TestMakeArchiveFile(t *testing.T) {
-	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	// Create a mock EntryGroup (sub-group)
 	mockSubGroup := &models.EntryGroup{
 		Title:   "Test SubGroup Title",
 		Summary: "Test SubGroup Summary",
@@ -59,7 +54,6 @@ func TestMakeArchiveFile(t *testing.T) {
 		Slug:    "test-subgroup-title",
 	}
 
-	// Create PrimaryGroupDigestData
 	data := models.PrimaryGroupDigestData{
 		Title:     "Test Primary Group Title",
 		Slug:      "test-primary-group-title",
@@ -68,7 +62,6 @@ func TestMakeArchiveFile(t *testing.T) {
 	}
 
 	dateFolderPath := filepath.Join(tempDir, time.Now().Format("2006-01-02"))
-	// Ensure the date folder exists for the test
 	if err := os.MkdirAll(dateFolderPath, 0755); err != nil {
 		t.Fatalf("Failed to create date folder for test: %v", err)
 	}
@@ -80,7 +73,6 @@ func TestMakeArchiveFile(t *testing.T) {
 	if file == nil {
 		t.Fatal("Expected file to be non-nil")
 	}
-	// Check if the file was created in the correct hardcoded path
 	expectedPath := filepath.Join(dateFolderPath, "digests", data.Slug+".html")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("Expected file %s to exist", expectedPath)
@@ -88,11 +80,9 @@ func TestMakeArchiveFile(t *testing.T) {
 }
 
 func TestCleanArchive(t *testing.T) {
-	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	// Create an old directory with a file
 	oldDirName := time.Now().Add(-48 * time.Hour).Format("2006-01-02")
 	oldDirPath := filepath.Join(tempDir, oldDirName)
 	if err := os.MkdirAll(oldDirPath, 0755); err != nil {
@@ -107,7 +97,6 @@ func TestCleanArchive(t *testing.T) {
 		t.Fatalf("Failed to change file modification time: %v", err)
 	}
 
-	// Create a new directory with a file
 	newDirName := time.Now().Format("2006-01-02")
 	newDirPath := filepath.Join(tempDir, newDirName)
 	if err := os.MkdirAll(newDirPath, 0755); err != nil {
@@ -129,7 +118,6 @@ func TestCleanArchive(t *testing.T) {
 	}
 }
 
-// Mock HTML template for testing
 type mockHTMLTemplate struct {
 	executeFunc func(wr io.Writer, data any) error
 }
@@ -210,13 +198,11 @@ func TestMakeArchiveHTML_Success(t *testing.T) {
 		t.Errorf("Expected 2 groupedEntryFiles, got %d", len(groupedEntryFiles))
 	}
 
-	// Verify overview file content
 	overviewContent, _ := os.ReadFile(overviewFile.Name())
 	if string(overviewContent) != "overview html" {
 		t.Errorf("Expected overview content 'overview html', got %s", string(overviewContent))
 	}
 
-	// Verify grouped files content
 	for _, f := range groupedEntryFiles {
 		content, _ := os.ReadFile(f.Name())
 		if string(content) != "grouped html" {
@@ -224,7 +210,6 @@ func TestMakeArchiveHTML_Success(t *testing.T) {
 		}
 	}
 
-	// Clean up files
 	_ = overviewFile.Close()
-	_ = os.RemoveAll(filepath.Dir(overviewFile.Name())) // Remove the date folder
+	_ = os.RemoveAll(filepath.Dir(overviewFile.Name())) 
 }

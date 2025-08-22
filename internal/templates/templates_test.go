@@ -19,7 +19,6 @@ func TestTemplates(t *testing.T) {
 }
 
 func TestArchiveTemplateExecution(t *testing.T) {
-	// Create a mock EntryGroup (sub-group)
 	mockSubGroup := &models.EntryGroup{
 		Title:   "Test SubGroup Title",
 		Summary: "Test SubGroup Summary",
@@ -27,7 +26,6 @@ func TestArchiveTemplateExecution(t *testing.T) {
 		Slug:    "test-subgroup-title",
 	}
 
-	// Create PrimaryGroupDigestData
 	mockPrimaryGroup := &models.PrimaryGroupDigestData{
 		Title:     "Test Primary Group Title",
 		Slug:      "test-primary-group-title",
@@ -35,7 +33,6 @@ func TestArchiveTemplateExecution(t *testing.T) {
 		Summary:   "Test Primary Group Summary",
 	}
 
-	// Create GroupedDigestPageData
 	data := models.GroupedDigestPageData{
 		PrimaryGroup: mockPrimaryGroup,
 		FeedIcons:    testutil.NewMockFeedIcons(),
@@ -104,11 +101,6 @@ func TestOverviewTemplateExecution(t *testing.T) {
 	if buf.Len() == 0 {
 		t.Error("OverviewTemplate execution resulted in empty output")
 	}
-
-	// You can add more specific assertions here, e.g., check for presence of certain strings
-	// if !strings.Contains(buf.String(), "Test Summary") {
-	// 	t.Errorf("Output missing expected content")
-	// }
 }
 
 func TestTextToHTML(t *testing.T) {
@@ -158,4 +150,3 @@ func TestTextToHTML(t *testing.T) {
 		})
 	}
 }
-

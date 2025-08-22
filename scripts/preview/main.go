@@ -62,8 +62,6 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	log.Println("generateDigestData: Using mock data...")
 	entries = testutil.MockNumEntries(200)
 
-	// For the preview, we'll just use a mock category and all entries.
-	// The full grouping logic will be in the processor.
 	log.Println("generateDigestData: Building digest data...")
 	return digestSvc.BuildDigestData(
 		entries,
@@ -154,7 +152,6 @@ func generateAndArchiveHTML(cfg *config.Config, minifluxFlag bool) (*os.File, []
 	log.Printf("overviewFile.Name(): %s", overviewFile.Name())
 	log.Printf("webserver.ArchiveBasePath: %s", webserver.ArchiveBasePath)
 
-	// Construct overviewURL (needed for email and browser preview)
 	relativePath, err := filepath.Rel(webserver.ArchiveBasePath, overviewFile.Name())
 	if err != nil {
 		log.Fatalf("Failed to get relative path: %v", err)
@@ -171,7 +168,7 @@ func handleEmail(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []
 	emailSvc := &email.EmailServiceImpl{
 		EmailTemplate: templates.EmailTemplate,
 	}
-	// For preview, we only send the overview file
+
 	if err := emailSvc.Send(cfg, overviewFile, groupedEntryFiles, data); err != nil {
 		log.Fatalf("Failed to send email: %v", err)
 	}
@@ -185,7 +182,6 @@ func handleWebServer() {
 		webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)
 	}()
 
-	// Keep the main goroutine alive until an interrupt signal is received
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan

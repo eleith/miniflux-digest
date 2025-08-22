@@ -13,7 +13,6 @@ import (
 	miniflux "miniflux.app/v2/client"
 )
 
-// Mock implementations for services
 type mockMinifluxClientService struct {
 	getAllUnreadEntriesFunc func() ([]*models.Entry, error)
 	feedIconFunc            func(feedID int64) (*models.FeedIcon, error)
@@ -51,11 +50,9 @@ func (m *mockArchiveService) CleanArchive(maxAge time.Duration) {
 }
 
 func TestProcessAndSendDigest_Success(t *testing.T) {
-	// Suppress log output during test
 	log.SetOutput(os.Stdout)
 	defer log.SetOutput(os.Stderr)
 
-	// Mock data
 	expectedEntries := []*models.Entry{
 		{ID: 1, FeedID: 101, Title: "Entry 1"},
 		{ID: 2, FeedID: 102, Title: "Entry 2"},
@@ -66,7 +63,6 @@ func TestProcessAndSendDigest_Success(t *testing.T) {
 	}
 	expectedOverviewData := &models.OverviewTemplateData{OverviewSummary: "Test Digest"}
 
-	// Mock services
 	mockMinifluxClient := &mockMinifluxClientService{
 		getAllUnreadEntriesFunc: func() ([]*models.Entry, error) {
 			return expectedEntries, nil
@@ -88,14 +84,12 @@ func TestProcessAndSendDigest_Success(t *testing.T) {
 	}
 	mockArchiveService := &mockArchiveService{
 		makeArchiveHTMLFunc: func(data *models.OverviewTemplateData, compress bool) (*os.File, []*os.File, error) {
-			// Create dummy files for testing
 			overviewFile, _ := os.CreateTemp("", "overview-*.html")
 			groupedFile1, _ := os.CreateTemp("", "grouped-*.html")
 			return overviewFile, []*os.File{groupedFile1}, nil
 		},
 	}
 
-	// Mock App
 	mockApp := app.NewApp(
 		app.WithConfig(&config.Config{
 			Digest: config.ConfigDigest{
@@ -112,10 +106,8 @@ func TestProcessAndSendDigest_Success(t *testing.T) {
 		app.WithArchiveService(mockArchiveService),
 	)
 
-	// Call the function under test
 	overviewFile, groupedEntryFiles, data, err := ProcessAndSendDigest(mockApp)
 
-	// Assertions
 	if err != nil {
 		t.Fatalf("ProcessAndSendDigest returned an unexpected error: %v", err)
 	}
@@ -129,7 +121,6 @@ func TestProcessAndSendDigest_Success(t *testing.T) {
 		t.Errorf("Expected overview data %v, got %v", expectedOverviewData, data)
 	}
 
-	// Clean up dummy files
 	_ = overviewFile.Close()
 	_ = os.Remove(overviewFile.Name())
 	for _, f := range groupedEntryFiles {

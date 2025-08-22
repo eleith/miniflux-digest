@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	LLMTimeout        = 5 * time.Minute
-	DayGroupLayout    = "2006-01-02"
+	LLMTimeout          = 5 * time.Minute
+	DayGroupLayout      = "2006-01-02"
 	DayGroupTitleLayout = "Jan 2, 2006"
 )
 
@@ -64,49 +64,43 @@ type digestServiceImpl struct {
 	llmService services.LLMService
 }
 
-
-
 func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
-	// Convert map to slice
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
 		iconsSlice = append(iconsSlice, icon)
 	}
 
-	// Group entries by primary grouping (category or feed)
 	primaryGroups := GroupEntries(entries, groupBy)
 
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
-	var overallDigestSummary string // This will hold the overall summary for the digest
+	var overallDigestSummary string
 
-	// Process each primary group
 	for primaryGroupName, primaryGroupEntries := range primaryGroups {
 		grouper := NewSubGrouper(subGroupBy, s.llmService)
 		subEntryGroups, subSummary := grouper.GroupEntries(primaryGroupEntries)
 
-		// If sub-grouping is AI, the subSummary is the overall summary for that primary group
 		if subGroupBy == "ai" {
 			allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
 				Title:     primaryGroupName,
 				Slug:      utils.Slugify(primaryGroupName),
 				SubGroups: subEntryGroups,
-				Summary:   *subSummary, // This is the overall summary for this primary group from LLM
+				Summary:   *subSummary,
 			})
-			if overallDigestSummary == "" { // Take the first LLM summary as the overall digest summary
+			if overallDigestSummary == "" {
 				overallDigestSummary = *subSummary
 			}
 		} else {
-			// Add primary group title to sub-groups if not already present
-		if subGroupBy != "ai" {
-			for _, seg := range subEntryGroups {
-				seg.Title = fmt.Sprintf("%s - %s", primaryGroupName, seg.Title)
+
+			if subGroupBy != "ai" {
+				for _, seg := range subEntryGroups {
+					seg.Title = fmt.Sprintf("%s - %s", primaryGroupName, seg.Title)
+				}
 			}
-		}
 
 			var currentSummary string
-		if subSummary != nil {
-			currentSummary = *subSummary
-		}
+			if subSummary != nil {
+				currentSummary = *subSummary
+			}
 
 			allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
 				Title:     primaryGroupName,
@@ -114,18 +108,16 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 				SubGroups: subEntryGroups,
 				Summary:   currentSummary,
 			})
-			if (subSummary != nil) {
-			overallDigestSummary += *subSummary + "\n" // Accumulate summaries for non-AI grouping
-		}
+			if subSummary != nil {
+				overallDigestSummary += *subSummary + "\n"
+			}
 		}
 	}
 
-	// Sort the top-level groups (e.g., by primary group name)
 	sort.Slice(allPrimaryGroups, func(i, j int) bool {
 		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 	})
 
-	// Calculate TotalEntries and TotalFeeds for each PrimaryGroupDigestData
 	for _, primaryGroup := range allPrimaryGroups {
 		primaryGroupTotalEntries := 0
 		primaryGroupUniqueFeedIDs := make(map[int64]bool)
@@ -139,13 +131,11 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 		primaryGroup.TotalFeeds = len(primaryGroupUniqueFeedIDs)
 	}
 
-	// Flatten the sub-groups into a single list for the email template
 	var allEntryGroups []*models.EntryGroup
 	for _, primaryGroup := range allPrimaryGroups {
 		allEntryGroups = append(allEntryGroups, primaryGroup.SubGroups...)
 	}
 
-	// Calculate total entries and total feeds
 	uniqueFeedIDs := make(map[int64]bool)
 	for _, entry := range entries {
 		uniqueFeedIDs[entry.FeedID] = true
@@ -176,18 +166,16 @@ func (g *DayGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 		dateKey := entry.Date.Format(DayGroupLayout)
 		if _, ok := entryGroupsMap[dateKey]; !ok {
 			entryGroupsMap[dateKey] = &models.EntryGroup{
-					Title:   entry.Date.Format(DayGroupTitleLayout),
-					Entries: []*models.Entry{},
-					Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
+				Title:   entry.Date.Format(DayGroupTitleLayout),
+				Entries: []*models.Entry{},
+				Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
 			}
 		}
 		entryGroupsMap[dateKey].Entries = append(entryGroupsMap[dateKey].Entries, entry)
 	}
 
-	// Convert map to sorted slice of EntryGroups
 	sortedEntryGroups := make([]*models.EntryGroup, 0, len(entryGroupsMap))
 	for _, group := range entryGroupsMap {
-		// Calculate TotalEntries and TotalFeeds for each group
 		uniqueFeedIDs := make(map[int64]bool)
 		for _, entry := range group.Entries {
 			uniqueFeedIDs[entry.FeedID] = true
@@ -197,15 +185,12 @@ func (g *DayGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 		sortedEntryGroups = append(sortedEntryGroups, group)
 	}
 
-	// Sort groups by date (older to newer)
 	sort.Slice(sortedEntryGroups, func(i, j int) bool {
-		// Dates are stored as strings, so we need to parse them back to time.Time
 		iDate, _ := time.Parse("Jan 2, 2006", sortedEntryGroups[i].Title)
 		jDate, _ := time.Parse("Jan 2, 2006", sortedEntryGroups[j].Title)
 		return iDate.Before(jDate)
 	})
 
-	// Sort entries within each group by date (older to newer)
 	for _, group := range sortedEntryGroups {
 		sort.Slice(group.Entries, func(i, j int) bool {
 			return group.Entries[i].Date.Before(group.Entries[j].Date)
@@ -222,18 +207,16 @@ func (g *FeedGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGrou
 	for _, entry := range entries {
 		if _, ok := entryGroupsMap[entry.FeedID]; !ok {
 			entryGroupsMap[entry.FeedID] = &models.EntryGroup{
-					Title:   entry.FeedTitle,
-					Entries: []*models.Entry{},
-					Slug:    utils.Slugify(entry.FeedTitle),
+				Title:   entry.FeedTitle,
+				Entries: []*models.Entry{},
+				Slug:    utils.Slugify(entry.FeedTitle),
 			}
 		}
 		entryGroupsMap[entry.FeedID].Entries = append(entryGroupsMap[entry.FeedID].Entries, entry)
 	}
 
-	// Convert map to slice of EntryGroups
 	entryGroups := make([]*models.EntryGroup, 0, len(entryGroupsMap))
 	for _, group := range entryGroupsMap {
-		// Calculate TotalEntries and TotalFeeds for each group
 		uniqueFeedIDs := make(map[int64]bool)
 		for _, entry := range group.Entries {
 			uniqueFeedIDs[entry.FeedID] = true
@@ -243,12 +226,10 @@ func (g *FeedGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGrou
 		entryGroups = append(entryGroups, group)
 	}
 
-	// Sort groups by feed title (alphabetically)
 	sort.Slice(entryGroups, func(i, j int) bool {
 		return entryGroups[i].Title < entryGroups[j].Title
 	})
 
-	// Sort entries within each group by date (older to newer)
 	for _, group := range entryGroups {
 		sort.Slice(group.Entries, func(i, j int) bool {
 			return group.Entries[i].Date.Before(group.Entries[j].Date)
@@ -293,7 +274,6 @@ Return the response as a JSON object according to the desired responseSchema.
 Below are the entries and other relevant metadata for this task:
 ----------------- 
 `
-
 
 var llmResponseSchema = &genai.Schema{
 	Type: genai.TypeObject,
@@ -363,7 +343,6 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 		entryMap[entry.ID] = entry
 	}
 
-
 	var entryGroups []*models.EntryGroup
 	groupedEntryIDs := make(map[int64]bool)
 
@@ -377,19 +356,19 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 				}
 			}
 		}
-		
+
 		uniqueFeedIDs := make(map[int64]bool)
 		for _, entry := range groupEntries {
 			uniqueFeedIDs[entry.FeedID] = true
 		}
 
 		entryGroups = append(entryGroups, &models.EntryGroup{
-			Title:       groupData.Title,
-			Entries:     groupEntries,
-			Slug:        utils.Slugify(groupData.Title),
-			Summary:     groupData.Summary,
+			Title:        groupData.Title,
+			Entries:      groupEntries,
+			Slug:         utils.Slugify(groupData.Title),
+			Summary:      groupData.Summary,
 			TotalEntries: len(groupEntries),
-			TotalFeeds:  len(uniqueFeedIDs),
+			TotalFeeds:   len(uniqueFeedIDs),
 		})
 	}
 
@@ -422,6 +401,7 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 	for _, entry := range entries {
 		feedIDs[entry.FeedID] = true
 	}
-	
+
 	return entryGroups, &response.OverviewSummary
 }
+
