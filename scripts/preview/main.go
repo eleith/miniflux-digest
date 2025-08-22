@@ -60,7 +60,7 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 
 	var entries []*models.Entry
 	log.Println("generateDigestData: Using mock data...")
-	entries = testutil.MockNumEntries(200)
+	entries = testutil.CreateMockEntries(200)
 
 	log.Println("generateDigestData: Building digest data...")
 	return digestSvc.BuildDigestData(

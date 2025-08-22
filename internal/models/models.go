@@ -5,15 +5,16 @@ import (
 )
 
 type Entry struct {
-	ID        int64
-	Title     string
-	URL       string
-	Content   string
-	FeedID    int64
-	FeedTitle string
+	ID         int64
+	Title      string
+	URL        string
+	Content    string
+	FeedID     int64
+	FeedTitle  string
+	GroupID    int64
 	GroupTitle string
 	CommentsURL string
-	Date      time.Time
+	Date       time.Time
 }
 
 type FeedIcon struct {
@@ -34,12 +35,12 @@ type OverviewTemplateData struct {
 }
 
 type EntryGroup struct {
-	Title       string
-	Summary     string
-	Entries     []*Entry
-	Slug        string
+	Title        string
+	Summary      string
+	Entries      []*Entry
+	Slug         string
 	TotalEntries int
-	TotalFeeds  int
+	TotalFeeds   int
 }
 
 type GroupTemplateData struct {
@@ -59,12 +60,13 @@ type GroupedEntriesTemplateData struct {
 }
 
 type PrimaryGroupDigestData struct {
-	Title       string
-	Slug        string
-	SubGroups   []*EntryGroup
-	Summary     string
+	ID           int64
+	Title        string
+	Slug         string
+	SubGroups    []*EntryGroup
+	Summary      string
 	TotalEntries int
-	TotalFeeds  int
+	TotalFeeds   int
 }
 
 type GroupedDigestPageData struct {

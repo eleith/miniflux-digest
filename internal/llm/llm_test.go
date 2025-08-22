@@ -8,15 +8,15 @@ import (
 	"google.golang.org/genai"
 )
 
-
-
 type mockModelClient struct {
-	GenerateContentFunc func(ctx context.Context, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error)
+	GenerateContentFunc func(ctx context.Context, model string, parts []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error)
+	callCount           int
 }
 
-func (m *mockModelClient) GenerateContent(ctx context.Context, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+func (m *mockModelClient) GenerateContent(ctx context.Context, model string, parts []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+	m.callCount++
 	if m.GenerateContentFunc != nil {
-		return m.GenerateContentFunc(ctx, model, contents, config)
+		return m.GenerateContentFunc(ctx, model, parts, config)
 	}
 	return nil, errors.New("GenerateContentFunc not implemented")
 }

@@ -22,7 +22,7 @@ func (m *MinifluxClientWrapper) FeedIcon(feedID int64) (*models.FeedIcon, error)
 
 	return &models.FeedIcon{
 		FeedID: feedID,
-		Data:  icon.Data,
+		Data:   icon.Data,
 	}, nil
 }
 
@@ -34,8 +34,10 @@ func (m *MinifluxClientWrapper) GetAllUnreadEntries() ([]*models.Entry, error) {
 
 	var entries []*models.Entry
 	for _, entry := range minifluxEntries.Entries {
+		var categoryID int64
 		var categoryTitle string
 		if entry.Feed != nil && entry.Feed.Category != nil {
+			categoryID = entry.Feed.Category.ID
 			categoryTitle = entry.Feed.Category.Title
 		}
 		var feedTitle string
@@ -50,6 +52,7 @@ func (m *MinifluxClientWrapper) GetAllUnreadEntries() ([]*models.Entry, error) {
 			Content:       entry.Content,
 			FeedID:        entry.FeedID,
 			FeedTitle:     feedTitle,
+			GroupID:       categoryID,
 			GroupTitle:    categoryTitle,
 			CommentsURL:   entry.CommentsURL,
 			Date:          entry.Date,
