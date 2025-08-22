@@ -226,3 +226,15 @@ func TestServeArchiveFile_NoDirectoryListingAndIndexHtml(t *testing.T) {
 			status, http.StatusNotFound)
 	}
 }
+
+func TestInitScheduler(t *testing.T) {
+	scheduler, err := initScheduler()
+	if err != nil {
+		t.Fatalf("initScheduler() returned an error: %v", err)
+	}
+	if scheduler == nil {
+		t.Fatal("initScheduler() returned a nil scheduler")
+	}
+	// You might want to add more assertions here, e.g., check if the scheduler is running, etc.
+	// For now, just checking for non-nil and no error is a good start.
+}
