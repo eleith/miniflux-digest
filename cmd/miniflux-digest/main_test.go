@@ -23,7 +23,6 @@ func setupTestArchive(t *testing.T) string {
 		}
 	})
 
-	// Create a dummy file to serve
 	categoryDir := filepath.Join(tmpDir, "test-category")
 	if err := os.Mkdir(categoryDir, 0755); err != nil {
 		t.Fatalf("Failed to create category dir: %v", err)
@@ -34,7 +33,6 @@ func setupTestArchive(t *testing.T) string {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	// Create a directory with an index.html
 	categoryWithIndexDir := filepath.Join(tmpDir, "test-category-with-index")
 	if err := os.Mkdir(categoryWithIndexDir, 0755); err != nil {
 		t.Fatalf("Failed to create category with index dir: %v", err)
@@ -45,7 +43,6 @@ func setupTestArchive(t *testing.T) string {
 		t.Fatalf("Failed to write index file: %v", err)
 	}
 
-	// Create a directory without an index.html
 	categoryNoIndexDir := filepath.Join(tmpDir, "test-category-no-index")
 	if err := os.Mkdir(categoryNoIndexDir, 0755); err != nil {
 		t.Fatalf("Failed to create category no index dir: %v", err)
@@ -57,7 +54,7 @@ func setupTestArchive(t *testing.T) string {
 func TestHealthCheckHandler(t *testing.T) {
 	req := httptest.NewRequest("GET", "/healthcheck", nil)
 	rr := httptest.NewRecorder()
-	mux := webserver.SetupServer("") // archive base path is not needed for this test
+	mux := webserver.SetupServer("")
 	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -118,11 +115,10 @@ func TestServeArchiveFile_PathTraversal(t *testing.T) {
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse // Do not follow redirects automatically
+			return http.ErrUseLastResponse 
 		},
 	}
 
-	// Attempt to access a file outside the archive base path
 	req, err := http.NewRequest("GET", ts.URL+"/archive/../main_test.go", nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
@@ -138,13 +134,11 @@ func TestServeArchiveFile_PathTraversal(t *testing.T) {
 		}
 	}()
 
-	// The first response should be a 301 redirect
 	if resp.StatusCode != http.StatusMovedPermanently {
 		t.Errorf("handler returned wrong status code for path traversal attempt: got %v want %v",
 			resp.StatusCode, http.StatusMovedPermanently)
 	}
 
-	// Now, follow the redirect and expect a 404
 	redirectURL, err := resp.Location()
 	if err != nil {
 		t.Fatalf("Failed to get redirect location: %v", err)
@@ -155,7 +149,6 @@ func TestServeArchiveFile_PathTraversal(t *testing.T) {
 		t.Fatalf("Failed to create redirect request: %v", err)
 	}
 
-	// Use a client that follows redirects for the second request
 	clientWithRedirect := &http.Client{}
 	resp, err = clientWithRedirect.Do(req)
 	if err != nil {
@@ -177,7 +170,6 @@ func TestServeArchiveFile_DirectoryListingDisabled(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
 	handler := webserver.SetupServer(archiveBasePath)
 
-	// Create a directory without an index.html file
 	if err := os.Mkdir(filepath.Join(archiveBasePath, "empty-dir"), 0755); err != nil {
 		t.Fatalf("Failed to create empty directory: %v", err)
 	}
@@ -196,7 +188,6 @@ func TestServeArchiveFile_NoDirectoryListingAndIndexHtml(t *testing.T) {
 	archiveBasePath := setupTestArchive(t)
 	mux := webserver.SetupServer(archiveBasePath)
 
-	// Test case 1: Request a directory with index.html
 	req1 := httptest.NewRequest("GET", "/archive/test-category-with-index/", nil)
 	rr1 := httptest.NewRecorder()
 	mux.ServeHTTP(rr1, req1)
@@ -216,7 +207,6 @@ func TestServeArchiveFile_NoDirectoryListingAndIndexHtml(t *testing.T) {
 			string(body1), expected1)
 	}
 
-	// Test case 2: Request a directory without index.html
 	req2 := httptest.NewRequest("GET", "/archive/test-category-no-index/", nil)
 	rr2 := httptest.NewRecorder()
 	mux.ServeHTTP(rr2, req2)
@@ -235,6 +225,4 @@ func TestInitScheduler(t *testing.T) {
 	if scheduler == nil {
 		t.Fatal("initScheduler() returned a nil scheduler")
 	}
-	// You might want to add more assertions here, e.g., check if the scheduler is running, etc.
-	// For now, just checking for non-nil and no error is a good start.
 }

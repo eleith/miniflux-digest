@@ -109,17 +109,14 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 	grouper := &DayGrouper{}
 	groups, summary := grouper.GroupEntries(entries)
 
-	// Summary is now empty for DayGrouper
 	if summary != nil {
 		t.Errorf("Expected an empty summary for DayGrouper, got %q", *summary)
 	}
 
-	// Expect 2 groups: Jan 1, 2024 and Jan 2, 2024
 	if len(groups) != 2 {
 		t.Fatalf("Expected 2 groups, got %d", len(groups))
 	}
 
-	// Check sorting (older to newer)
 	if groups[0].Title != "Jan 1, 2024" {
 		t.Errorf("Expected first group to be Jan 1, 2024, got %s", groups[0].Title)
 	}
@@ -127,7 +124,6 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 		t.Errorf("Expected second group to be Jan 2, 2024, got %s", groups[1].Title)
 	}
 
-	// Check entries within groups (older to newer)
 	jan1Group := findGroup(groups, "Jan 1, 2024")
 	if jan1Group == nil || len(jan1Group.Entries) != 2 || jan1Group.Entries[0].ID != 2 || jan1Group.Entries[1].ID != 4 {
 		t.Errorf("Incorrect entries for Jan 1, 2024 group: %+v", jan1Group)
@@ -145,17 +141,14 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 	grouper := &FeedGrouper{}
 	groups, summary := grouper.GroupEntries(entries)
 
-	// Summary is now empty for FeedGrouper
 	if summary != nil {
 		t.Errorf("Expected an empty summary for FeedGrouper, got %q", *summary)
 	}
 
-	// Expect 2 groups: Feed A and Feed B
 	if len(groups) != 2 {
 		t.Fatalf("Expected 2 groups, got %d", len(groups))
 	}
 
-	// Find groups by title for easier assertion
 	feedAGroup := findGroup(groups, "Feed A")
 	if feedAGroup == nil || len(feedAGroup.Entries) != 2 || feedAGroup.Entries[0].ID != 1 || feedAGroup.Entries[1].ID != 3 {
 		t.Errorf("Incorrect entries for Feed A group: %+v", feedAGroup)
@@ -201,7 +194,6 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 		t.Fatalf("Expected 2 groups, got %d", len(groups))
 	}
 
-	// Check group titles and entries
 	goGroup := findGroup(groups, "Go Programming")
 	if goGroup == nil || len(goGroup.Entries) != 3 || goGroup.Entries[0].ID != 1 || goGroup.Entries[1].ID != 2 || goGroup.Entries[2].ID != 4 {
 		t.Errorf("Incorrect Go Programming group: %+v", goGroup)
@@ -212,25 +204,22 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 		t.Errorf("Incorrect Python Programming group: %+v", pythonGroup)
 	}
 
-	// Test fallback to DayGrouper on LLM error
 	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
 		return "", errors.New("LLM API error")
 	}
 	groups, summary = grouper.GroupEntries(entries)
-	if len(groups) == 0 || summary != nil { // Expect groups, and nil summary from DayGrouper
+	if len(groups) == 0 || summary != nil { 
 		t.Error("Expected fallback to DayGrouper on LLM error")
 	}
 
-	// Test fallback to DayGrouper on invalid JSON
 	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
 		return "invalid json", nil
 	}
 	groups, summary = grouper.GroupEntries(entries)
-	if len(groups) == 0 || summary != nil { // Expect groups, and nil summary from DayGrouper
+	if len(groups) == 0 || summary != nil { 
 		t.Error("Expected fallback to DayGrouper on invalid JSON")
 	}
 
-	// Test ungrouped entries
 	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
 			return `{
 				"summary": "Summary with missing entry.",
@@ -289,7 +278,6 @@ func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
 		t.Fatalf("Expected 2 groups, got %d", len(groups))
 	}
 
-	// Check group titles and entries
 	goGroup := findGroup(groups, "Go Programming")
 	if goGroup == nil || len(goGroup.Entries) != 3 {
 		t.Errorf("Incorrect Go Programming group: %+v", goGroup)
@@ -332,17 +320,14 @@ func TestLLMGrouper_GroupEntries_Counts(t *testing.T) {
 	grouper := &LLMGrouper{LLMService: mockLLM}
 	groups, summary := grouper.GroupEntries(entries)
 
-	// Assert overview summary
 	if summary == nil || *summary != "Test summary for counts." {
 		t.Errorf("Expected overview summary 'Test summary for counts.', got %q", *summary)
 	}
 
-	// Expect 4 groups (A, B, C, and Uncategorized for entry 4)
 	if len(groups) != 4 {
 		t.Fatalf("Expected 4 groups, got %d", len(groups))
 	}
 
-	// Check Group A
 	groupA := findGroup(groups, "Group A (2 entries, 2 feeds)")
 	if groupA == nil {
 		t.Fatal("Expected 'Group A' not found")
@@ -354,7 +339,6 @@ func TestLLMGrouper_GroupEntries_Counts(t *testing.T) {
 		t.Errorf("Expected TotalFeeds 2 for 'Group A', got %d", groupA.TotalFeeds)
 	}
 
-	// Check Group B
 	groupB := findGroup(groups, "Group B (1 entry, 1 feed)")
 	if groupB == nil {
 		t.Fatal("Expected 'Group B' not found")
@@ -366,7 +350,6 @@ func TestLLMGrouper_GroupEntries_Counts(t *testing.T) {
 		t.Errorf("Expected TotalFeeds 1 for 'Group B', got %d", groupB.TotalFeeds)
 	}
 
-	// Check Group C (empty entries)
 	groupC := findGroup(groups, "Group C (0 entries, 0 feeds)")
 	if groupC == nil {
 		t.Fatal("Expected 'Group C' not found")
@@ -380,7 +363,6 @@ func TestLLMGrouper_GroupEntries_Counts(t *testing.T) {
 }
 
 func TestGroupEntries(t *testing.T) {
-	// Test case for category grouping (default behavior)
 	categoryEntries := []*models.Entry{
 		{GroupTitle: "Category A"},
 		{GroupTitle: "Category B"},
@@ -402,7 +384,6 @@ func TestGroupEntries(t *testing.T) {
 		t.Errorf("Expected 1 entry in Uncategorized, got %d", len(categoryGroups["Uncategorized"]))
 	}
 
-	// Test case for feed grouping
 	feedEntries := []*models.Entry{
 		{FeedTitle: "Feed X"},
 		{FeedTitle: "Feed Y"},
@@ -456,16 +437,14 @@ func TestLLMGrouper_GroupEntries_CorrectCounts(t *testing.T) {
 	grouper := &LLMGrouper{LLMService: mockLLM}
 	groups, summary := grouper.GroupEntries(entries)
 
-	// Assert overview summary
 	if summary == nil || *summary != "Test summary for correct counts." {
 		t.Errorf("Expected overview summary 'Test summary for correct counts.', got %q", *summary)
 	}
 
-	if len(groups) != 4 { // Expect 4 groups (Alpha, Beta, Gamma, Uncategorized)
+	if len(groups) != 4 { 
 		t.Fatalf("Expected 3 groups, got %d", len(groups))
 	}
 
-	// Check Group Alpha
 	groupAlpha := findGroup(groups, "Group Alpha")
 	if groupAlpha == nil {
 		t.Fatal("Expected 'Group Alpha' not found")
@@ -473,11 +452,10 @@ func TestLLMGrouper_GroupEntries_CorrectCounts(t *testing.T) {
 	if groupAlpha.TotalEntries != 2 {
 		t.Errorf("Expected TotalEntries 2 for 'Group Alpha', got %d", groupAlpha.TotalEntries)
 	}
-	if groupAlpha.TotalFeeds != 2 { // Entry 1 (Feed A), Entry 2 (Feed B)
+	if groupAlpha.TotalFeeds != 2 { 
 		t.Errorf("Expected TotalFeeds 2 for 'Group Alpha', got %d", groupAlpha.TotalFeeds)
 	}
 
-	// Check Group Beta
 	groupBeta := findGroup(groups, "Group Beta")
 	if groupBeta == nil {
 		t.Fatal("Expected 'Group Beta' not found")
@@ -485,11 +463,10 @@ func TestLLMGrouper_GroupEntries_CorrectCounts(t *testing.T) {
 	if groupBeta.TotalEntries != 1 {
 		t.Errorf("Expected TotalEntries 1 for 'Group Beta', got %d", groupBeta.TotalEntries)
 	}
-	if groupBeta.TotalFeeds != 1 { // Entry 3 (Feed A)
+	if groupBeta.TotalFeeds != 1 { 
 		t.Errorf("Expected TotalFeeds 1 for 'Group Beta', got %d", groupBeta.TotalFeeds)
 	}
 
-	// Check Group C (empty entries)
 	groupGamma := findGroup(groups, "Group Gamma")
 	if groupGamma == nil {
 		t.Fatal("Expected 'Group Gamma' not found")
@@ -506,7 +483,6 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 	mockLLM := &mockLLMService{}
 	digestService := NewDigestService(mockLLM)
 
-	// Test Case 1: Group by category, sub-group by day
 	entries1 := []*models.Entry{
 		{ID: 1, Title: "Entry 1", FeedID: 101, FeedTitle: "Feed A", GroupTitle: "Category X", Date: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)},
 		{ID: 2, Title: "Entry 2", FeedID: 102, FeedTitle: "Feed B", GroupTitle: "Category X", Date: time.Date(2024, time.January, 2, 0, 0, 0, 0, time.UTC)},
@@ -526,7 +502,6 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 		t.Errorf("Expected 2 primary groups, got %d", len(overviewData1.PrimaryGroups))
 	}
 
-	// Check Category X group
 	catX := overviewData1.PrimaryGroups[0]
 	if catX.Title != "Category X" || catX.TotalEntries != 2 || catX.TotalFeeds != 2 {
 		t.Errorf("Category X mismatch: %+v", catX)
@@ -535,7 +510,6 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 		t.Errorf("Expected 2 sub-groups for Category X, got %d", len(catX.SubGroups))
 	}
 
-	// Check Category Y group
 	catY := overviewData1.PrimaryGroups[1]
 	if catY.Title != "Category Y" || catY.TotalEntries != 1 || catY.TotalFeeds != 1 {
 		t.Errorf("Category Y mismatch: %+v", catY)
@@ -544,7 +518,6 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 		t.Errorf("Expected 1 sub-group for Category Y, got %d", len(catY.SubGroups))
 	}
 
-	// Test Case 2: Group by feed, sub-group by feed
 	entries2 := []*models.Entry{
 		{ID: 4, Title: "Entry 4", FeedID: 103, FeedTitle: "Feed C", GroupTitle: "Category Z", Date: time.Date(2024, time.January, 3, 0, 0, 0, 0, time.UTC)},
 		{ID: 5, Title: "Entry 5", FeedID: 104, FeedTitle: "Feed D", GroupTitle: "Category Z", Date: time.Date(2024, time.January, 3, 0, 0, 0, 0, time.UTC)},
@@ -563,7 +536,6 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 		t.Errorf("Expected 2 primary groups, got %d", len(overviewData2.PrimaryGroups))
 	}
 
-	// Check Feed C group
 	feedC := overviewData2.PrimaryGroups[0]
 	if feedC.Title != "Feed C" || feedC.TotalEntries != 1 || feedC.TotalFeeds != 1 {
 		t.Errorf("Feed C mismatch: %+v", feedC)
@@ -572,7 +544,6 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 		t.Errorf("Expected 1 sub-group for Feed C, got %d", len(feedC.SubGroups))
 	}
 
-	// Check Feed D group
 	feedD := overviewData2.PrimaryGroups[1]
 	if feedD.Title != "Feed D" || feedD.TotalEntries != 1 || feedD.TotalFeeds != 1 {
 		t.Errorf("Feed D mismatch: %+v", feedD)

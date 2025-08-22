@@ -61,7 +61,7 @@ func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt str
 			log.Printf("LLM API error: Code=%d, Status=%s, Message=%s", apiError.Code, apiError.Status, apiError.Message)
 			if apiError.Code == 503 && strings.Contains(apiError.Message, "overloaded") {
 				log.Printf("Retrying LLM call (%d/%d)...", i+1, maxRetries-1)
-				time.Sleep(time.Second * time.Duration(i+1)) // Wait 1, 2 seconds
+				time.Sleep(time.Second * time.Duration(i+1)) 
 				continue
 			}
 		}
@@ -87,7 +87,6 @@ func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, sche
 		return "", errors.New("no content returned from LLM")
 	}
 
-	// The API returns JSON as a Text part when a schema is provided
 	textPart := resp.Text()
 	return textPart, nil
 }

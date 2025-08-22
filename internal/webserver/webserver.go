@@ -29,8 +29,6 @@ func (fs noDirListingFileSystem) Open(name string) (http.File, error) {
 		return nil, err
 	}
 	if stat.IsDir() {
-		// If it's a directory, close the file and return os.ErrNotExist
-		// This will cause http.FileServer to return a 404
 		_ = f.Close() // Ignore error on close, as we are returning an error anyway
 		return nil, os.ErrNotExist
 	}
@@ -47,25 +45,18 @@ func SetupServer(archiveBasePath string) *http.ServeMux {
 		}
 	})
 
-	// Create a file server that prevents directory listings
 	fs := http.FileServer(noDirListingFileSystem{http.Dir(archiveBasePath)})
 
-	// Handle /archive/ requests
 	mux.Handle("/archive/", http.StripPrefix("/archive/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// If the request is for a directory (ends with /)
 		if strings.HasSuffix(r.URL.Path, "/") {
-			// Construct the path to index.html relative to the stripped path
 			strippedPath := strings.TrimPrefix(r.URL.Path, "/")
 			indexPath := path.Join(strippedPath, "index.html")
 
-			// Check if index.html exists using our noDirListingFileSystem
 			if _, err := (noDirListingFileSystem{http.Dir(archiveBasePath)}).Open(indexPath); err == nil {
-				// If index.html exists, serve it
 				http.ServeFile(w, r, filepath.Join(archiveBasePath, indexPath))
 				return
 			}
 		}
-		// Otherwise, let the file server handle it (will return 404 for directories without index.html)
 		fs.ServeHTTP(w, r)
 	})))
 

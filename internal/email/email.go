@@ -43,7 +43,6 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, group
 
 	message.Subject(subject)
 
-	// Set the email body from the template
 	emailData := templates.EmailTemplateData{
 		OverviewTemplateData: *data,
 		URL:                  overviewURL,
@@ -56,7 +55,6 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, group
 	}
 	message.SetBodyString(mail.TypeTextPlain, body.String())
 
-	// Attach all grouped digest HTML files
 	for _, f := range groupedEntryFiles {
 		message.AttachFile(f.Name(), mail.WithFileContentType("text/html"))
 	}

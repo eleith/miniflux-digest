@@ -21,7 +21,6 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 
 	log.Printf("Found %d unread entries", len(entries))
 
-	// Fetch feed icons
 	icons := make(map[int64]*models.FeedIcon)
 	for _, entry := range entries {
 		if _, ok := icons[entry.FeedID]; !ok {
@@ -37,7 +36,6 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 		}
 	}
 
-	// Generate digest data
 	data := application.DigestService.BuildDigestData(
 		entries,
 		icons,
@@ -47,14 +45,12 @@ func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.O
 		application.Config.Miniflux.Host,
 	)
 
-	// Generate HTML files
 	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
 	if err != nil {
 		log.Printf("Error generating archive HTML: %v", err)
 		return nil, nil, nil, err
 	}
 
-	// Mark as read
 	if application.Config.Digest.MarkAsRead {
 		var entryIDs []int64
 		for _, entry := range entries {

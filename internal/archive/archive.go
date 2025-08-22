@@ -14,7 +14,6 @@ import (
 )
 
 
-
 type HTMLTemplate interface {
 	Execute(wr io.Writer, data any) error
 }
@@ -44,8 +43,7 @@ func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.PrimaryG
 	groupSlug := data.Slug
 	groupedFolderPath := filepath.Join(dateFolderPath, "digests")
 	if err := os.MkdirAll(groupedFolderPath, 0755); err != nil {
-		return nil, err
-	}
+		return nil, err	}
 	filename := fmt.Sprintf("%s/%s.html", groupedFolderPath, groupSlug)
 	file, err := os.Create(filename)
 	return file, err
@@ -65,7 +63,6 @@ func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.OverviewTempla
 }
 
 func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, compress bool) (*os.File, []*os.File, error) {
-	// Generate overview HTML
 	overviewFile, dateFolderPath, err := s.makeOverviewArchiveFile(data)
 	if err != nil {
 		log.Printf("Error creating overview HTML file: %v", err)
@@ -81,7 +78,6 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, 
 		log.Printf("Error writing overview HTML to file: %v", err)
 	}
 
-	// Rewind the file pointer to the beginning for subsequent reads
 	_, err = overviewFile.Seek(0, io.SeekStart)
 	if err != nil {
 		log.Printf("Error rewinding overview HTML file: %v", err)
@@ -90,7 +86,6 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, 
 
 	var groupedEntryFiles []*os.File
 
-	// Generate grouped entries HTML
 	for _, primaryGroup := range data.PrimaryGroups {
 		totalEntriesInPrimaryGroup := 0
 		for _, subGroup := range primaryGroup.SubGroups {
@@ -159,7 +154,6 @@ func (s *ArchiveServiceImpl) removeOldArchiveFiles(maxAge time.Duration) {
 func (s *ArchiveServiceImpl) removeEmptyDirs() {
 	var dirs []string
 
-	// First, collect all directory paths
 	err := filepath.WalkDir(s.ArchiveBaseDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -175,7 +169,6 @@ func (s *ArchiveServiceImpl) removeEmptyDirs() {
 		return
 	}
 
-	// Process directories in reverse order (from deepest to shallowest)
 	for i := len(dirs) - 1; i >= 0; i-- {
 		dir := dirs[i]
 		// Don't try to remove the root archive directory
