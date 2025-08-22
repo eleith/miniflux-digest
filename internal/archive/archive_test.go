@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"io"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
@@ -126,4 +127,104 @@ func TestCleanArchive(t *testing.T) {
 	if _, err := os.Stat(newDirPath); os.IsNotExist(err) {
 		t.Error("Expected new directory to be kept")
 	}
+}
+
+// Mock HTML template for testing
+type mockHTMLTemplate struct {
+	executeFunc func(wr io.Writer, data any) error
+}
+
+func (m *mockHTMLTemplate) Execute(wr io.Writer, data any) error {
+	return m.executeFunc(wr, data)
+}
+
+func TestMakeOverviewArchiveFile(t *testing.T) {
+	tempDir := t.TempDir()
+	archiveService := NewArchiveService(tempDir, &mockHTMLTemplate{}, &mockHTMLTemplate{})
+
+	data := &models.OverviewTemplateData{
+		GeneratedDate: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	file, dateFolderPath, err := archiveService.makeOverviewArchiveFile(data)
+	if err != nil {
+		t.Fatalf("makeOverviewArchiveFile failed: %v", err)
+	}
+	if file == nil {
+		t.Fatal("Expected file to be non-nil")
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("Error closing file: %v", err)
+		}
+	}()
+
+	expectedPath := filepath.Join(tempDir, "2024-01-01", "index.html")
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Errorf("Expected file %s to exist", expectedPath)
+	}
+	if dateFolderPath != filepath.Join(tempDir, "2024-01-01") {
+		t.Errorf("Expected date folder path %s, got %s", filepath.Join(tempDir, "2024-01-01"), dateFolderPath)
+	}
+}
+
+func TestMakeArchiveHTML_Success(t *testing.T) {
+	tempDir := t.TempDir()
+
+	mockOverviewTemplate := &mockHTMLTemplate{
+		executeFunc: func(wr io.Writer, data any) error {
+			_, err := wr.Write([]byte("overview html"))
+			return err
+		},
+	}
+	mockArchiveTemplate := &mockHTMLTemplate{
+		executeFunc: func(wr io.Writer, data any) error {
+			_, err := wr.Write([]byte("grouped html"))
+			return err
+		},
+	}
+	archiveService := NewArchiveService(tempDir, mockArchiveTemplate, mockOverviewTemplate)
+
+	data := &models.OverviewTemplateData{
+		GeneratedDate: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC),
+		PrimaryGroups: []*models.PrimaryGroupDigestData{
+			{
+				Slug: "group-1",
+				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 1}}}},
+			},
+			{
+				Slug: "group-2",
+				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 2}}}},
+			},
+		},
+	}
+
+	overviewFile, groupedEntryFiles, err := archiveService.MakeArchiveHTML(data, false)
+	if err != nil {
+		t.Fatalf("MakeArchiveHTML failed: %v", err)
+	}
+	if overviewFile == nil {
+		t.Fatal("Expected overviewFile to be non-nil")
+	}
+	if len(groupedEntryFiles) != 2 {
+		t.Errorf("Expected 2 groupedEntryFiles, got %d", len(groupedEntryFiles))
+	}
+
+	// Verify overview file content
+	overviewContent, _ := os.ReadFile(overviewFile.Name())
+	if string(overviewContent) != "overview html" {
+		t.Errorf("Expected overview content 'overview html', got %s", string(overviewContent))
+	}
+
+	// Verify grouped files content
+	for _, f := range groupedEntryFiles {
+		content, _ := os.ReadFile(f.Name())
+		if string(content) != "grouped html" {
+			t.Errorf("Expected grouped content 'grouped html', got %s", string(content))
+		}
+	}
+
+	// Clean up files
+	_ = overviewFile.Close()
+	_ = os.RemoveAll(filepath.Dir(overviewFile.Name())) // Remove the date folder
 }

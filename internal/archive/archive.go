@@ -11,23 +11,25 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	htmlTemplate "html/template"
 )
 
 
 
-type ArchiveServiceImpl struct{
-	ArchiveBaseDir string
-	ArchiveTemplate *htmlTemplate.Template
-	OverviewTemplate *htmlTemplate.Template
+type HTMLTemplate interface {
+	Execute(wr io.Writer, data any) error
 }
 
-func NewArchiveService(archiveBaseDir string, archiveTemplate *htmlTemplate.Template, overviewTemplate *htmlTemplate.Template) *ArchiveServiceImpl {
+type ArchiveServiceImpl struct{
+	ArchiveBaseDir string
+	ArchiveTemplate HTMLTemplate
+	OverviewTemplate HTMLTemplate
+}
+
+func NewArchiveService(archiveBaseDir string, archiveTemplate HTMLTemplate, overviewTemplate HTMLTemplate) *ArchiveServiceImpl {
 	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir, ArchiveTemplate: archiveTemplate, OverviewTemplate: overviewTemplate}
 }
 
-func (s *ArchiveServiceImpl) getHTML(template *htmlTemplate.Template, data any, compress bool) ([]byte, error) {
+func (s *ArchiveServiceImpl) getHTML(template HTMLTemplate, data any, compress bool) ([]byte, error) {
 	var buf bytes.Buffer
 
 	err := template.Execute(&buf, data)
