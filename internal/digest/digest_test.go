@@ -456,8 +456,9 @@ func TestLLMGrouper_GroupEntries_CorrectCounts(t *testing.T) {
 	grouper := &LLMGrouper{LLMService: mockLLM}
 	groups, summary := grouper.GroupEntries(entries)
 
+	// Assert overview summary
 	if summary == nil || *summary != "Test summary for correct counts." {
-		t.Errorf("Expected summary 'Test summary for correct counts.', got %q", *summary)
+		t.Errorf("Expected overview summary 'Test summary for correct counts.', got %q", *summary)
 	}
 
 	if len(groups) != 4 { // Expect 4 groups (Alpha, Beta, Gamma, Uncategorized)
@@ -498,5 +499,85 @@ func TestLLMGrouper_GroupEntries_CorrectCounts(t *testing.T) {
 	}
 	if groupGamma.TotalFeeds != 0 {
 		t.Errorf("Expected TotalFeeds 0 for 'Group Gamma', got %d", groupGamma.TotalFeeds)
+	}
+}
+
+func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
+	mockLLM := &mockLLMService{}
+	digestService := NewDigestService(mockLLM)
+
+	// Test Case 1: Group by category, sub-group by day
+	entries1 := []*models.Entry{
+		{ID: 1, Title: "Entry 1", FeedID: 101, FeedTitle: "Feed A", GroupTitle: "Category X", Date: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)},
+		{ID: 2, Title: "Entry 2", FeedID: 102, FeedTitle: "Feed B", GroupTitle: "Category X", Date: time.Date(2024, time.January, 2, 0, 0, 0, 0, time.UTC)},
+		{ID: 3, Title: "Entry 3", FeedID: 101, FeedTitle: "Feed A", GroupTitle: "Category Y", Date: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)},
+	}
+	icons1 := map[int64]*models.FeedIcon{
+		101: {FeedID: 101, Data: "iconA"},
+		102: {FeedID: 102, Data: "iconB"},
+	}
+
+	overviewData1 := digestService.BuildDigestData(entries1, icons1, "category", "day", "date", "http://miniflux.test")
+
+	if overviewData1 == nil {
+		t.Fatal("overviewData1 is nil")
+	}
+	if len(overviewData1.PrimaryGroups) != 2 {
+		t.Errorf("Expected 2 primary groups, got %d", len(overviewData1.PrimaryGroups))
+	}
+
+	// Check Category X group
+	catX := overviewData1.PrimaryGroups[0]
+	if catX.Title != "Category X" || catX.TotalEntries != 2 || catX.TotalFeeds != 2 {
+		t.Errorf("Category X mismatch: %+v", catX)
+	}
+	if len(catX.SubGroups) != 2 {
+		t.Errorf("Expected 2 sub-groups for Category X, got %d", len(catX.SubGroups))
+	}
+
+	// Check Category Y group
+	catY := overviewData1.PrimaryGroups[1]
+	if catY.Title != "Category Y" || catY.TotalEntries != 1 || catY.TotalFeeds != 1 {
+		t.Errorf("Category Y mismatch: %+v", catY)
+	}
+	if len(catY.SubGroups) != 1 {
+		t.Errorf("Expected 1 sub-group for Category Y, got %d", len(catY.SubGroups))
+	}
+
+	// Test Case 2: Group by feed, sub-group by feed
+	entries2 := []*models.Entry{
+		{ID: 4, Title: "Entry 4", FeedID: 103, FeedTitle: "Feed C", GroupTitle: "Category Z", Date: time.Date(2024, time.January, 3, 0, 0, 0, 0, time.UTC)},
+		{ID: 5, Title: "Entry 5", FeedID: 104, FeedTitle: "Feed D", GroupTitle: "Category Z", Date: time.Date(2024, time.January, 3, 0, 0, 0, 0, time.UTC)},
+	}
+	icons2 := map[int64]*models.FeedIcon{
+		103: {FeedID: 103, Data: "iconC"},
+		104: {FeedID: 104, Data: "iconD"},
+	}
+
+	overviewData2 := digestService.BuildDigestData(entries2, icons2, "feed", "feed", "date", "http://miniflux.test")
+
+	if overviewData2 == nil {
+		t.Fatal("overviewData2 is nil")
+	}
+	if len(overviewData2.PrimaryGroups) != 2 {
+		t.Errorf("Expected 2 primary groups, got %d", len(overviewData2.PrimaryGroups))
+	}
+
+	// Check Feed C group
+	feedC := overviewData2.PrimaryGroups[0]
+	if feedC.Title != "Feed C" || feedC.TotalEntries != 1 || feedC.TotalFeeds != 1 {
+		t.Errorf("Feed C mismatch: %+v", feedC)
+	}
+	if len(feedC.SubGroups) != 1 {
+		t.Errorf("Expected 1 sub-group for Feed C, got %d", len(feedC.SubGroups))
+	}
+
+	// Check Feed D group
+	feedD := overviewData2.PrimaryGroups[1]
+	if feedD.Title != "Feed D" || feedD.TotalEntries != 1 || feedD.TotalFeeds != 1 {
+		t.Errorf("Feed D mismatch: %+v", feedD)
+	}
+	if len(feedD.SubGroups) != 1 {
+		t.Errorf("Expected 1 sub-group for Feed D, got %d", len(feedD.SubGroups))
 	}
 }
