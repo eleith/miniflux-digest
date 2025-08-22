@@ -552,3 +552,62 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 		t.Errorf("Expected 1 sub-group for Feed D, got %d", len(feedD.SubGroups))
 	}
 }
+
+func TestDigestService_BuildDigestData_LLMFallback(t *testing.T) {
+	entries := createDayGrouperMockEntries()
+	icons := map[int64]*models.FeedIcon{
+		100: {FeedID: 100, Data: "icon100"},
+		200: {FeedID: 200, Data: "icon200"},
+	}
+
+	// Simulate LLM failure
+	mockLLM := &mockLLMService{
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
+			return "", errors.New("LLM service error during test")
+		},
+	}
+	digestService := NewDigestService(mockLLM)
+
+	// This call should not panic
+	overviewData := digestService.BuildDigestData(entries, icons, "category", "ai", "date", "http://miniflux.test")
+
+	if overviewData == nil {
+		t.Fatal("overviewData is nil, expected non-nil")
+	}
+
+	// Expect summary to be empty string due to fallback
+	if overviewData.OverviewSummary != "" {
+		t.Errorf("Expected OverviewSummary to be empty, got %q", overviewData.OverviewSummary)
+	}
+
+	// Expect fallback to feed grouping
+	if len(overviewData.PrimaryGroups) != 2 { // Category A and Category B
+		t.Fatalf("Expected 2 primary groups after fallback, got %d", len(overviewData.PrimaryGroups))
+	}
+
+	// Check one of the primary groups for feed-based sub-grouping
+	catA := overviewData.PrimaryGroups[0] // Assuming sorted by title, Category A comes first
+	if catA.Title != "Category A" {
+		t.Errorf("Expected primary group title 'Category A', got %q", catA.Title)
+	}
+	// For Category A, entries are from Feed A. So one sub-group expected.
+	if len(catA.SubGroups) != 1 {
+		t.Errorf("Expected 1 sub-group for Category A (feed grouping), got %d", len(catA.SubGroups))
+	}
+	if catA.SubGroups[0].Title != "Feed A" {
+		t.Errorf("Expected first sub-group title 'Feed A', got %q", catA.SubGroups[0].Title)
+	}
+
+	// Check Category B
+	catB := overviewData.PrimaryGroups[1]
+	if catB.Title != "Category B" {
+		t.Errorf("Expected primary group title 'Category B', got %q", catB.Title)
+	}
+	// For Category B, entries are from Feed B. So one sub-group expected.
+	if len(catB.SubGroups) != 1 {
+		t.Errorf("Expected 1 sub-group for Category B (feed grouping), got %d", len(catB.SubGroups))
+	}
+	if catB.SubGroups[0].Title != "Feed B" {
+		t.Errorf("Expected first sub-group title 'Feed B', got %q", catB.SubGroups[0].Title)
+	}
+}

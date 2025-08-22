@@ -52,7 +52,7 @@ func NewSubGrouper(subGroupBy string, llmService services.LLMService) SubGrouper
 	case "feed":
 		return &FeedGrouper{}
 	default:
-		return &DayGrouper{}
+		return &FeedGrouper{}
 	}
 }
 
@@ -84,10 +84,10 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 				Title:     primaryGroupName,
 				Slug:      utils.Slugify(primaryGroupName),
 				SubGroups: subEntryGroups,
-				Summary:   *subSummary,
+				Summary:   safeDerefString(subSummary),
 			})
 			if overallDigestSummary == "" {
-				overallDigestSummary = *subSummary
+				overallDigestSummary = safeDerefString(subSummary)
 			}
 		} else {
 
@@ -97,22 +97,15 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 				}
 			}
 
-			var currentSummary string
-			if subSummary != nil {
-				currentSummary = *subSummary
-			}
-
 			allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
 				Title:     primaryGroupName,
 				Slug:      utils.Slugify(primaryGroupName),
 				SubGroups: subEntryGroups,
-				Summary:   currentSummary,
+				Summary:   safeDerefString(subSummary),
 			})
-			if subSummary != nil {
-				overallDigestSummary += *subSummary + "\n"
+			overallDigestSummary += safeDerefString(subSummary) + "\n"
 			}
 		}
-	}
 
 	sort.Slice(allPrimaryGroups, func(i, j int) bool {
 		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
@@ -166,10 +159,10 @@ func (g *DayGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 		dateKey := entry.Date.Format(DayGroupLayout)
 		if _, ok := entryGroupsMap[dateKey]; !ok {
 			entryGroupsMap[dateKey] = &models.EntryGroup{
-				Title:   entry.Date.Format(DayGroupTitleLayout),
-				Entries: []*models.Entry{},
-				Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
-			}
+					Title:   entry.Date.Format(DayGroupTitleLayout),
+					Entries: []*models.Entry{},
+					Slug:    utils.Slugify(entry.Date.Format(DayGroupTitleLayout)),
+				}
 		}
 		entryGroupsMap[dateKey].Entries = append(entryGroupsMap[dateKey].Entries, entry)
 	}
@@ -207,10 +200,10 @@ func (g *FeedGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGrou
 	for _, entry := range entries {
 		if _, ok := entryGroupsMap[entry.FeedID]; !ok {
 			entryGroupsMap[entry.FeedID] = &models.EntryGroup{
-				Title:   entry.FeedTitle,
-				Entries: []*models.Entry{},
-				Slug:    utils.Slugify(entry.FeedTitle),
-			}
+					Title:   entry.FeedTitle,
+					Entries: []*models.Entry{},
+					Slug:    utils.Slugify(entry.FeedTitle),
+				}
 		}
 		entryGroupsMap[entry.FeedID].Entries = append(entryGroupsMap[entry.FeedID].Entries, entry)
 	}
@@ -315,7 +308,7 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 
 	entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
 	if err != nil {
-		return (&DayGrouper{}).GroupEntries(entries)
+		return (&FeedGrouper{}).GroupEntries(entries)
 	}
 
 	prompt := llmPrompt + string(entriesJSON)
@@ -327,15 +320,14 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 
 	if err != nil {
 		log.Printf("LLM service failed, falling back to day grouping: %v\n", err)
-		return (&DayGrouper{}).GroupEntries(entries)
+		return (&FeedGrouper{}).GroupEntries(entries)
 	}
 
 	var response llm.LLMResponse
 	if err := json.Unmarshal([]byte(llmResponse), &response); err != nil {
-		log.Printf("Unmarshaled LLM Response Object: %+v", response)
-		log.Printf("Unmarshaled LLM Response Object: %+v", response)
+		
 		log.Printf("Failed to parse LLM response, falling back to day grouping: %v\n", err)
-		return (&DayGrouper{}).GroupEntries(entries)
+		return (&FeedGrouper{}).GroupEntries(entries)
 	}
 
 	entryMap := make(map[int64]*models.Entry)
@@ -357,9 +349,11 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 			}
 		}
 
-		uniqueFeedIDs := make(map[int64]bool)
+	
+uniqueFeedIDs := make(map[int64]bool)
 		for _, entry := range groupEntries {
-			uniqueFeedIDs[entry.FeedID] = true
+		
+uniqueFeedIDs[entry.FeedID] = true
 		}
 
 		entryGroups = append(entryGroups, &models.EntryGroup{
@@ -390,10 +384,10 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 		}
 		if !foundUncategorized {
 			entryGroups = append(entryGroups, &models.EntryGroup{
-				Title:   "Uncategorized",
-				Entries: ungroupedEntries,
-				Slug:    utils.Slugify("Uncategorized"),
-			})
+					Title:   "Uncategorized",
+					Entries: ungroupedEntries,
+					Slug:    utils.Slugify("Uncategorized"),
+				})
 		}
 	}
 
@@ -405,3 +399,9 @@ func (g *LLMGrouper) GroupEntries(entries []*models.Entry) ([]*models.EntryGroup
 	return entryGroups, &response.OverviewSummary
 }
 
+func safeDerefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
