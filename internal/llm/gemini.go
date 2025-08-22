@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"strings"
 	"time"
 
 	"google.golang.org/genai"
@@ -44,24 +43,24 @@ func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt str
 	var resp *genai.GenerateContentResponse
 	var err error
 
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		resp, err = s.client.GenerateContent(ctx, s.modelName, genai.Text(prompt), &genai.GenerateContentConfig{
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   schema,
+			MaxOutputTokens:  8192,
 		})
-		if err != nil {
-			log.Printf("LLM call failed: %v", err)
-		}
 		if err == nil {
 			return resp, nil
 		}
 
-		var apiError *genai.APIError
+		log.Printf("LLM call failed: %v", err)
+
+		var apiError genai.APIError
 		if errors.As(err, &apiError) {
 			log.Printf("LLM API error: Code=%d, Status=%s, Message=%s", apiError.Code, apiError.Status, apiError.Message)
-			if apiError.Code == 503 && strings.Contains(apiError.Message, "overloaded") {
-				log.Printf("Retrying LLM call (%d/%d)...", i+1, maxRetries-1)
-				time.Sleep(time.Second * time.Duration(i+1)) 
+			if apiError.Code == 503 {
+				log.Printf("Retrying LLM call (%d/%d)...", i+1, maxRetries)
+				time.Sleep(time.Second * time.Duration(i+1))
 				continue
 			}
 		}
