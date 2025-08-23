@@ -1,6 +1,6 @@
 miniflux:
   host: "YOUR_MINIFLUX_URL"
-  api_token: "YOUR_MINIFLUX_API_API_KEY" # Use your Miniflux API Key
+  api_token: "YOUR_MINIFLUX_API_API_KEY"
 
 smtp:
   host: "YOUR_SMTP_HOST"
@@ -10,16 +10,16 @@ smtp:
 
 digest:
   email:
-    to: "RECIPIPIENT_EMAIL@example.com"
-    from: "SENDER_EMAIL@example.com"
-  schedule: "@every 24h" # Cron schedule for digest generation
+    to: "RECIPIENT@example.com"
+    from: "SENDER@example.com"
+  schedule: "@every 24h"
   host: "https://your-digest-host.com" # URL where HTML archives will be served
-  compress: true # Compress HTML before sending
-  mark_as_read: true # Mark entries as read after sending
-  run_on_startup: false # Run digest on startup
-  group_by: "category" # Group entries by "category" or "feed"
-  sub_group_by: "day" # Sub-group entries by "date", "feed", or "ai"
-  sort_by: "date" # Sort entries by "date", "title", or "ai"
+  compress: true
+  mark_as_read: true
+  run_on_startup: false
+  group_by: "category" # choices: category, feed
+  sub_group_by: "day" # choices: date, feed, ai
+  sort_by: "date" # choices: date, title, ai
 
 ai:
   api_key: "YOUR_GEMINI_API_KEY"
