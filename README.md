@@ -2,29 +2,32 @@
 
 ## Summary
 
-HTML digests (email, web or both) for Miniflux Categories.
+Miniflux digests, an antidote to my doom scrolling.
 
 [![build](https://ci.eleith.com/api/badges/26/status.svg)](https://ci.eleith.com/repos/26)
 [![ghcr build](https://github.com/eleith/miniflux-digest/actions/workflows/build.yml/badge.svg)](https://github.com/eleith/miniflux-digest/actions/workflows/build.yml)
 
 ### Overview
 
-This tool transforms Miniflux RSS consumption from a "pull" to a "push" model.
+This tool creates digests from Miniflux RSS feed entries.
 
-It fetches entries from your Miniflux categories, delivering them as personalized
-HTML email digests. These digests are also stored as static HTML files that you
-can make available on the web.
+The goal is to give you more control of when and how you consume updates and
+ongoings from the part of the web you care about.
 
-Entries are automatically marked as read, and the process re-runs on a
-user-defined schedule.
+Unread entries are fetched on a user defined schedule and delivered to the web
+and your inbox.
 
 ## Features
 
+> [!NOTE]
+> many of the following features are optional
+
 * ⏰ Automated scheduling via cron syntax
-* 📥 Fetches unread entries per Miniflux category
+* 📥 Fetches all unread entries
 * 📧 Delivers personalized HTML digests via email
 * 🛜 Archives HTML digests for static web serving
-* ✅ Automatically marks entries as read in Miniflux
+* 🤖 Summarize and group (ai) entries for faster skimming
+* ✅ Automatically marks entries as read
 * 🧹 Manages storage by purging old archives
 * ♻️ Wash, rinse, repeat
 
@@ -39,6 +42,7 @@ user-defined schedule.
 * [Docker](https://docs.docker.com/get-docker/)
 * An active [Miniflux](https://miniflux.app/) account
 * A Miniflux API Key (Settings > API Keys > Create a new API key)
+* An email account to optionally receive digests
 
 ### Setup
 
@@ -54,7 +58,7 @@ user-defined schedule.
 2. **Create a `docker-compose.yml` File**
 
    Create a `docker-compose.yml` file with the following content. This example
-   uses the `latest` tag, but you can pin to a specific version like `0.0.8`.
+   uses the `latest` tag, but you can pin to a specific version like `0.0.10`.
 
    ```yaml
    services:
