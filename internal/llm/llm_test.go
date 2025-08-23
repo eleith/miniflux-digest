@@ -32,13 +32,17 @@ func TestNewGeminiService(t *testing.T) {
 }
 
 func TestGeminiService_GenerateContent_Success(t *testing.T) {
+	expectedJSON := "{\"overview_summary\": \"test summary\", \"group_summaries\": []}"
 	mockClient := &mockModelClient{
 		GenerateContentFunc: func(ctx context.Context, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
-			part := genai.Text("{\"overview_summary\": \"test summary\", \"group_summaries\": []}")
 			return &genai.GenerateContentResponse{
 				Candidates: []*genai.Candidate{
 					{
-						Content: part[0],
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: expectedJSON},
+							},
+						},
 					},
 				},
 			}, nil
@@ -47,12 +51,13 @@ func TestGeminiService_GenerateContent_Success(t *testing.T) {
 
 	service := &GeminiService{client: mockClient, modelName: "test-model"}
 
-	resp, err := service.GenerateContent(context.Background(), "test prompt", nil)
+	respBytes, err := service.GenerateContent(context.Background(), "test prompt", nil)
 	if err != nil {
 		t.Fatalf("GenerateContent should not return an error, but got: %v", err)
 	}
-	if resp != "{\"overview_summary\": \"test summary\", \"group_summaries\": []}" {
-		t.Errorf("Expected response to be '{\"overview_summary\": \"test summary\", \"group_summaries\": []}', but got: %s", resp)
+
+	if string(respBytes) != expectedJSON {
+		t.Errorf("Expected response to be '%s', but got: '%s'", expectedJSON, string(respBytes))
 	}
 }
 

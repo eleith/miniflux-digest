@@ -11,14 +11,14 @@ import (
 )
 
 type mockLLMService struct {
-	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) (string, error)
+	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
 }
 
-func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
+func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
 	if m.GenerateContentFunc != nil {
 		return m.GenerateContentFunc(ctx, prompt, schema)
 	}
-	return "", errors.New("GenerateContentFunc not implemented")
+	return nil, errors.New("GenerateContentFunc not implemented")
 }
 
 func findPrimaryGroup(groups []*models.PrimaryGroupDigestData, title string) *models.PrimaryGroupDigestData {
@@ -99,8 +99,8 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	primaryGroupsMap := GroupEntries(entries, "category")
 
 	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-			return `{
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			return []byte(`{
 				"overview": "This is a summary of all entries.",
 				"primary_group_summaries": [
 					{
@@ -114,7 +114,7 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 						"entry_ids": [1, 2]
 					}
 				]
-			}`,
+			}`),
 				nil
 		},
 	}
@@ -178,8 +178,8 @@ func TestDigestService_BuildDigestData_LLMFallback(t *testing.T) {
 	}
 
 	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-			return "", errors.New("LLM service error during test")
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			return nil, errors.New("LLM service error during test")
 		},
 	}
 	digestService := NewDigestService(mockLLM)

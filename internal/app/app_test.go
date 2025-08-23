@@ -46,8 +46,8 @@ func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[i
 
 type mockLLMService struct{}
 
-func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-	return "", nil
+func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+	return nil, nil
 }
 
 func TestNewApp(t *testing.T) {

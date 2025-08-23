@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	GeminiModel = "gemini-1.5-flash"
-	maxRetries  = 3
+	Model               = "gemini-2.5-pro"
+	maxRetries          = 3
+	Temperature float32 = 0.4
 )
 
 type modelClient interface {
@@ -26,7 +27,7 @@ type GeminiService struct {
 
 func NewGeminiService(apiKey string) (services.LLMService, error) {
 	if apiKey == "" {
-		return &GeminiService{modelName: GeminiModel}, nil
+		return &GeminiService{modelName: Model}, nil
 	}
 
 	ctx := context.Background()
@@ -36,7 +37,7 @@ func NewGeminiService(apiKey string) (services.LLMService, error) {
 		return nil, err
 	}
 
-	return &GeminiService{client: client.Models, modelName: GeminiModel}, nil
+	return &GeminiService{client: client.Models, modelName: Model}, nil
 }
 
 func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt string, schema *genai.Schema) (*genai.GenerateContentResponse, error) {
@@ -47,8 +48,9 @@ func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt str
 		resp, err = s.client.GenerateContent(ctx, s.modelName, genai.Text(prompt), &genai.GenerateContentConfig{
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   schema,
-			MaxOutputTokens:  8192,
+			Temperature:      genai.Ptr(Temperature),
 		})
+
 		if err == nil {
 			return resp, nil
 		}
@@ -58,7 +60,7 @@ func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt str
 		var apiError genai.APIError
 		if errors.As(err, &apiError) {
 			log.Printf("LLM API error: Code=%d, Status=%s, Message=%s", apiError.Code, apiError.Status, apiError.Message)
-			if apiError.Code == 503 {
+			if apiError.Code == 503 || apiError.Code == 500 {
 				log.Printf("Retrying LLM call (%d/%d)...", i+1, maxRetries)
 				time.Sleep(time.Second * time.Duration(i+1))
 				continue
@@ -71,21 +73,30 @@ func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt str
 	return nil, err
 }
 
-func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
+func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
 	if s.client == nil {
-		return "", errors.New("LLM service is disabled: no API key provided")
+		return nil, errors.New("LLM service is disabled: no API key provided")
 	}
 
 	resp, err := s.generateContentWithRetry(ctx, prompt, schema)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
+	candidates := resp.Candidates
+
+	if len(candidates) == 0 || len(candidates[0].Content.Parts) == 0 {
 		log.Println("LLM: No content returned from LLM (empty candidates or parts).")
-		return "", errors.New("no content returned from LLM")
+		return nil, errors.New("no content returned from LLM")
 	}
 
-	textPart := resp.Text()
-	return textPart, nil
+	candidate := candidates[0]
+	part := candidate.Content.Parts[0]
+	jsonData := []byte(part.Text)
+
+	if (candidate.FinishReason != genai.FinishReasonStop) {
+		log.Printf("LLM: Unexpected finish reason: %s", candidate.FinishReason)
+	}
+
+	return jsonData, nil
 }
