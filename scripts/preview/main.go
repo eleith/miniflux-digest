@@ -108,14 +108,22 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 		log.Fatalf("Failed to fetch entries: %v", err)
 	}
 
+	icons := make(map[int64]*models.FeedIcon)
+	for _, entry := range entries {
+		if _, ok := icons[entry.FeedID]; !ok {
+			icon, err := minifluxClientService.FeedIcon(entry.FeedID)
+			if err != nil {
+				log.Printf("Warning: failed to fetch icon for feed %d: %v", entry.FeedID, err)
+				continue
+			}
+			icons[entry.FeedID] = icon
+		}
+	}
+
 	log.Println("generateDigestData: Building digest data...")
 	return digestSvc.BuildDigestData(
 		entries,
-		map[int64]*models.FeedIcon{
-			1: {FeedID: 1, Data: testutil.NewMockFeedIconRed().Data},
-			2: {FeedID: 2, Data: testutil.NewMockFeedIconYellow().Data},
-			3: {FeedID: 3, Data: testutil.NewMockFeedIconGreen().Data},
-		},
+		icons,
 		cfg.Digest.GroupBy,
 		cfg.Digest.SubGroupBy,
 		cfg.Digest.SortBy,
