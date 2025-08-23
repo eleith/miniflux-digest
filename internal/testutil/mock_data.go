@@ -115,13 +115,13 @@ func CreateMockEntries(n int) []*models.Entry {
 	}
 
 	templates := []feedTemplate{
-		{FeedID: 100, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A"},
-		{FeedID: 300, FeedTitle: "Feed C", GroupID: 1, GroupTitle: "Category A"},
-		{FeedID: 400, FeedTitle: "Feed D", GroupID: 1, GroupTitle: "Category A"},
-		{FeedID: 200, FeedTitle: "Feed B", GroupID: 2, GroupTitle: "Category B"},
-		{FeedID: 500, FeedTitle: "Feed E", GroupID: 2, GroupTitle: "Category B"},
-		{FeedID: 600, FeedTitle: "Feed F", GroupID: 3, GroupTitle: "Category C"},
-		{FeedID: 700, FeedTitle: "Feed G", GroupID: 3, GroupTitle: "Category C"},
+		{FeedID: 1, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A"},
+		{FeedID: 2, FeedTitle: "Feed B", GroupID: 1, GroupTitle: "Category A"},
+		{FeedID: 3, FeedTitle: "Feed C", GroupID: 2, GroupTitle: "Category B"},
+		{FeedID: 4, FeedTitle: "Feed D", GroupID: 2, GroupTitle: "Category B"},
+		{FeedID: 5, FeedTitle: "Feed E", GroupID: 2, GroupTitle: "Category B"},
+		{FeedID: 6, FeedTitle: "Feed F", GroupID: 3, GroupTitle: "Category C"},
+		{FeedID: 7, FeedTitle: "Feed G", GroupID: 3, GroupTitle: "Category C"},
 	}
 
 	entries := make([]*models.Entry, 0, n)

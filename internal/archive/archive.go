@@ -13,14 +13,13 @@ import (
 	"time"
 )
 
-
 type HTMLTemplate interface {
 	Execute(wr io.Writer, data any) error
 }
 
-type ArchiveServiceImpl struct{
-	ArchiveBaseDir string
-	ArchiveTemplate HTMLTemplate
+type ArchiveServiceImpl struct {
+	ArchiveBaseDir   string
+	ArchiveTemplate  HTMLTemplate
 	OverviewTemplate HTMLTemplate
 }
 
@@ -43,7 +42,8 @@ func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.PrimaryG
 	groupSlug := data.Slug
 	groupedFolderPath := filepath.Join(dateFolderPath, "digests")
 	if err := os.MkdirAll(groupedFolderPath, 0755); err != nil {
-		return nil, err	}
+		return nil, err
+	}
 	filename := fmt.Sprintf("%s/%s.html", groupedFolderPath, groupSlug)
 	file, err := os.Create(filename)
 	return file, err
@@ -86,18 +86,37 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, 
 
 	var groupedEntryFiles []*os.File
 
+	feedIconsMap := make(map[int64]*models.FeedIcon)
+	for _, icon := range data.FeedIcons {
+		feedIconsMap[icon.FeedID] = icon
+	}
+
 	for _, primaryGroup := range data.PrimaryGroups {
 		totalEntriesInPrimaryGroup := 0
 		for _, subGroup := range primaryGroup.SubGroups {
 			totalEntriesInPrimaryGroup += len(subGroup.Entries)
 		}
 
+		groupIconsMap := make(map[int64]*models.FeedIcon)
+		for _, subGroup := range primaryGroup.SubGroups {
+			for _, entry := range subGroup.Entries {
+				if icon, ok := feedIconsMap[entry.FeedID]; ok {
+					groupIconsMap[entry.FeedID] = icon
+				}
+			}
+		}
+
+		var groupIconsSlice []*models.FeedIcon
+		for _, icon := range groupIconsMap {
+			groupIconsSlice = append(groupIconsSlice, icon)
+		}
+
 		groupedPageData := &models.GroupedDigestPageData{
-			PrimaryGroup: primaryGroup,
-			FeedIcons:    data.FeedIcons,
-			MinifluxHost: data.MinifluxHost,
+			PrimaryGroup:  primaryGroup,
+			FeedIcons:     groupIconsSlice,
+			MinifluxHost:  data.MinifluxHost,
 			GeneratedDate: data.GeneratedDate,
-			TotalEntries: totalEntriesInPrimaryGroup,
+			TotalEntries:  totalEntriesInPrimaryGroup,
 		}
 		groupedEntriesFile, err := s.makeGroupedEntriesArchiveFile(primaryGroup, dateFolderPath)
 		if err != nil {
