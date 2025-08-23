@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	LLMTimeout = 5 * time.Minute
+	LLMTimeout = 10 * time.Minute
 )
 
 type LLMResponse struct {
@@ -41,47 +41,41 @@ type llmEntry struct {
 	PrimaryGroupID int64  `json:"primary_group_id"`
 }
 
-const llmPrompt = `You are an expert content curator. Your task is to help fill out a digest built from a collection of feeds that a person follows. these feeds follow updates from blogs, social networks, and news sources. The goal of the digest is to help the person quickly skim through a large number of entries (sometimes more than 1000) and identify the ones that are worth bookmarking for later or to just skim a bunch of overlapping ones to get a gist of what's happened.
+const llmPrompt = `You will be given a large list of unread entry JSON Objects from a RSS feed reader. these entries help a user follow updates from blogs, social networks, and news sources.
 
-You will be given a list of entries, each with a title, content, feed association, and primary group association. Your task is to provide some essential ideas that will be used by a digest to help the user read through their entries in an hour or less. the response will look like the following example:
+Your task is to generate the metadata according to the instructions below:
 
-{
-  "primary_group_summaries": [
-    {
-      "primary_group_id": 123,
-      "summary": "an overview of all the entries"
-    }
-  ],
-  "sub_groups": [
-    {
-      "title": "A short, descriptive title for the subgroup.",
-      "entry_ids": [1, 2, 3]
-    }
-  ]
-}
+	- an 'overview'
+		- this is a 3-5 sentence overview for ALL entries, less than 250 words.
+		- the overview is really a brief overview. you are not to summarize every single entry
+		- The overview should be concise. don't go beyond 5 sentences. 
+  	- The overview should help the user quickly understand your overview of all entries in total
+		- the overview should help the user decide whether to skim fast or slow and what to narrow in on. 
+		- the overview could highlight critical entries or summarize the main topics or both, you decide
 
-Here are the constraints and guidelines for your response:
+	- a list of 'primary_group_summaries'
+		- the 'primary_group_id' will be found associated to one or more entry objects
+		- the summary is really a brief overview using all entries associated to the primary group
+		- you don't need to summarize every single entry
+		- entries are only ever are associated with one primary group id
+		- this is a 2-3 sentence overview, less than 150 words.
+  	- The overview should be concise.
+		- the overview should help the user decide whether to skim all entries in this group fast or slow and what to narrow in on. 
+		- the overview could highlight critical entries or summarize the main topics or both whatever helps the user skip, skim or find the most important entries
 
-- Primary Group Summaries:
-  - The primary_group_summaries field should contain a list of summaries for the entries belonging to one primary group.
-	- entries only ever are associated with one primary group
-  - Each summary should be associated with a primary_group_id.
-  - The summary should be a single paragraph, no more than 3-4 sentences long.
-  - The summary should help the user quickly understand your overview of the entries in the primary group
-	- the summary should help the user decide whether to skim fast or slow and what to narrow in on. 
-	- the summary could highlight critical entries or summarize the main topics or both whatever is best for the entries.
-
-- Subgroups:
-  - The sub_groups field should contain a list of subgroups.
-  - Each subgroup should have a title that you come up with that is short and descriptive.
-  - Each subgroup should have a list of entry_ids.
-  - Crucially, all entry_ids within a single subgroup must belong to the same primary group. You can determine the primary group of an entry from the primary_group_id field in the input.
+- 'sub_groups':
+  - The sub_groups field should contain a list of subgroup objects
+  - Each subgroup should have a 'title' that you come up with
+	- a title is generally only 2-3 words, please no more than 70 characters total (including spaces)
+  - Each subgroup should have an array of 'entry_ids'
+	- an entry id can ONLY be associated to one sub_group
+  - all entry_ids in a sub_group must share the same group_id.
   - The purpose of subgroups is to group related entries together to allow for faster skimming. The grouping can be based on topic, relevance, or any other criteria that you think would be helpful to the user.
 	- sometimes you'll want to subgroup entries because they are all about the same topic
 	- sometimes you'll want to subgroup entries because they are just basically leading to the same article itself
 	- sometimes you'll want to subgroup entries because they are just all complementing each other and worth reading together
 
-Your goal is to help the user get through their unread entries as efficiently as possible. The overall summaries and subgroups names and subgroup associations you create are the primary tools to achieve this.
+Your goal is to help the user get through their unread entries as efficiently as possible. The metadata you generate will be used to create a digest that allows the user to quickly understand and navigate their unread entries.
 
 Below is the list of entries:
 ----------------------------
@@ -135,12 +129,15 @@ func (g *LLMGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDi
 	for _, pg := range pgs {
 		primaryGroupMap[pg.ID] = pg
 		for _, entry := range pg.Entries {
+			content := entry.Content
+			if len(content) > 1000 {
+				content = content[:1000]
+			}
 			llmEntries = append(llmEntries, llmEntry{
 				ID:             entry.ID,
 				Title:        entry.Title,
 				URL:          entry.URL,
-				Content:      entry.Content,
-				FeedTitle:    entry.FeedTitle,
+				Content:      content,
 				PrimaryGroupID: pg.ID,
 			})
 			entryMap[entry.ID] = entry
@@ -164,7 +161,7 @@ func (g *LLMGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDi
 	}
 
 	var response LLMResponse
-	if err := json.Unmarshal([]byte(llmResponse), &response); err != nil {
+	if err := json.Unmarshal(llmResponse, &response); err != nil {
 		log.Printf("Failed to parse LLM response, falling back to feed grouping: %v\n", err)
 		log.Printf("Raw LLM response:\n%s", llmResponse)
 		return fallbackToFeedGrouper(pgs)
@@ -188,30 +185,29 @@ func (g *LLMGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDi
 
 	groupedEntryIDs := make(map[int64]bool)
 	for _, llmSubGroup := range response.SubGroups {
-		var groupEntries []*models.Entry
-		var primaryGroupID int64 = -1
+		subGroupEntriesByPrimaryGroup := make(map[int64][]*models.Entry)
 
 		for _, entryID := range llmSubGroup.EntryIDs {
-			if _, exists := groupedEntryIDs[entryID]; !exists {
-				if entry, ok := entryMap[entryID]; ok {
-					if primaryGroupID == -1 {
-						primaryGroupID = entry.GroupID
-					} else if primaryGroupID != entry.GroupID {
-						log.Printf("LLM returned subgroup with mixed primary group IDs. Falling back to feed grouper.")
-						return fallbackToFeedGrouper(pgs)
-					}
-					groupEntries = append(groupEntries, entry)
-					groupedEntryIDs[entryID] = true
-				}
+			if _, exists := groupedEntryIDs[entryID]; exists {
+				continue
+			}
+			if entry, ok := entryMap[entryID]; ok {
+				primaryGroupID := entry.GroupID
+				subGroupEntriesByPrimaryGroup[primaryGroupID] = append(subGroupEntriesByPrimaryGroup[primaryGroupID], entry)
+				groupedEntryIDs[entryID] = true
 			}
 		}
 
-		if pg, ok := finalPrimaryGroupsMap[primaryGroupID]; ok {
-			pg.SubGroups = append(pg.SubGroups, &models.EntryGroup{
-				Title:   llmSubGroup.Title,
-				Entries: groupEntries,
-				Slug:    utils.Slugify(llmSubGroup.Title),
-			})
+		for primaryGroupID, entriesInGroup := range subGroupEntriesByPrimaryGroup {
+			if pg, ok := finalPrimaryGroupsMap[primaryGroupID]; ok {
+				if len(entriesInGroup) > 0 {
+					pg.SubGroups = append(pg.SubGroups, &models.EntryGroup{
+						Title:   llmSubGroup.Title,
+						Entries: entriesInGroup,
+						Slug:    utils.Slugify(llmSubGroup.Title),
+					})
+				}
+			}
 		}
 	}
 

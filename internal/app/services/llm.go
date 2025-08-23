@@ -7,5 +7,5 @@ import (
 )
 
 type LLMService interface {
-	GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error)
+	GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
 }
