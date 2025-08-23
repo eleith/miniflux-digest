@@ -6,30 +6,31 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
-	"miniflux-digest/internal/templates"
-	"miniflux-digest/internal/utils"
 	"os"
 	"path/filepath"
 	"time"
 )
 
-type ArchiveServiceImpl struct{
-	ArchiveBaseDir string
+type HTMLTemplate interface {
+	Execute(wr io.Writer, data any) error
 }
 
-var _ app.ArchiveService = (*ArchiveServiceImpl)(nil)
-
-func NewArchiveService(archiveBaseDir string) *ArchiveServiceImpl {
-	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir}
+type ArchiveServiceImpl struct {
+	ArchiveBaseDir   string
+	ArchiveTemplate  HTMLTemplate
+	OverviewTemplate HTMLTemplate
 }
 
-func (s *ArchiveServiceImpl) getHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
+func NewArchiveService(archiveBaseDir string, archiveTemplate HTMLTemplate, overviewTemplate HTMLTemplate) *ArchiveServiceImpl {
+	return &ArchiveServiceImpl{ArchiveBaseDir: archiveBaseDir, ArchiveTemplate: archiveTemplate, OverviewTemplate: overviewTemplate}
+}
+
+func (s *ArchiveServiceImpl) getHTML(template HTMLTemplate, data any, compress bool) ([]byte, error) {
 	var buf bytes.Buffer
 
-	err := templates.ArchiveTemplate.Execute(&buf, data)
+	err := template.Execute(&buf, data)
 	if err != nil {
 		return nil, err
 	}
@@ -37,42 +38,104 @@ func (s *ArchiveServiceImpl) getHTML(data *models.HTMLTemplateData, compress boo
 	return digest.MinifyHTML(buf.Bytes(), compress)
 }
 
-func (s *ArchiveServiceImpl) makeArchiveFile(data *models.HTMLTemplateData) (*os.File, error) {
-	categorySlug := utils.Slugify(data.Category.Title)
-	categoryFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, categorySlug)
-	filename := fmt.Sprintf("%s/%s.html", categoryFolderPath, data.GeneratedDate.Format("2006-01-02"))
-	err := os.MkdirAll(categoryFolderPath, 0755)
+func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.PrimaryGroupDigestData, dateFolderPath string) (*os.File, error) {
+	groupSlug := data.Slug
+	groupedFolderPath := filepath.Join(dateFolderPath, "digests")
+	if err := os.MkdirAll(groupedFolderPath, 0755); err != nil {
+		return nil, err
+	}
+	filename := fmt.Sprintf("%s/%s.html", groupedFolderPath, groupSlug)
+	file, err := os.Create(filename)
+	return file, err
+}
+
+func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.OverviewTemplateData) (*os.File, string, error) {
+	dateFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, data.GeneratedDate.Format("2006-01-02"))
+	filename := fmt.Sprintf("%s/index.html", dateFolderPath)
+	err := os.MkdirAll(dateFolderPath, 0755)
 
 	if err == nil {
 		file, err := os.Create(filename)
-		return file, err
+		return file, dateFolderPath, err
 	}
 
-	return nil, err
+	return nil, "", err
 }
 
-func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.HTMLTemplateData, compress bool) (*os.File, error) {
-	file, err := s.makeArchiveFile(data)
-
+func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, compress bool) (*os.File, []*os.File, error) {
+	overviewFile, dateFolderPath, err := s.makeOverviewArchiveFile(data)
 	if err != nil {
-		log.Printf("Error creating HTML file for category '%s': %v", data.Category.Title, err)
-		return nil, err
+		log.Printf("Error creating overview HTML file: %v", err)
+		return nil, nil, err
+	}
+	overviewHTML, err := s.getHTML(s.OverviewTemplate, data, compress)
+	if err != nil {
+		log.Printf("Error generating overview HTML: %v", err)
+		return overviewFile, nil, err
+	}
+	_, err = overviewFile.Write(overviewHTML)
+	if err != nil {
+		log.Printf("Error writing overview HTML to file: %v", err)
 	}
 
-	htmlOutput, err := s.getHTML(data, compress)
-
+	_, err = overviewFile.Seek(0, io.SeekStart)
 	if err != nil {
-		log.Printf("Error generating HTML for category %s: %v", data.Category.Title, err)
-		return file, err
+		log.Printf("Error rewinding overview HTML file: %v", err)
+		return overviewFile, nil, err
 	}
 
-	_, err = file.Write(htmlOutput)
+	var groupedEntryFiles []*os.File
 
-	if err != nil {
-		log.Printf("Error writing HTML to file for category '%s': %v", data.Category.Title, err)
+	feedIconsMap := make(map[int64]*models.FeedIcon)
+	for _, icon := range data.FeedIcons {
+		feedIconsMap[icon.FeedID] = icon
 	}
 
-	return file, err
+	for _, primaryGroup := range data.PrimaryGroups {
+		totalEntriesInPrimaryGroup := 0
+		for _, subGroup := range primaryGroup.SubGroups {
+			totalEntriesInPrimaryGroup += len(subGroup.Entries)
+		}
+
+		groupIconsMap := make(map[int64]*models.FeedIcon)
+		for _, subGroup := range primaryGroup.SubGroups {
+			for _, entry := range subGroup.Entries {
+				if icon, ok := feedIconsMap[entry.FeedID]; ok {
+					groupIconsMap[entry.FeedID] = icon
+				}
+			}
+		}
+
+		var groupIconsSlice []*models.FeedIcon
+		for _, icon := range groupIconsMap {
+			groupIconsSlice = append(groupIconsSlice, icon)
+		}
+
+		groupedPageData := &models.GroupedDigestPageData{
+			PrimaryGroup:  primaryGroup,
+			FeedIcons:     groupIconsSlice,
+			MinifluxHost:  data.MinifluxHost,
+			GeneratedDate: data.GeneratedDate,
+			TotalEntries:  totalEntriesInPrimaryGroup,
+		}
+		groupedEntriesFile, err := s.makeGroupedEntriesArchiveFile(primaryGroup, dateFolderPath)
+		if err != nil {
+			log.Printf("Error creating grouped entries HTML file: %v", err)
+			return nil, nil, err
+		}
+		groupedEntryFiles = append(groupedEntryFiles, groupedEntriesFile)
+		groupedEntriesHTML, err := s.getHTML(s.ArchiveTemplate, groupedPageData, compress)
+		if err != nil {
+			log.Printf("Error generating grouped entries HTML: %v", err)
+			return overviewFile, groupedEntryFiles, err
+		}
+		_, err = groupedEntriesFile.Write(groupedEntriesHTML)
+		if err != nil {
+			log.Printf("Error writing grouped entries HTML to file: %v", err)
+		}
+	}
+
+	return overviewFile, groupedEntryFiles, err
 }
 
 func (s *ArchiveServiceImpl) removeOldArchiveFiles(maxAge time.Duration) {
@@ -107,14 +170,52 @@ func (s *ArchiveServiceImpl) removeOldArchiveFiles(maxAge time.Duration) {
 	}
 }
 
+func (s *ArchiveServiceImpl) removeEmptyDirs() {
+	var dirs []string
+
+	err := filepath.WalkDir(s.ArchiveBaseDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			dirs = append(dirs, path)
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("Error walking directory tree: %v", err)
+		return
+	}
+
+	for i := len(dirs) - 1; i >= 0; i-- {
+		dir := dirs[i]
+		// Don't try to remove the root archive directory
+		if dir == s.ArchiveBaseDir {
+			continue
+		}
+
+		empty, err := s.isDirEmpty(dir)
+		if err != nil {
+			log.Printf("Warning: could not check if directory %s is empty: %v", dir, err)
+			continue
+		}
+
+		if empty {
+			if err := os.Remove(dir); err != nil {
+				log.Printf("Warning: failed to delete empty directory %s: %v", dir, err)
+			}
+		}
+	}
+}
+
 func (s *ArchiveServiceImpl) isDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return false, err
 	}
-
 	defer func() {
-		if err = f.Close(); err != nil {
+		if err := f.Close(); err != nil {
 			log.Printf("Warning: failed to close directory %s: %v", name, err)
 		}
 	}()
@@ -126,31 +227,7 @@ func (s *ArchiveServiceImpl) isDirEmpty(name string) (bool, error) {
 	return false, err
 }
 
-func (s *ArchiveServiceImpl) removeEmptyCategoryFolders() {
-	dirs, err := os.ReadDir(s.ArchiveBaseDir)
-	if err != nil {
-		log.Printf("Warning: could not read archive directory %s: %v", s.ArchiveBaseDir, err)
-		return
-	}
-
-	for _, dir := range dirs {
-		if dir.IsDir() {
-			categoryPath := filepath.Join(s.ArchiveBaseDir, dir.Name())
-			empty, err := s.isDirEmpty(categoryPath)
-			if err != nil {
-				log.Printf("Warning: could not check if directory %s is empty: %v", categoryPath, err)
-				continue
-			}
-			if empty {
-				if err := os.Remove(categoryPath); err != nil {
-					log.Printf("Warning: failed to delete empty directory %s: %v", categoryPath, err)
-				}
-			}
-		}
-	}
-}
-
 func (s *ArchiveServiceImpl) CleanArchive(maxAge time.Duration) {
 	s.removeOldArchiveFiles(maxAge)
-	s.removeEmptyCategoryFolders()
+	s.removeEmptyDirs()
 }

@@ -2,35 +2,68 @@ package processor
 
 import (
 	"log"
+	"os"
 
 	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/models"
+
+	miniflux "miniflux.app/v2/client"
 )
 
-func CategoryDigestJob(application *app.App, rawData *app.RawCategoryData, markAsRead bool) {
-	data := application.DigestService.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, application.Config.Digest.GroupBy, application.Config.Miniflux.Host)
+func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
+	log.Println("Starting to process digest...")
 
-	if len(*data.Entries) > 0 {
-		file, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
-		if err != nil {
-			log.Printf("Error generating File for category %s: %v", data.Category.Title, err)
-			return
-		}
-		defer func() {
-			if err := file.Close(); err != nil {
-				log.Printf("Error closing file for category '%s': %v", data.Category.Title, err)
+	entries, err := application.MinifluxClientService.GetAllUnreadEntries()
+	if err != nil {
+		log.Printf("Error getting all unread entries: %v", err)
+		return nil, nil, nil, err
+	}
+
+	log.Printf("Found %d unread entries", len(entries))
+
+	icons := make(map[int64]*models.FeedIcon)
+	for _, entry := range entries {
+		if _, ok := icons[entry.FeedID]; !ok {
+			icon, err := application.MinifluxClientService.FeedIcon(entry.FeedID)
+			if err != nil {
+				log.Printf("Warning: failed to fetch icon for feed %d: %v", entry.FeedID, err)
+				continue
 			}
-		}()
-
-		err = application.EmailService.Send(application.Config, file, data)
-
-		if err != nil {
-			log.Printf("Error sending email for category '%s': %v", data.Category.Title, err)
-		}
-
-		if markAsRead {
-			if err := application.MinifluxClientService.MarkCategoryAsRead(data.Category.ID); err != nil {
-				log.Printf("Error marking category as read for category '%s': %v", data.Category.Title, err)
+			icons[entry.FeedID] = &models.FeedIcon{
+				FeedID: icon.FeedID,
+				Data:   icon.Data,
 			}
 		}
 	}
+
+	data := application.DigestService.BuildDigestData(
+		entries,
+		icons,
+		application.Config.Digest.GroupBy,
+		application.Config.Digest.SubGroupBy,
+		application.Config.Digest.SortBy,
+		application.Config.Miniflux.Host,
+	)
+
+	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
+	if err != nil {
+		log.Printf("Error generating archive HTML: %v", err)
+		return nil, nil, nil, err
+	}
+
+	if application.Config.Digest.MarkAsRead {
+		var entryIDs []int64
+		for _, entry := range entries {
+			entryIDs = append(entryIDs, entry.ID)
+		}
+
+		if len(entryIDs) > 0 {
+			err := application.MinifluxClientService.UpdateEntries(entryIDs, miniflux.EntryStatusRead)
+			if err != nil {
+				log.Printf("Error marking entries as read: %v", err)
+			}
+		}
+	}
+
+	return overviewFile, groupedEntryFiles, data, nil
 }

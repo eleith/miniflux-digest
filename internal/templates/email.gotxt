@@ -1,9 +1,19 @@
-{{ if .Summary }}
-{{ .Summary }}
-{{ end }}
-{{ if .URL }}you can view them them at:
+Hello,
+
+Your daily digest of {{ .Entries | len }} entries from {{ .EntryGroups | len }} feeds is ready.
+
+{{ if .OverviewSummary -}}
+Overall Summary:
+{{ .OverviewSummary }}
+{{- end }}
+
+You have {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.
+
+{{ if .URL -}}
+You can view the full digest online:
 {{ .URL }}
-or download the attachment.
-{{ else }}
-The entries are attached.
-{{ end }}
+{{- end }}
+
+{{ if .EntryGroups -}}
+The individual digests are attached to this email for offline reading.
+{{- end }}

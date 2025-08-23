@@ -1,16 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 
 	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/app/services"
+	"miniflux-digest/internal/archive"
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/email"
@@ -18,6 +21,8 @@ import (
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
+	"miniflux-digest/internal/webserver"
+
 	miniflux "miniflux.app/v2/client"
 )
 
@@ -28,6 +33,7 @@ func openBrowser(url string) error {
 	switch runtime.GOOS {
 	case "darwin":
 		cmd = "open"
+		args = []string{url}
 	case "windows":
 		cmd = "cmd"
 		args = []string{"/c", "start"}
@@ -41,9 +47,8 @@ func openBrowser(url string) error {
 	return exec.Command(cmd, args...).Start()
 }
 
-func generateDigestData(cfg *config.Config, minifluxID int64) *models.HTMLTemplateData {
+func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	log.Println("generateDigestData: Starting...")
-	var llmService llm.LLMService
 
 	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
 	if err != nil {
@@ -53,115 +58,181 @@ func generateDigestData(cfg *config.Config, minifluxID int64) *models.HTMLTempla
 	digestSvc := digest.NewDigestService(llmService)
 	log.Println("generateDigestData: DigestService initialized.")
 
-	if minifluxID != 0 {
-		log.Println("generateDigestData: Fetching real Miniflux data...")
-		minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
-		clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
+	var entries []*models.Entry
+	log.Println("generateDigestData: Using mock data...")
+	entries = testutil.CreateMockEntries(200)
 
-		rawData, err := clientWrapper.FetchRawCategoryData(minifluxID)
-		if err != nil {
-			log.Fatalf("Failed to fetch category data: %v", err)
+	icons := make(map[int64]*models.FeedIcon)
+	for _, entry := range entries {
+		if _, ok := icons[entry.FeedID]; !ok {
+			switch entry.FeedID {
+			case 1:
+				icons[entry.FeedID] = testutil.NewMockFeedIconRed()
+			case 2:
+				icons[entry.FeedID] = testutil.NewMockFeedIconYellow()
+			case 3:
+				icons[entry.FeedID] = testutil.NewMockFeedIconGreen()
+			default:
+				icons[entry.FeedID] = testutil.NewMockFeedIconGreen()
+			}
 		}
-		log.Println("generateDigestData: Building digest data with real Miniflux data...")
-		return digestSvc.BuildDigestData(rawData.Category, rawData.Entries, rawData.Icons, cfg.Digest.GroupBy, cfg.Miniflux.Host)
-	} else {
-		log.Println("generateDigestData: Building digest data with mock data...")
-		return digestSvc.BuildDigestData(
-			testutil.NewMockCategory(),
-			testutil.MockNumEntries(200),
-			map[int64]*models.FeedIcon{
-				1: testutil.NewMockFeedIconRed(),
-				2: testutil.NewMockFeedIconYellow(),
-				3: testutil.NewMockFeedIconGreen(),
-			},
-			cfg.Digest.GroupBy,
-			cfg.Miniflux.Host,
-		)
 	}
+
+	log.Println("generateDigestData: Building digest data...")
+	return digestSvc.BuildDigestData(
+		entries,
+		icons,
+		cfg.Digest.GroupBy,
+		cfg.Digest.SubGroupBy,
+		cfg.Digest.SortBy,
+		cfg.Miniflux.Host,
+	)
 }
 
-func generateHTML(data *models.HTMLTemplateData, compress bool) ([]byte, error) {
-	log.Println("generateHTML: Starting...")
-	var buf bytes.Buffer
-	if err := templates.ArchiveTemplate.Execute(&buf, data); err != nil {
-		return nil, fmt.Errorf("failed to execute template: %w", err)
-	}
+func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.MinifluxClientService) *models.OverviewTemplateData {
+	log.Println("generateDigestData: Starting...")
 
-	html, err := digest.MinifyHTML(buf.Bytes(), compress)
+	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to minify HTML: %w", err)
+		log.Fatalf("Failed to create LLM service: %v", err)
 	}
-	log.Println("generateHTML: Finished.")
-	return html, nil
-}
 
-func writeHTMLToFile(html []byte) (string, error) {
-	log.Println("writeHTMLToFile: Starting...")
-	tmpDir, err := os.MkdirTemp("", "miniflux-digest-preview")
+	digestSvc := digest.NewDigestService(llmService)
+	log.Println("generateDigestData: DigestService initialized.")
+
+	var entries []*models.Entry
+	log.Println("generateDigestData: Fetching real Miniflux data...")
+
+	entries, err = minifluxClientService.GetAllUnreadEntries()
 	if err != nil {
-		return "", fmt.Errorf("failed to create temporary directory: %w", err)
+		log.Fatalf("Failed to fetch entries: %v", err)
 	}
-	filePath := filepath.Join(tmpDir, "preview.html")
 
-	if err := os.WriteFile(filePath, html, 0644); err != nil {
-		return "", fmt.Errorf("failed to write HTML to file: %w", err)
+	icons := make(map[int64]*models.FeedIcon)
+	for _, entry := range entries {
+		if _, ok := icons[entry.FeedID]; !ok {
+			icon, err := minifluxClientService.FeedIcon(entry.FeedID)
+			if err != nil {
+				log.Printf("Warning: failed to fetch icon for feed %d: %v", entry.FeedID, err)
+				continue
+			}
+			icons[entry.FeedID] = icon
+		}
 	}
-	log.Println("writeHTMLToFile: Finished.")
-	return filePath, nil
+
+	log.Println("generateDigestData: Building digest data...")
+	return digestSvc.BuildDigestData(
+		entries,
+		icons,
+		cfg.Digest.GroupBy,
+		cfg.Digest.SubGroupBy,
+		cfg.Digest.SortBy,
+		cfg.Miniflux.Host,
+	)
 }
 
-func main() {
-	log.Println("main: Starting preview script...")
-	emailFlag := flag.Bool("email", false, "Send the generated HTML as an email")
-	minifluxID := flag.Int64("miniflux", 0, "Miniflux category ID to fetch entries")
+func setupAndParseFlags() (emailFlag, minifluxFlag, serveOnlyFlag bool) {
+	email := flag.Bool("email", false, "send mock data derived digest as an email")
+	miniflux := flag.Bool("miniflux", false, "use live data from miniflux to generate digest")
+	html := flag.Bool("html", false, "use mock data to generate digest")
 	flag.Parse()
+	return *email, *miniflux, *html
+}
 
+func loadConfig() *config.Config {
 	cfg, err := config.Load("./config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	log.Println("main: Config loaded.")
+	return cfg
+}
 
-	data := generateDigestData(cfg, *minifluxID)
+func generateAndArchiveHTML(cfg *config.Config, minifluxFlag bool) (*os.File, []*os.File, string, *models.OverviewTemplateData) {
+	var data *models.OverviewTemplateData
+
+	if minifluxFlag {
+		minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
+		clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
+		data = generateMinifluxDigest(cfg, clientWrapper)
+	} else {
+		data = generateMockDigest(cfg)
+	}
+
 	log.Println("main: Digest data generated.")
 
-	html, err := generateHTML(data, cfg.Digest.Compress)
+
+	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
+	overviewFile, groupedEntryFiles, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
 	if err != nil {
 		log.Fatalf("Failed to generate HTML: %v", err)
 	}
 	log.Println("main: HTML generated.")
 
-	filePath, err := writeHTMLToFile(html)
+	log.Printf("overviewFile.Name(): %s", overviewFile.Name())
+	log.Printf("webserver.ArchiveBasePath: %s", webserver.ArchiveBasePath)
+
+	relativePath, err := filepath.Rel(webserver.ArchiveBasePath, overviewFile.Name())
 	if err != nil {
-		log.Fatalf("Failed to write HTML to file: %v", err)
+		log.Fatalf("Failed to get relative path: %v", err)
 	}
-	log.Println("main: HTML written to file.")
+	log.Printf("relativePath: %s", relativePath)
+	overviewURL := fmt.Sprintf("http://localhost%s/archive/%s", webserver.Port, relativePath)
+	log.Printf("overviewURL: %s", overviewURL)
 
-	if *emailFlag {
-		log.Println("main: Email flag is true, sending email...")
-		emailSvc := &email.EmailServiceImpl{}
-		file, err := os.Open(filePath)
-		if err != nil {
-			log.Fatalf("Failed to open HTML file for email: %v", err)
-		}
-		defer func() {
-			if err := file.Close(); err != nil {
-				log.Printf("Error closing file: %v", err)
-			}
-		}()
-		if err := emailSvc.Send(cfg, file, data); err != nil {
-			log.Fatalf("Failed to send email: %v", err)
-		}
-		log.Printf("Successfully generated %s and sent email.", filePath)
-	} else {
-		log.Printf("Successfully generated %s.", filePath)
+	return overviewFile, groupedEntryFiles, overviewURL, data
+}
+
+func handleEmail(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) {
+	log.Println("main: Email flag is true, sending email...")
+	emailSvc := &email.EmailServiceImpl{
+		EmailTemplate: templates.EmailTemplate,
 	}
 
-	log.Printf("Preview available at: file://%s", filePath)
+	if err := emailSvc.Send(cfg, overviewFile, groupedEntryFiles, data); err != nil {
+		log.Fatalf("Failed to send email: %v", err)
+	}
+	log.Printf("Successfully generated and sent email.")
+}
 
-	log.Println("main: Attempting to open browser...")
-	if err := openBrowser(fmt.Sprintf("file://%s", filePath)); err != nil {
+func handleWebServer() {
+	log.Printf("Successfully generated.")
+
+	go func() {
+		webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Shutting down web server...")
+}
+
+func handleOpenUrl(url string) {
+	log.Printf("Attempting to open %s with the browser...", url)
+	if err := openBrowser(url); err != nil {
 		log.Printf("Failed to open browser: %v", err)
 	}
-	log.Println("main: Browser open attempt finished.")
+}
+
+func main() {
+	log.Println("main: Starting preview script...")
+	emailFlag, minifluxFlag, htmlFlag := setupAndParseFlags()
+
+	cfg := loadConfig()
+
+	if emailFlag {
+		overviewFile, groupedEntryFiles, _, data := generateAndArchiveHTML(cfg, minifluxFlag)
+		handleEmail(cfg, overviewFile, groupedEntryFiles, data)
+	} else if htmlFlag {
+		_, _, overviewURL, _ := generateAndArchiveHTML(cfg, minifluxFlag)
+		handleOpenUrl(overviewURL)
+	} else if minifluxFlag {
+		_, _, overviewURL, _ := generateAndArchiveHTML(cfg, minifluxFlag)
+		handleOpenUrl(overviewURL)
+	} else {
+		log.Println("main: Starting web server")
+		handleWebServer()
+	}
 }

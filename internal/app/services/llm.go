@@ -1,0 +1,11 @@
+package services
+
+import (
+	"context"
+
+	"google.golang.org/genai"
+)
+
+type LLMService interface {
+	GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
+}

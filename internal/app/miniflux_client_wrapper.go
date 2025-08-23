@@ -1,9 +1,6 @@
 package app
 
 import (
-	"fmt"
-	"log"
-
 	"miniflux-digest/internal/models"
 	miniflux "miniflux.app/v2/client"
 )
@@ -16,111 +13,54 @@ func NewMinifluxClientWrapper(client *miniflux.Client) *MinifluxClientWrapper {
 	return &MinifluxClientWrapper{client: client}
 }
 
-func (m *MinifluxClientWrapper) MarkCategoryAsRead(categoryID int64) error {
-	return m.client.MarkCategoryAsRead(categoryID)
-}
-
-func (m *MinifluxClientWrapper) categories() ([]*miniflux.Category, error) {
-	return m.client.Categories()
-}
-
-func (m *MinifluxClientWrapper) CategoryEntries(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error) {
-	entries, err := m.client.CategoryEntries(categoryID, filter)
-	if err != nil {
-		return nil, err
-	}
-	return &entries.Entries, nil
-}
-
-func (m *MinifluxClientWrapper) CategoryFeeds(categoryID int64) ([]*miniflux.Feed, error) {
-	return m.client.CategoryFeeds(categoryID)
-}
-
-func (m *MinifluxClientWrapper) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) {
-	return m.client.FeedIcon(feedID)
-}
-
-type RawCategoryData struct {
-	Category *miniflux.Category
-	Entries  *miniflux.Entries
-	Feeds    []*miniflux.Feed
-	Icons    map[int64]*models.FeedIcon
-}
-
-func (m *MinifluxClientWrapper) FetchRawCategoryData(categoryID int64) (*RawCategoryData, error) {
-	categories, err := m.categories()
-	if err != nil {
-		return nil, err
-	}
-
-	var category *miniflux.Category
-	for _, c := range categories {
-		if c.ID == categoryID {
-			category = c
-			break
-		}
-	}
-
-	if category == nil {
-		return nil, fmt.Errorf("category with ID %d not found", categoryID)
-	}
-
-	entriesResult, err := m.client.CategoryEntries(category.ID, &miniflux.Filter{Status: miniflux.EntryStatusUnread})
-	if err != nil {
-		return nil, err
-	}
-
-	feeds, err := m.client.CategoryFeeds(category.ID)
-	feedIcons := make(map[int64]*models.FeedIcon)
+func (m *MinifluxClientWrapper) FeedIcon(feedID int64) (*models.FeedIcon, error) {
+	icon, err := m.client.FeedIcon(feedID)
 
 	if err != nil {
 		return nil, err
 	}
 
-	for _, feed := range feeds {
-		feedIcon, err := m.client.FeedIcon(feed.ID)
-		if err != nil {
-			log.Printf("Warning: failed to fetch icon for feed %d: %v", feed.ID, err)
-			continue
-		}
-
-		feedIcons[feed.ID] = &models.FeedIcon{
-			FeedID: feed.ID,
-			Data:   feedIcon.Data,
-		}
-	}
-
-	return &RawCategoryData{
-		Category: category,
-		Entries:  &entriesResult.Entries,
-		Feeds:    feeds,
-		Icons:    feedIcons,
+	return &models.FeedIcon{
+		FeedID: feedID,
+		Data:   icon.Data,
 	}, nil
 }
 
-func (m *MinifluxClientWrapper) StreamAllCategoryData() <-chan *RawCategoryData {
-	out := make(chan *RawCategoryData)
+func (m *MinifluxClientWrapper) GetAllUnreadEntries() ([]*models.Entry, error) {
+	minifluxEntries, err := m.client.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread})
+	if err != nil {
+		return nil, err
+	}
 
-	go func() {
-		defer close(out)
-
-		categories, err := m.categories()
-
-		if err != nil {
-			log.Printf("Streamer failed to fetch categories: %v", err)
-			return
+	var entries []*models.Entry
+	for _, entry := range minifluxEntries.Entries {
+		var categoryID int64
+		var categoryTitle string
+		if entry.Feed != nil && entry.Feed.Category != nil {
+			categoryID = entry.Feed.Category.ID
+			categoryTitle = entry.Feed.Category.Title
+		}
+		var feedTitle string
+		if entry.Feed != nil {
+			feedTitle = entry.Feed.Title
 		}
 
-		for _, category := range categories {
-			data, err := m.FetchRawCategoryData(category.ID)
-			if err != nil {
-				log.Printf("Streamer failed to fetch data for category %q: %v", category.Title, err)
-				continue
-			}
+		entries = append(entries, &models.Entry{
+			ID:            entry.ID,
+			Title:         entry.Title,
+			URL:           entry.URL,
+			Content:       entry.Content,
+			FeedID:        entry.FeedID,
+			FeedTitle:     feedTitle,
+			GroupID:       categoryID,
+			GroupTitle:    categoryTitle,
+			CommentsURL:   entry.CommentsURL,
+			Date:          entry.Date,
+		})
+	}
+	return entries, nil
+}
 
-			out <- data
-		}
-	}()
-
-	return out
+func (m *MinifluxClientWrapper) UpdateEntries(entryIDs []int64, status string) error {
+	return m.client.UpdateEntries(entryIDs, status)
 }

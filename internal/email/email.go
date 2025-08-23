@@ -1,24 +1,23 @@
 package email
 
 import (
+	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
+	"text/template"
 
 	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/templates"
 
 	"github.com/wneessen/go-mail"
 )
 
+type EmailServiceImpl struct{
+	EmailTemplate *template.Template
+}
 
-type EmailServiceImpl struct{}
-
-var _ app.EmailService = (*EmailServiceImpl)(nil)
-
-func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
+func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
 	message := mail.NewMsg()
 	client, err := mail.NewClient(
 		cfg.Smtp.Host,
@@ -39,23 +38,25 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, file *os.File, data *models.
 		return err
 	}
 
-	subject := fmt.Sprintf("[miniflux digest] %s", data.Category.Title)
-	filename := filepath.Base(file.Name())
-	dir := filepath.Base(filepath.Dir(file.Name()))
-	url := fmt.Sprintf("%s/%s/%s/%s", cfg.Digest.Host, "archive", dir, filename)
-	textData := templates.EmailTemplateData{
-		HTMLTemplateData: *data,
-		URL:          url,
-		Summary:      data.Summary,
-	}
+	subject := fmt.Sprintf("Your Miniflux Digest for %s", data.GeneratedDate.Format("January 2, 2006"))
+	overviewURL := fmt.Sprintf("%s/archive/%s/index.html", cfg.Digest.Host, data.GeneratedDate.Format("2006-01-02"))
 
 	message.Subject(subject)
-	message.AttachFile(file.Name(), mail.WithFileContentType("text/html"))
 
-	err = message.SetBodyTextTemplate(templates.EmailTemplate, textData)
+	emailData := templates.EmailTemplateData{
+		OverviewTemplateData: *data,
+		URL:                  overviewURL,
+		Summary:              data.OverviewSummary,
+	}
 
-	if err != nil {
+	var body bytes.Buffer
+	if err := s.EmailTemplate.Execute(&body, emailData); err != nil {
 		return err
+	}
+	message.SetBodyString(mail.TypeTextPlain, body.String())
+
+	for _, f := range groupedEntryFiles {
+		message.AttachFile(f.Name(), mail.WithFileContentType("text/html"))
 	}
 
 	return client.DialAndSend(message)
