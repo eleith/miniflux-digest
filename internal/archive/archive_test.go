@@ -167,6 +167,13 @@ func TestMakeArchiveHTML_Success(t *testing.T) {
 	}
 	mockArchiveTemplate := &mockHTMLTemplate{
 		executeFunc: func(wr io.Writer, data any) error {
+			d, ok := data.(*models.GroupedDigestPageData)
+			if !ok {
+				t.Fatal("unexpected data type for archive template")
+			}
+			if len(d.FeedIcons) == 0 {
+				t.Error("expected feed icons to be present in archive template data")
+			}
 			_, err := wr.Write([]byte("grouped html"))
 			return err
 		},
@@ -178,12 +185,16 @@ func TestMakeArchiveHTML_Success(t *testing.T) {
 		PrimaryGroups: []*models.PrimaryGroupDigestData{
 			{
 				Slug: "group-1",
-				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 1}}}},
+				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 1, FeedID: 1}}}},
 			},
 			{
 				Slug: "group-2",
-				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 2}}}},
+				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 2, FeedID: 2}}}},
 			},
+		},
+		FeedIcons: []*models.FeedIcon{
+			{FeedID: 1, Data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="},
+			{FeedID: 2, Data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="},
 		},
 	}
 

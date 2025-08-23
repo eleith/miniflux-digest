@@ -62,14 +62,26 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	log.Println("generateDigestData: Using mock data...")
 	entries = testutil.CreateMockEntries(200)
 
+	icons := make(map[int64]*models.FeedIcon)
+	for _, entry := range entries {
+		if _, ok := icons[entry.FeedID]; !ok {
+			switch entry.FeedID {
+			case 1:
+				icons[entry.FeedID] = testutil.NewMockFeedIconRed()
+			case 2:
+				icons[entry.FeedID] = testutil.NewMockFeedIconYellow()
+			case 3:
+				icons[entry.FeedID] = testutil.NewMockFeedIconGreen()
+			default:
+				icons[entry.FeedID] = testutil.NewMockFeedIconGreen()
+			}
+		}
+	}
+
 	log.Println("generateDigestData: Building digest data...")
 	return digestSvc.BuildDigestData(
 		entries,
-		map[int64]*models.FeedIcon{
-			1: testutil.NewMockFeedIconRed(),
-			2: testutil.NewMockFeedIconYellow(),
-			3: testutil.NewMockFeedIconGreen(),
-		},
+		icons,
 		cfg.Digest.GroupBy,
 		cfg.Digest.SubGroupBy,
 		cfg.Digest.SortBy,
@@ -100,9 +112,9 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 	return digestSvc.BuildDigestData(
 		entries,
 		map[int64]*models.FeedIcon{
-			1: testutil.NewMockFeedIconRed(),
-			2: testutil.NewMockFeedIconYellow(),
-			3: testutil.NewMockFeedIconGreen(),
+			1: {FeedID: 1, Data: testutil.NewMockFeedIconRed().Data},
+			2: {FeedID: 2, Data: testutil.NewMockFeedIconYellow().Data},
+			3: {FeedID: 3, Data: testutil.NewMockFeedIconGreen().Data},
 		},
 		cfg.Digest.GroupBy,
 		cfg.Digest.SubGroupBy,
