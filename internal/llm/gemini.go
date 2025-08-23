@@ -23,11 +23,12 @@ type modelClient interface {
 type GeminiService struct {
 	client    modelClient
 	modelName string
+	sleep     func(time.Duration)
 }
 
 func NewGeminiService(apiKey string) (services.LLMService, error) {
 	if apiKey == "" {
-		return &GeminiService{modelName: Model}, nil
+		return &GeminiService{modelName: Model, sleep: time.Sleep}, nil
 	}
 
 	ctx := context.Background()
@@ -37,7 +38,7 @@ func NewGeminiService(apiKey string) (services.LLMService, error) {
 		return nil, err
 	}
 
-	return &GeminiService{client: client.Models, modelName: Model}, nil
+	return &GeminiService{client: client.Models, modelName: Model, sleep: time.Sleep}, nil
 }
 
 func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt string, schema *genai.Schema) (*genai.GenerateContentResponse, error) {
@@ -62,7 +63,7 @@ func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt str
 			log.Printf("LLM API error: Code=%d, Status=%s, Message=%s", apiError.Code, apiError.Status, apiError.Message)
 			if apiError.Code == 503 || apiError.Code == 500 {
 				log.Printf("Retrying LLM call (%d/%d)...", i+1, maxRetries)
-				time.Sleep(time.Second * time.Duration(i+1))
+				s.sleep(time.Second * time.Duration(i+1))
 				continue
 			}
 		}
