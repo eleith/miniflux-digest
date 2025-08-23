@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Miniflux Digest Overview</title>
+    <style>
+        {{include "static/style.css"}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section class="header">
+            <h1>Miniflux Digest Overview</h1>
+            <span class="date">generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
+        </section>
+
+        <section class="summary">
+            <h2>Summary</h2>
+            {{if .OverviewSummary}}
+            <p>{{.OverviewSummary}}</p>
+            {{end}}
+            <p>You have {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</p>
+        </section>
+
+        <section class="grouped-digests">
+            <h2>Grouped Digests</h2>
+            <ul>
+                {{range .PrimaryGroups}}
+                    <li>
+                        <h3><a href="digests/{{.Slug}}.html">{{.Title}}</a></h3>
+                        {{if .Summary}}
+                        <p>{{.Summary}}</p>
+                        {{else}}
+                        <p>{{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</p>
+												{{end}}
+                    </li>
+                {{end}}
+            </ul>
+        </section>
+    </div>
+</body>
+</html>

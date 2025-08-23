@@ -1,9 +1,10 @@
 package archive
 
 import (
+	"io"
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/templates"
 	"miniflux-digest/internal/testutil"
-	"miniflux-digest/internal/utils"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,14 +12,29 @@ import (
 )
 
 func TestGetHTML(t *testing.T) {
-	archiveService := NewArchiveService(t.TempDir())
-	data := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
+	archiveService := NewArchiveService(t.TempDir(), templates.OverviewTemplate, templates.ArchiveTemplate)
+
+	mockSubGroup := &models.EntryGroup{
+		Title:   "Test SubGroup Title",
+		Summary: "Test SubGroup Summary",
 		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
+		Slug:    "test-subgroup-title",
 	}
 
-	html, err := archiveService.getHTML(&data, true)
+	mockPrimaryGroup := &models.PrimaryGroupDigestData{
+		Title:     "Test Primary Group Title",
+		Slug:      "test-primary-group-title",
+		SubGroups: []*models.EntryGroup{mockSubGroup},
+		Summary:   "Test Primary Group Summary",
+	}
+
+	data := models.GroupedDigestPageData{
+		PrimaryGroup: mockPrimaryGroup,
+		FeedIcons:    testutil.NewMockFeedIcons(),
+		MinifluxHost: "http://localhost:8080",
+	}
+
+	html, err := archiveService.getHTML(templates.ArchiveTemplate, &data, true)
 	if err != nil {
 		t.Fatalf("getHTML failed: %v", err)
 	}
@@ -28,68 +44,51 @@ func TestGetHTML(t *testing.T) {
 }
 
 func TestMakeArchiveFile(t *testing.T) {
-	// Create a temporary directory for the test
 	tempDir := t.TempDir()
-	archiveService := NewArchiveService(tempDir)
+	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	data := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
+	mockSubGroup := &models.EntryGroup{
+		Title:   "Test SubGroup Title",
+		Summary: "Test SubGroup Summary",
 		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
+		Slug:    "test-subgroup-title",
 	}
 
-	file, err := archiveService.makeArchiveFile(&data)
+	data := models.PrimaryGroupDigestData{
+		Title:     "Test Primary Group Title",
+		Slug:      "test-primary-group-title",
+		SubGroups: []*models.EntryGroup{mockSubGroup},
+		Summary:   "Test Primary Group Summary",
+	}
+
+	dateFolderPath := filepath.Join(tempDir, time.Now().Format("2006-01-02"))
+	if err := os.MkdirAll(dateFolderPath, 0755); err != nil {
+		t.Fatalf("Failed to create date folder for test: %v", err)
+	}
+
+	file, err := archiveService.makeGroupedEntriesArchiveFile(&data, dateFolderPath)
 	if err != nil {
 		t.Fatalf("makeArchiveFile failed: %v", err)
 	}
 	if file == nil {
 		t.Fatal("Expected file to be non-nil")
 	}
-	// Check if the file was created in the correct hardcoded path
-	expectedPath := filepath.Join(tempDir, utils.Slugify(data.Category.Title), data.GeneratedDate.Format("2006-01-02")+".html")
+	expectedPath := filepath.Join(dateFolderPath, "digests", data.Slug+".html")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("Expected file %s to exist", expectedPath)
 	}
 }
 
-func TestMakeArchiveHTML(t *testing.T) {
-	// Create a temporary directory for the test
-	tempDir := t.TempDir()
-	archiveService := NewArchiveService(tempDir)
-
-	data := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
-	}
-	file, err := archiveService.MakeArchiveHTML(&data, true)
-	if err != nil {
-		t.Fatalf("MakeArchiveHTML failed: %v", err)
-	}
-	if file == nil {
-		t.Fatal("Expected file to be non-nil")
-	}
-	info, err := file.Stat()
-	if err != nil {
-		t.Fatalf("Failed to stat file: %v", err)
-	}
-	if info.Size() == 0 {
-		t.Error("Expected file to have content")
-	}
-}
-
 func TestCleanArchive(t *testing.T) {
-	// Create a temporary directory for the test
 	tempDir := t.TempDir()
-	archiveService := NewArchiveService(tempDir)
+	archiveService := NewArchiveService(tempDir, templates.OverviewTemplate, templates.ArchiveTemplate)
 
-	categorySlug := "test-category"
-	categoryPath := filepath.Join(tempDir, categorySlug)
-	if err := os.MkdirAll(categoryPath, 0755); err != nil {
-		t.Fatalf("Failed to create test directory: %v", err)
+	oldDirName := time.Now().Add(-48 * time.Hour).Format("2006-01-02")
+	oldDirPath := filepath.Join(tempDir, oldDirName)
+	if err := os.MkdirAll(oldDirPath, 0755); err != nil {
+		t.Fatalf("Failed to create old test directory: %v", err)
 	}
-
-	oldFilePath := filepath.Join(categoryPath, "old.html")
+	oldFilePath := filepath.Join(oldDirPath, "test.html")
 	if err := os.WriteFile(oldFilePath, []byte("old"), 0644); err != nil {
 		t.Fatalf("Failed to create old file: %v", err)
 	}
@@ -98,72 +97,130 @@ func TestCleanArchive(t *testing.T) {
 		t.Fatalf("Failed to change file modification time: %v", err)
 	}
 
-	newFilePath := filepath.Join(categoryPath, "new.html")
+	newDirName := time.Now().Format("2006-01-02")
+	newDirPath := filepath.Join(tempDir, newDirName)
+	if err := os.MkdirAll(newDirPath, 0755); err != nil {
+		t.Fatalf("Failed to create new test directory: %v", err)
+	}
+	newFilePath := filepath.Join(newDirPath, "test.html")
 	if err := os.WriteFile(newFilePath, []byte("new"), 0644); err != nil {
 		t.Fatalf("Failed to create new file: %v", err)
 	}
 
-	archiveService.CleanArchive(24*time.Hour)
+	archiveService.CleanArchive(24 * time.Hour)
 
-	if _, err := os.Stat(oldFilePath); !os.IsNotExist(err) {
-		t.Error("Expected old file to be deleted")
+	if _, err := os.Stat(oldDirPath); !os.IsNotExist(err) {
+		t.Error("Expected old directory to be deleted")
 	}
 
-	if _, err := os.Stat(newFilePath); os.IsNotExist(err) {
-		t.Error("Expected new file to be kept")
-	}
-
-	if err := os.Remove(newFilePath); err != nil {
-		t.Fatalf("Failed to remove new file: %v", err)
-	}
-
-	// Test removeEmptyCategoryFolders separately
-	emptyCategoryPath := filepath.Join(tempDir, "empty-category")
-	if err := os.MkdirAll(emptyCategoryPath, 0755); err != nil {
-		t.Fatalf("Failed to create empty test directory: %v", err)
-	}
-	archiveService.removeEmptyCategoryFolders()
-
-	if _, err := os.Stat(emptyCategoryPath); !os.IsNotExist(err) {
-		t.Error("Expected empty category directory to be deleted")
+	if _, err := os.Stat(newDirPath); os.IsNotExist(err) {
+		t.Error("Expected new directory to be kept")
 	}
 }
 
-func TestIsDirEmpty(t *testing.T) {
-	archiveService := NewArchiveService(t.TempDir())
-	tmpDir, err := os.MkdirTemp("", "test-empty-dir")
+type mockHTMLTemplate struct {
+	executeFunc func(wr io.Writer, data any) error
+}
+
+func (m *mockHTMLTemplate) Execute(wr io.Writer, data any) error {
+	return m.executeFunc(wr, data)
+}
+
+func TestMakeOverviewArchiveFile(t *testing.T) {
+	tempDir := t.TempDir()
+	archiveService := NewArchiveService(tempDir, &mockHTMLTemplate{}, &mockHTMLTemplate{})
+
+	data := &models.OverviewTemplateData{
+		GeneratedDate: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	file, dateFolderPath, err := archiveService.makeOverviewArchiveFile(data)
 	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+		t.Fatalf("makeOverviewArchiveFile failed: %v", err)
+	}
+	if file == nil {
+		t.Fatal("Expected file to be non-nil")
 	}
 	defer func() {
-		if err := os.RemoveAll(tmpDir); err != nil {
-			t.Errorf("Failed to remove temp dir: %v", err)
+		if err := file.Close(); err != nil {
+			t.Errorf("Error closing file: %v", err)
 		}
 	}()
 
-	empty, err := archiveService.isDirEmpty(tmpDir)
+	expectedPath := filepath.Join(tempDir, "2024-01-01", "index.html")
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Errorf("Expected file %s to exist", expectedPath)
+	}
+	if dateFolderPath != filepath.Join(tempDir, "2024-01-01") {
+		t.Errorf("Expected date folder path %s, got %s", filepath.Join(tempDir, "2024-01-01"), dateFolderPath)
+	}
+}
+
+func TestMakeArchiveHTML_Success(t *testing.T) {
+	tempDir := t.TempDir()
+
+	mockOverviewTemplate := &mockHTMLTemplate{
+		executeFunc: func(wr io.Writer, data any) error {
+			_, err := wr.Write([]byte("overview html"))
+			return err
+		},
+	}
+	mockArchiveTemplate := &mockHTMLTemplate{
+		executeFunc: func(wr io.Writer, data any) error {
+			d, ok := data.(*models.GroupedDigestPageData)
+			if !ok {
+				t.Fatal("unexpected data type for archive template")
+			}
+			if len(d.FeedIcons) == 0 {
+				t.Error("expected feed icons to be present in archive template data")
+			}
+			_, err := wr.Write([]byte("grouped html"))
+			return err
+		},
+	}
+	archiveService := NewArchiveService(tempDir, mockArchiveTemplate, mockOverviewTemplate)
+
+	data := &models.OverviewTemplateData{
+		GeneratedDate: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC),
+		PrimaryGroups: []*models.PrimaryGroupDigestData{
+			{
+				Slug: "group-1",
+				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 1, FeedID: 1}}}},
+			},
+			{
+				Slug: "group-2",
+				SubGroups: []*models.EntryGroup{{Entries: []*models.Entry{{ID: 2, FeedID: 2}}}},
+			},
+		},
+		FeedIcons: []*models.FeedIcon{
+			{FeedID: 1, Data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="},
+			{FeedID: 2, Data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="},
+		},
+	}
+
+	overviewFile, groupedEntryFiles, err := archiveService.MakeArchiveHTML(data, false)
 	if err != nil {
-		t.Fatalf("isDirEmpty failed for empty dir: %v", err)
+		t.Fatalf("MakeArchiveHTML failed: %v", err)
 	}
-	if !empty {
-		t.Error("Expected directory to be empty")
+	if overviewFile == nil {
+		t.Fatal("Expected overviewFile to be non-nil")
 	}
-
-	filePath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(filePath, []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
+	if len(groupedEntryFiles) != 2 {
+		t.Errorf("Expected 2 groupedEntryFiles, got %d", len(groupedEntryFiles))
 	}
 
-	empty, err = archiveService.isDirEmpty(tmpDir)
-	if err != nil {
-		t.Fatalf("isDirEmpty failed for non-empty dir: %v", err)
-	}
-	if empty {
-		t.Error("Expected directory to not be empty")
+	overviewContent, _ := os.ReadFile(overviewFile.Name())
+	if string(overviewContent) != "overview html" {
+		t.Errorf("Expected overview content 'overview html', got %s", string(overviewContent))
 	}
 
-	_, err = archiveService.isDirEmpty("non-existent-dir")
-	if !os.IsNotExist(err) {
-		t.Errorf("Expected IsNotExist error for non-existent dir, got: %v", err)
+	for _, f := range groupedEntryFiles {
+		content, _ := os.ReadFile(f.Name())
+		if string(content) != "grouped html" {
+			t.Errorf("Expected grouped content 'grouped html', got %s", string(content))
+		}
 	}
+
+	_ = overviewFile.Close()
+	_ = os.RemoveAll(filepath.Dir(overviewFile.Name())) 
 }

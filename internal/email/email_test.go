@@ -20,10 +20,10 @@ func TestSend(t *testing.T) {
 		},
 		Digest: config.ConfigDigest{
 			Email: config.ConfigDigestEmail{
-				To:			 "to@example.com",
-				From:       "from@example.com",
+				To:   "to@example.com",
+				From: "from@example.com",
 			},
-			Host:      "https://example.com",
+			Host: "https://example.com",
 		},
 	}
 
@@ -53,17 +53,24 @@ func TestSend(t *testing.T) {
 		}
 	}()
 
-	data := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
-		FeedIcons: testutil.NewMockFeedIcons(),
+	data := models.OverviewTemplateData{
+		Entries:         testutil.NewMockEntries(),
+		FeedIcons:       testutil.NewMockFeedIcons(),
+		OverviewSummary: "Test summary",
+		EntryGroups: []*models.EntryGroup{
+			testutil.NewMockEntryGroup(),
+		},
+		PrimaryGroups: []*models.PrimaryGroupDigestData{},
+		MinifluxHost: "https://example.com",
 	}
 
 	// In a real scenario, you would use a mock SMTP server.
 	// For this test, we are just checking if the function executes without error.
 	// The go-mail library does not make it easy to mock the SMTP client.
-	emailService := &EmailServiceImpl{}
-	err = emailService.Send(cfg, file, &data)
+	emailService := &EmailServiceImpl{
+		EmailTemplate: templates.EmailTemplate,
+	}
+	err = emailService.Send(cfg, file, []*os.File{}, &data)
 	if err != nil {
 		// We expect an error because we are not running a real SMTP server.
 		// The important part is that the function attempts to connect.
@@ -74,23 +81,18 @@ func TestSend(t *testing.T) {
 }
 
 func TestTextTemplateData(t *testing.T) {
-	htmlTemplateData := models.HTMLTemplateData{
-		Category: testutil.NewMockCategory(),
-		Entries: testutil.NewMockEntries(),
+	htmlTemplateData := models.OverviewTemplateData{
+		Entries:   testutil.NewMockEntries(),
 		FeedIcons: testutil.NewMockFeedIcons(),
 	}
 	url := "https://example.com"
 
 	textData := templates.EmailTemplateData{
-		HTMLTemplateData: htmlTemplateData,
-		URL:              url,
+		OverviewTemplateData: htmlTemplateData,
+		URL:                  url,
 	}
 
 	if textData.URL != url {
 		t.Errorf("Expected URL to be %s, got %s", url, textData.URL)
-	}
-
-	if textData.Category.Title != "Test Category" {
-		t.Errorf("Expected category title to be 'Test Category', got %s", textData.Category.Title)
 	}
 }

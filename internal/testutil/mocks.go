@@ -1,9 +1,8 @@
 package testutil
 
 import (
-	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/config"
-	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	"os"
 	"time"
@@ -12,42 +11,24 @@ import (
 )
 
 type MockMinifluxClient struct {
-	app.MinifluxClientService
-	MarkAsReadFunc func(categoryID int64) error
-	CategoriesFunc func() ([]*miniflux.Category, error)
-	CategoryEntriesFunc func(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error)
-	CategoryFeedsFunc func(categoryID int64) ([]*miniflux.Feed, error)
+	services.MinifluxClientService
+	
+	
+	
+	
 	FeedIconFunc func(feedID int64) (*miniflux.FeedIcon, error)
-	StreamAllCategoryDataFunc func() <-chan *app.RawCategoryData
+	
+	GetAllUnreadEntriesFunc func() (*miniflux.Entries, error)
+	UpdateEntriesFunc func(entryIDs []int64, status string) error
 }
 
-func (m *MockMinifluxClient) MarkCategoryAsRead(categoryID int64) error {
-	if m.MarkAsReadFunc != nil {
-		return m.MarkAsReadFunc(categoryID)
-	}
-	return nil
-}
 
-func (m *MockMinifluxClient) Categories() ([]*miniflux.Category, error) {
-	if m.CategoriesFunc != nil {
-		return m.CategoriesFunc()
-	}
-	return nil, nil
-}
 
-func (m *MockMinifluxClient) CategoryEntries(categoryID int64, filter *miniflux.Filter) (*miniflux.Entries, error) {
-	if m.CategoryEntriesFunc != nil {
-		return m.CategoryEntriesFunc(categoryID, filter)
-	}
-	return &miniflux.Entries{}, nil
-}
 
-func (m *MockMinifluxClient) CategoryFeeds(categoryID int64) ([]*miniflux.Feed, error) {
-	if m.CategoryFeedsFunc != nil {
-		return m.CategoryFeedsFunc(categoryID)
-	}
-	return nil, nil
-}
+
+
+
+
 
 func (m *MockMinifluxClient) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) {
 	if m.FeedIconFunc != nil {
@@ -58,43 +39,50 @@ func (m *MockMinifluxClient) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) 
 
 
 
-func (m *MockMinifluxClient) StreamAllCategoryData() <-chan *app.RawCategoryData {
-	if m.StreamAllCategoryDataFunc != nil {
-		return m.StreamAllCategoryDataFunc()
+
+
+func (m *MockMinifluxClient) GetAllUnreadEntries() (*miniflux.Entries, error) {
+	if m.GetAllUnreadEntriesFunc != nil {
+		return m.GetAllUnreadEntriesFunc()
 	}
-	out := make(chan *app.RawCategoryData)
-	close(out)
-	return out
+	return &miniflux.Entries{}, nil
+}
+
+func (m *MockMinifluxClient) UpdateEntries(entryIDs []int64, status string) error {
+	if m.UpdateEntriesFunc != nil {
+		return m.UpdateEntriesFunc(entryIDs, status)
+	}
+	return nil
 }
 
 type MockArchiveService struct {
-	app.ArchiveService
-	MakeArchiveHTMLFunc func(data *models.HTMLTemplateData, minify bool) (*os.File, error)
+	services.ArchiveService
+	MakeArchiveHTMLFunc func(data *models.OverviewTemplateData, minify bool) (*os.File, error)
 }
 
-func (m *MockArchiveService) MakeArchiveHTML(data *models.HTMLTemplateData, minify bool) (*os.File, error) {
+func (m *MockArchiveService) MakeArchiveHTML(data *models.OverviewTemplateData, minify bool) (*os.File, error) {
 	return m.MakeArchiveHTMLFunc(data, minify)
 }
 
 func (m *MockArchiveService) CleanArchive(maxAge time.Duration) {}
 
 type MockEmailService struct {
-	app.EmailService
-	SendFunc func(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error
+	services.EmailService
+	SendFunc func(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error
 }
 
-func (m *MockEmailService) Send(cfg *config.Config, file *os.File, data *models.HTMLTemplateData) error {
-	return m.SendFunc(cfg, file, data)
+func (m *MockEmailService) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
+	return m.SendFunc(cfg, overviewFile, groupedEntryFiles, data)
 }
 
 type MockDigestService struct {
-	app.DigestService
-	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData
+	services.DigestService
+	BuildDigestDataFunc func(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData
 }
 
-func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, groupBy digest.GroupingType, minifluxHost string) *models.HTMLTemplateData {
+func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
 	if m.BuildDigestDataFunc != nil {
-		return m.BuildDigestDataFunc(category, entries, icons, groupBy, minifluxHost)
+		return m.BuildDigestDataFunc(category, entries, icons, subGroupBy, sortBy, minifluxHost)
 	}
 	return nil
 }

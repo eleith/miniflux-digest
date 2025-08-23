@@ -11,12 +11,10 @@ import (
 //go:embed static
 var staticFS embed.FS
 
-func FuncMap() template.FuncMap {
-	return template.FuncMap{
-		"include":    include,
-		"textToHTML": textToHTML,
-		"htmlEscape": htmlEscape,
-	}
+var TemplateFuncs = template.FuncMap{
+	"include":    include,
+	"textToHTML": textToHTML,
+	"htmlEscape": htmlEscape,
 }
 
 func include(filename string) (any, error) {

@@ -10,8 +10,6 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 	"github.com/robfig/cron/v3"
-
-	"miniflux-digest/internal/digest"
 )
 
 // https://github.com/go-co-op/gocron/issues/826
@@ -32,8 +30,8 @@ type ConfigMiniflux struct {
 }
 
 type ConfigDigestEmail struct {
-	To			string `koanf:"to" validate:"omitempty,email"`
-	From		string `koanf:"from" validate:"omitempty,email"`
+	To   string `koanf:"to" validate:"omitempty,email"`
+	From string `koanf:"from" validate:"omitempty,email"`
 }
 
 type ConfigSmtp struct {
@@ -44,13 +42,15 @@ type ConfigSmtp struct {
 }
 
 type ConfigDigest struct {
-	Email        ConfigDigestEmail         `koanf:"email"`
-	Schedule     string                    `koanf:"schedule" validate:"gocron"`
-	Host         string                    `koanf:"host"`
-	Compress     bool                      `koanf:"compress"`
-	GroupBy      digest.GroupingType       `koanf:"group_by" validate:"omitempty,oneof=day feed ai"`
-	MarkAsRead   bool                      `koanf:"mark_as_read"`
-	RunOnStartup bool                      `koanf:"run_on_startup"`
+	Email        ConfigDigestEmail `koanf:"email"`
+	Schedule     string            `koanf:"schedule" validate:"gocron"`
+	Host         string            `koanf:"host"`
+	Compress     bool              `koanf:"compress"`
+	GroupBy      string            `koanf:"group_by" validate:"omitempty,oneof=category feed"`
+	SubGroupBy   string            `koanf:"sub_group_by" validate:"omitempty,oneof=date feed ai"`
+	SortBy       string            `koanf:"sort_by" validate:"omitempty,oneof=date ai"`
+	MarkAsRead   bool              `koanf:"mark_as_read"`
+	RunOnStartup bool              `koanf:"run_on_startup"`
 }
 
 type ConfigAI struct {
@@ -74,8 +74,8 @@ func (c *Config) Validate() error {
 
 	validate.RegisterStructValidation(func(sl validator.StructLevel) {
 		cfg := sl.Current().Interface().(Config)
-		if cfg.Digest.GroupBy == "ai" && cfg.AI.ApiKey == "" {
-			sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.GroupBy is 'ai'")
+		if cfg.Digest.SubGroupBy == "ai" && cfg.AI.ApiKey == "" {
+			sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.SubGroupBy is 'ai'")
 		}
 	}, Config{})
 
@@ -118,10 +118,12 @@ func Load(path string) (*Config, error) {
 
 func setDefaultValues(k *koanf.Koanf) error {
 	return k.Load(confmap.Provider(map[string]any{
-		"digest.compress":     true,
-		"digest.group_by":     "day",
-		"digest.schedule":     "@weekly",
-		"digest.mark_as_read": true,
+		"digest.compress":       true,
+		"digest.group_by":       "category",
+		"digest.sub_group_by":   "feed",
+		"digest.sort_by":        "date",
+		"digest.schedule":       "@weekly",
+		"digest.mark_as_read":   true,
 		"digest.run_on_startup": false,
 	}, "."), nil)
 }

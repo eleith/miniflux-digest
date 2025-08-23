@@ -89,7 +89,7 @@ section.header .date {
     color: var(--header-date-color);
 }
 
-section.summary p {
+section.summary p:first-of-type {
     margin: 1rem auto;
     padding: 0.5rem 1rem;
     background-color: var(--container-background);

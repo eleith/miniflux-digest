@@ -4,18 +4,24 @@ import (
 	"context"
 	"errors"
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/testutil"
 	"testing"
-	"time"
 
 	"google.golang.org/genai"
-	miniflux "miniflux.app/v2/client"
 )
 
 type mockLLMService struct {
-	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) (string, error)
+	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
 }
 
-func findGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
+func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+	if m.GenerateContentFunc != nil {
+		return m.GenerateContentFunc(ctx, prompt, schema)
+	}
+	return nil, errors.New("GenerateContentFunc not implemented")
+}
+
+func findPrimaryGroup(groups []*models.PrimaryGroupDigestData, title string) *models.PrimaryGroupDigestData {
 	for _, group := range groups {
 		if group.Title == title {
 			return group
@@ -24,291 +30,171 @@ func findGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
 	return nil
 }
 
-func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-	if m.GenerateContentFunc != nil {
-		return m.GenerateContentFunc(ctx, prompt, schema)
+func findSubGroup(primaryGroup *models.PrimaryGroupDigestData, title string) *models.EntryGroup {
+	for _, group := range primaryGroup.SubGroups {
+		if group.Title == title {
+			return group
+		}
 	}
-	return "", nil
+	return nil
 }
 
-func createDayGrouperMockEntries() *miniflux.Entries {
-	return &miniflux.Entries{
-		{
-			ID:     1,
-			Title:  "Entry 1 - Jan 2",
-			Date:   time.Date(2024, time.January, 2, 10, 0, 0, 0, time.UTC),
-			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
-		},
-		{
-			ID:     2,
-			Title:  "Entry 2 - Jan 1",
-			Date:   time.Date(2024, time.January, 1, 10, 0, 0, 0, time.UTC),
-			FeedID: 200,
-			Feed:   &miniflux.Feed{ID: 200, Title: "Feed B"},
-		},
-		{
-			ID:     3,
-			Title:  "Entry 3 - Jan 2",
-			Date:   time.Date(2024, time.January, 2, 11, 0, 0, 0, time.UTC),
-			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
-		},
-		{
-			ID:      4,
-			Title:   "Entry 4 - Jan 1",
-			Content: "Content of entry 4 about Go concurrency.",
-			Date:    time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC),
-			FeedID:  200,
-			Feed:    &miniflux.Feed{ID: 200, Title: "Feed B"},
-		},
-	}
-}
-
-func createFeedGrouperMockEntries() *miniflux.Entries {
-	return &miniflux.Entries{
-		{
-			ID:     1,
-			Title:  "Entry 1 - Feed A",
-			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
-			Date:   time.Date(2024, time.January, 1, 10, 0, 0, 0, time.UTC),
-		},
-		{
-			ID:     2,
-			Title:  "Entry 2 - Feed B",
-			FeedID: 200,
-			Feed:   &miniflux.Feed{ID: 200, Title: "Feed B"},
-			Date:   time.Date(2024, time.January, 1, 11, 0, 0, 0, time.UTC),
-		},
-		{
-			ID:     3,
-			Title:  "Entry 3 - Feed A",
-			FeedID: 100,
-			Feed:   &miniflux.Feed{ID: 100, Title: "Feed A"},
-			Date:   time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC),
-		},
-		{
-			ID:     4,
-			Title:  "Entry 4 - Feed B",
-			FeedID: 200,
-			Feed:   &miniflux.Feed{ID: 200, Title: "Feed B"},
-			Date:   time.Date(2024, time.January, 1, 13, 0, 0, 0, time.UTC),
-		},
+func createLLMGrouperMockEntries() []*models.Entry {
+	return []*models.Entry{
+		{ID: 1, Title: "Entry 1", FeedID: 100, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A"},
+		{ID: 2, Title: "Entry 2", FeedID: 100, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A"},
+		{ID: 3, Title: "Entry 3", FeedID: 200, FeedTitle: "Feed B", GroupID: 1, GroupTitle: "Category A"},
 	}
 }
 
 func TestDayGrouper_GroupEntries(t *testing.T) {
-	entries := createDayGrouperMockEntries()
+	entries := testutil.CreateMockEntries(0)
+	primaryGroupsMap := GroupEntries(entries, "category")
 
 	grouper := &DayGrouper{}
-	groups, summary := grouper.GroupEntries(entries)
+	groups, summary := grouper.GroupEntries(primaryGroupsMap)
 
-	if summary == "" {
-		t.Error("Expected a non-empty summary for DayGrouper")
+	if summary != nil {
+		t.Errorf("Expected an empty summary for DayGrouper, got %q", *summary)
 	}
 
-	// Expect 2 groups: Jan 1, 2024 and Jan 2, 2024
-	if len(groups) != 2 {
-		t.Fatalf("Expected 2 groups, got %d", len(groups))
+	if len(groups) != 3 {
+		t.Fatalf("Expected 3 primary groups, got %d", len(groups))
 	}
 
-	// Check sorting (older to newer)
-	if groups[0].Title != "Jan 1, 2024" {
-		t.Errorf("Expected first group to be Jan 1, 2024, got %s", groups[0].Title)
-	}
-	if groups[1].Title != "Jan 2, 2024" {
-		t.Errorf("Expected second group to be Jan 2, 2024, got %s", groups[1].Title)
+	catAGroup := findPrimaryGroup(groups, "Category A")
+	if catAGroup == nil || len(catAGroup.SubGroups) != 1 {
+		t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
 	}
 
-	// Check entries within groups (older to newer)
-	jan1Group := findGroup(groups, "Jan 1, 2024")
-	if jan1Group == nil || len(jan1Group.Entries) != 2 || jan1Group.Entries[0].ID != 2 || jan1Group.Entries[1].ID != 4 {
-		t.Errorf("Incorrect entries for Jan 1, 2024 group: %+v", jan1Group)
-	}
-
-	jan2Group := findGroup(groups, "Jan 2, 2024")
-	if jan2Group == nil || len(jan2Group.Entries) != 2 || jan2Group.Entries[0].ID != 1 || jan2Group.Entries[1].ID != 3 {
-		t.Errorf("Incorrect entries for Jan 2, 2024 group: %+v", jan2Group)
+	subGroup := findSubGroup(catAGroup, "Category A - Jan 2, 2024")
+	if subGroup == nil || len(subGroup.Entries) != 4 {
+		t.Fatalf("Incorrect entries for sub-group: %+v", subGroup)
 	}
 }
 
 func TestFeedGrouper_GroupEntries(t *testing.T) {
-	entries := createFeedGrouperMockEntries()
+	entries := testutil.CreateMockEntries(0)
+	primaryGroupsMap := GroupEntries(entries, "category")
 
 	grouper := &FeedGrouper{}
-	groups, summary := grouper.GroupEntries(entries)
+	groups, summary := grouper.GroupEntries(primaryGroupsMap)
 
-	if summary == "" {
-		t.Error("Expected a non-empty summary for FeedGrouper")
-	}
-
-	// Expect 2 groups: Feed A and Feed B
-	if len(groups) != 2 {
-		t.Fatalf("Expected 2 groups, got %d", len(groups))
+	if summary != nil {
+		t.Errorf("Expected an empty summary for FeedGrouper, got %q", *summary)
 	}
 
-	// Find groups by title for easier assertion
-	feedAGroup := findGroup(groups, "Feed A")
-	if feedAGroup == nil || len(feedAGroup.Entries) != 2 || feedAGroup.Entries[0].ID != 1 || feedAGroup.Entries[1].ID != 3 {
-		t.Errorf("Incorrect entries for Feed A group: %+v", feedAGroup)
+	if len(groups) != 3 {
+		t.Fatalf("Expected 3 primary groups, got %d", len(groups))
 	}
 
-	feedBGroup := findGroup(groups, "Feed B")
-	if feedBGroup == nil || len(feedBGroup.Entries) != 2 || feedBGroup.Entries[0].ID != 2 || feedBGroup.Entries[1].ID != 4 {
-		t.Errorf("Incorrect entries for Feed B group: %+v", feedBGroup)
-	}
-}
-
-func TestNewGrouper(t *testing.T) {
-	mockLLM := &mockLLMService{}
-
-	if _, ok := NewGrouper(GroupingTypeDay, mockLLM).(*DayGrouper); !ok {
-		t.Error("Expected DayGrouper for 'day' grouping")
-	}
-	if _, ok := NewGrouper(GroupingTypeFeed, mockLLM).(*FeedGrouper); !ok {
-		t.Error("Expected FeedGrouper for 'feed' grouping")
-	}
-	if _, ok := NewGrouper("invalid", mockLLM).(*DayGrouper); !ok {
-		t.Error("Expected DayGrouper for invalid grouping")
-	}
-	if _, ok := NewGrouper("ai", mockLLM).(*LLMGrouper); !ok {
-		t.Error("Expected LLMGrouper for 'ai' grouping")
+	catAGroup := findPrimaryGroup(groups, "Category A")
+	if catAGroup == nil || len(catAGroup.SubGroups) != 3 {
+		t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
 	}
 }
 
 func TestLLMGrouper_GroupEntries(t *testing.T) {
-	entries := createDayGrouperMockEntries()
-
-	expectedLLMResponse := `{
-	"summary": "This is a summary of all entries.",
-	"groups": [
-		{
-			"title": "Go Programming",
-			"entries": [1, 2, 4]
-		},
-		{
-			"title": "Python Programming",
-			"entries": [3]
-		}
-	]
-}`
+	entries := createLLMGrouperMockEntries()
+	primaryGroupsMap := GroupEntries(entries, "category")
 
 	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-			return expectedLLMResponse, nil
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			return []byte(`{
+				"overview": "This is a summary of all entries.",
+				"primary_group_summaries": [
+					{
+						"primary_group_id": 1,
+						"summary": "This is a summary of Category A."
+					}
+				],
+				"sub_groups": [
+					{
+						"title": "Sub-group 1",
+						"entry_ids": [1, 2]
+					}
+				]
+			}`),
+				nil
 		},
 	}
 
 	grouper := &LLMGrouper{LLMService: mockLLM}
-	groups, summary := grouper.GroupEntries(entries)
+	groups, summary := grouper.GroupEntries(primaryGroupsMap)
 
-	expectedSummary := "This is a summary of all entries.\n\nYou have 4 entries from 2 feeds."
-	if summary != expectedSummary {
-		t.Errorf("Expected summary \"%s\", got \"%s\"", expectedSummary, summary)
-	}
-
-	if len(groups) != 2 {
-		t.Fatalf("Expected 2 groups, got %d", len(groups))
+	if summary == nil || *summary != "This is a summary of all entries." {
+		t.Errorf("Expected summary 'This is a summary of all entries.', got %q", *summary)
 	}
 
-	// Check group titles and entries
-	goGroup := findGroup(groups, "Go Programming")
-	if goGroup == nil || len(goGroup.Entries) != 3 || goGroup.Entries[0].ID != 1 || goGroup.Entries[1].ID != 2 || goGroup.Entries[2].ID != 4 {
-		t.Errorf("Incorrect Go Programming group: %+v", goGroup)
+	if len(groups) != 1 {
+		t.Fatalf("Expected 1 group, got %d", len(groups))
 	}
 
-	pythonGroup := findGroup(groups, "Python Programming")
-	if pythonGroup == nil || len(pythonGroup.Entries) != 1 || pythonGroup.Entries[0].ID != 3 {
-		t.Errorf("Incorrect Python Programming group: %+v", pythonGroup)
+	catA := findPrimaryGroup(groups, "Category A")
+	if catA == nil || len(catA.SubGroups) != 2 { // Sub-group 1 and Uncategorized
+		t.Fatalf("Incorrect number of sub-groups for Category A: %+v", catA)
 	}
 
-	// Test fallback to DayGrouper on LLM error
-	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-		return "", errors.New("LLM API error")
-	}
-	groups, summary = grouper.GroupEntries(entries)
-	if len(groups) == 0 || summary == "" {
-		t.Error("Expected fallback to DayGrouper on LLM error")
+	if catA.Summary != "This is a summary of Category A." {
+		t.Errorf("Expected summary 'This is a summary of Category A.', got %q", catA.Summary)
 	}
 
-	// Test fallback to DayGrouper on invalid JSON
-	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-		return "invalid json", nil
-	}
-	groups, summary = grouper.GroupEntries(entries)
-	if len(groups) == 0 || summary == "" {
-		t.Error("Expected fallback to DayGrouper on invalid JSON")
+	subGroup1 := findSubGroup(catA, "Sub-group 1")
+	if subGroup1 == nil || len(subGroup1.Entries) != 2 {
+		t.Fatalf("Incorrect entries for sub-group 1: %+v", subGroup1)
 	}
 
-	// Test ungrouped entries
-	expectedLLMResponseWithMissingEntry := `{
-	"summary": "Summary with missing entry.",
-	"groups": [
-		{
-			"title": "Go Programming",
-			"entries": [1, 2]
-		}
-	]
-}`
-	mockLLM.GenerateContentFunc = func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-		return expectedLLMResponseWithMissingEntry, nil
-	}
-	groups, _ = grouper.GroupEntries(entries)
-
-	if len(groups) != 2 {
-		t.Fatalf("Expected 2 groups including uncategorized, got %d", len(groups))
-	}
-
-	uncategorizedGroup := findGroup(groups, "Uncategorized")
-	if uncategorizedGroup == nil || len(uncategorizedGroup.Entries) != 2 || uncategorizedGroup.Entries[0].ID != 3 || uncategorizedGroup.Entries[1].ID != 4 {
-		t.Errorf("Incorrect Uncategorized group: %+v", uncategorizedGroup)
+	uncategorized := findSubGroup(catA, "Uncategorized")
+	if uncategorized == nil || len(uncategorized.Entries) != 1 { // Entry 3
+		t.Fatalf("Incorrect entries for Uncategorized sub-group: %+v", uncategorized)
 	}
 }
 
-func TestLLMGrouper_GroupEntries_WithDuplicateEntries(t *testing.T) {
-	entries := createDayGrouperMockEntries()
+func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
+	mockLLM := &mockLLMService{}
+	digestService := NewDigestService(mockLLM)
 
-	expectedLLMResponse := `{
-	"summary": "This is a summary of all entries.",
-	"groups": [
-		{
-			"title": "Go Programming",
-			"entries": [1, 2, 1, 4]
-		},
-		{
-			"title": "Python Programming",
-			"entries": [3, 3]
-		}
-	]
-}`
+	entries := testutil.CreateMockEntries(0)
+	icons := map[int64]*models.FeedIcon{
+		101: {FeedID: 101, Data: "iconA"},
+		102: {FeedID: 102, Data: "iconB"},
+	}
+
+	overviewData := digestService.BuildDigestData(entries, icons, "category", "day", "date", "http://miniflux.test")
+
+	if overviewData == nil {
+		t.Fatal("overviewData is nil")
+	}
+	if len(overviewData.PrimaryGroups) != 3 {
+		t.Errorf("Expected 3 primary groups, got %d", len(overviewData.PrimaryGroups))
+	}
+}
+
+func TestDigestService_BuildDigestData_LLMFallback(t *testing.T) {
+	entries := testutil.CreateMockEntries(0)
+	icons := map[int64]*models.FeedIcon{
+		100: {FeedID: 100, Data: "icon100"},
+		200: {FeedID: 200, Data: "icon200"},
+	}
 
 	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) (string, error) {
-			return expectedLLMResponse, nil
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			return nil, errors.New("LLM service error during test")
 		},
 	}
+	digestService := NewDigestService(mockLLM)
 
-	grouper := &LLMGrouper{LLMService: mockLLM}
-	groups, summary := grouper.GroupEntries(entries)
+	overviewData := digestService.BuildDigestData(entries, icons, "category", "ai", "date", "http://miniflux.test")
 
-	expectedSummary := "This is a summary of all entries.\n\nYou have 4 entries from 2 feeds."
-	if summary != expectedSummary {
-		t.Errorf("Expected summary \"%s\", got \"%s\"", expectedSummary, summary)
+	if overviewData == nil {
+		t.Fatal("overviewData is nil")
 	}
 
-	if len(groups) != 2 {
-		t.Fatalf("Expected 2 groups, got %d", len(groups))
+	if overviewData.OverviewSummary != "" {
+		t.Errorf("Expected OverviewSummary to be empty, got %q", overviewData.OverviewSummary)
 	}
 
-	// Check group titles and entries
-	goGroup := findGroup(groups, "Go Programming")
-	if goGroup == nil || len(goGroup.Entries) != 3 {
-		t.Errorf("Incorrect Go Programming group: %+v", goGroup)
-	}
-
-	pythonGroup := findGroup(groups, "Python Programming")
-	if pythonGroup == nil || len(pythonGroup.Entries) != 1 {
-		t.Errorf("Incorrect Python Programming group: %+v", pythonGroup)
+	if len(overviewData.PrimaryGroups) != 3 { // Category A, Category B, Category C
+		t.Fatalf("Expected 3 primary groups after fallback, got %d", len(overviewData.PrimaryGroups))
 	}
 }

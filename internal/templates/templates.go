@@ -9,8 +9,8 @@ import (
 )
 
 type EmailTemplateData struct {
-	models.HTMLTemplateData
-	URL string
+	models.OverviewTemplateData
+	URL     string
 	Summary string
 }
 
@@ -18,22 +18,30 @@ type EmailTemplateData struct {
 var embedFS embed.FS
 
 var (
-	ArchiveTemplate *htmlTemplate.Template
-	EmailTemplate   *textTemplate.Template
+	ArchiveTemplate  *htmlTemplate.Template
+	OverviewTemplate *htmlTemplate.Template
+	EmailTemplate    *textTemplate.Template
 )
 
 func init() {
 	var err error
-	archiveTemplateName := "entries.gohtml"
+	archiveTemplateName := "grouped-entries.gohtml"
+	overviewTemplateName := "overview.gohtml"
 	emailTemplateName := "email.gotxt"
 
-	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(FuncMap()).ParseFS(embedFS, archiveTemplateName)
+	ArchiveTemplate, err = htmlTemplate.New(archiveTemplateName).Funcs(TemplateFuncs).ParseFS(embedFS, archiveTemplateName)
 
 	if err != nil {
 		log.Fatalf("Error parsing archive template: %v", err)
 	}
 
-	EmailTemplate, err = textTemplate.New(emailTemplateName).ParseFS(embedFS, emailTemplateName)
+	OverviewTemplate, err = htmlTemplate.New(overviewTemplateName).Funcs(TemplateFuncs).ParseFS(embedFS, overviewTemplateName)
+
+	if err != nil {
+		log.Fatalf("Error parsing overview template: %v", err)
+	}
+
+	EmailTemplate, err = textTemplate.New(emailTemplateName).Funcs(TemplateFuncs).ParseFS(embedFS, emailTemplateName)
 
 	if err != nil {
 		log.Fatalf("Error parsing email template: %v", err)
