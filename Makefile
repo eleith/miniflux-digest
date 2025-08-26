@@ -32,3 +32,6 @@ vendor:
 	go mod vendor
 
 all: ci build
+
+preview-docker:
+	@trap "exit 0" INT; docker compose up --build

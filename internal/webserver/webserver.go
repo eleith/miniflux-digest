@@ -63,16 +63,11 @@ func SetupServer(archiveBasePath string) *http.ServeMux {
 	return mux
 }
 
-func StartServer(port string, handler http.Handler) {
-	log.Printf("Internal web server starting on port %s", port)
-	if err := http.ListenAndServe(port, handler); err != nil {
-		log.Fatalf("Internal web server failed to start: %v", err)
-	}
-}
-
 func ListenAndServe(archiveBasePath string, port string) *http.ServeMux {
 	mux := SetupServer(archiveBasePath)
+
 	log.Printf("Internal web server starting on port %s", port)
+
 	if err := http.ListenAndServe(port, mux); err != nil {
 		log.Fatalf("Internal web server failed to start: %v", err)
 	}

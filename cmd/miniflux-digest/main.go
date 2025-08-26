@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	JitterSeconds         = 30
-	ArchiveCleanupDays    = 21
+	JitterSeconds      = 30
+	ArchiveCleanupDays = 21
 )
 
-func digestJob(application *app.App) {
+func digestJob(application *app.App, source string) {
+	log.Printf("Starting digest job from source: %s", source)
 	overviewFile, groupedEntryFiles, data, err := processor.ProcessDigest(application)
 	if err != nil {
 		log.Printf("Error processing digest: %v", err)
@@ -37,21 +38,29 @@ func digestJob(application *app.App) {
 		}
 	}
 
-	log.Printf("Digest produced at %s: entries=%d, folder=%s, email_sent=%t",
+	log.Printf("Digest produced at %s: entries=%d, folder=%s, email_sent=%t, source=%s",
 		data.GeneratedDate.Format(time.RFC3339),
 		len(data.Entries),
 		overviewFile.Name(),
 		emailSent,
+		source,
 	)
 }
 
 func registerDigestJob(application *app.App, scheduler gocron.Scheduler) {
-	_, err := scheduler.NewJob(gocron.CronJob(application.Config.Digest.Schedule, true), gocron.NewTask(func() {
-		digestJob(application)
-	}))
+	_, err := scheduler.NewJob(
+		gocron.CronJob(application.Config.Digest.Schedule, true),
+		gocron.NewTask(func() {
+			digestJob(application, "scheduler")
+		}),
+	)
 
 	if err != nil {
 		log.Fatalf("Error creating job: %v", err)
+	}
+
+	if application.Config.Digest.RunOnStartup {
+		go digestJob(application, "startup")
 	}
 }
 
@@ -82,22 +91,12 @@ func main() {
 		log.Fatalf("Error creating scheduler: %v", err)
 	}
 
-	defer func() {
-		if err := scheduler.Shutdown(); err != nil {
-			log.Printf("Error stopping scheduler: %v", err)
-		}
-	}()
+	scheduler.Start()
 
 	registerDigestJob(application, scheduler)
 	registerArchiveCleanupJob(application, scheduler)
 
-	if application.Config.Digest.RunOnStartup {
-		go digestJob(application)
-	}
-
 	go webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)
-
-	scheduler.Start()
 
 	select {}
 }
@@ -113,7 +112,7 @@ func initServices(cfg *config.Config) (*app.App, error) {
 	}
 
 	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
-	emailSvc := &email.EmailServiceImpl{}
+	emailSvc := &email.EmailServiceImpl{EmailTemplate: templates.EmailTemplate}
 	digestService := digest.NewDigestService(llmService)
 
 	application := app.NewApp(
