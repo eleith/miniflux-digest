@@ -13,6 +13,9 @@ preview-email:
 preview-miniflux:
 	go run -mod=vendor ./scripts/preview/main.go --miniflux
 
+preview-email-miniflux:
+	go run -mod=vendor ./scripts/preview/main.go --email --miniflux
+
 test:
 	go test -mod=vendor ./... ./cmd/miniflux-digest
 

@@ -10,7 +10,7 @@ import (
 	miniflux "miniflux.app/v2/client"
 )
 
-func ProcessAndSendDigest(application *app.App) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
+func ProcessDigest(application *app.App) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
 	log.Println("Starting to process digest...")
 
 	entries, err := application.MinifluxClientService.GetAllUnreadEntries()

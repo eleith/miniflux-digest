@@ -49,7 +49,7 @@ func (m *mockArchiveService) CleanArchive(maxAge time.Duration) {
 	m.cleanArchiveFunc(maxAge)
 }
 
-func TestProcessAndSendDigest_Success(t *testing.T) {
+func TestProcessDigest_Success(t *testing.T) {
 	log.SetOutput(os.Stdout)
 	defer log.SetOutput(os.Stderr)
 
@@ -106,10 +106,10 @@ func TestProcessAndSendDigest_Success(t *testing.T) {
 		app.WithArchiveService(mockArchiveService),
 	)
 
-	overviewFile, groupedEntryFiles, data, err := ProcessAndSendDigest(mockApp)
+	overviewFile, groupedEntryFiles, data, err := ProcessDigest(mockApp)
 
 	if err != nil {
-		t.Fatalf("ProcessAndSendDigest returned an unexpected error: %v", err)
+		t.Fatalf("ProcessDigest returned an unexpected error: %v", err)
 	}
 	if overviewFile == nil {
 		t.Error("Overview file should not be nil")
