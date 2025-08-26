@@ -24,15 +24,25 @@ const (
 )
 
 func digestJob(application *app.App) {
-	overviewFile, groupedEntryFiles, data, err := processor.ProcessAndSendDigest(application)
+	overviewFile, groupedEntryFiles, data, err := processor.ProcessDigest(application)
 	if err != nil {
 		log.Printf("Error processing digest: %v", err)
 		return
 	}
 
-	if err := application.EmailService.Send(application.Config, overviewFile, groupedEntryFiles, data); err != nil {
-		log.Printf("Error sending digest email: %v", err)
+	emailSent := application.Config.Smtp.Host != ""
+	if emailSent {
+		if err := application.EmailService.Send(application.Config, overviewFile, groupedEntryFiles, data); err != nil {
+			log.Printf("Error sending digest email: %v", err)
+		}
 	}
+
+	log.Printf("Digest produced at %s: entries=%d, folder=%s, email_sent=%t",
+		data.GeneratedDate.Format(time.RFC3339),
+		len(data.Entries),
+		overviewFile.Name(),
+		emailSent,
+	)
 }
 
 func registerDigestJob(application *app.App, scheduler gocron.Scheduler) {
