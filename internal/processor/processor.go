@@ -11,15 +11,11 @@ import (
 )
 
 func ProcessDigest(application *app.App) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
-	log.Println("Starting to process digest...")
-
 	entries, err := application.MinifluxClientService.GetAllUnreadEntries()
 	if err != nil {
 		log.Printf("Error getting all unread entries: %v", err)
 		return nil, nil, nil, err
 	}
-
-	log.Printf("Found %d unread entries", len(entries))
 
 	icons := make(map[int64]*models.FeedIcon)
 	for _, entry := range entries {

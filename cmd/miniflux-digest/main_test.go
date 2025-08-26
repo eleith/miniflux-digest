@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"miniflux-digest/internal/config"
+	"miniflux-digest/internal/email"
 	"miniflux-digest/internal/webserver"
 )
 
@@ -224,5 +226,51 @@ func TestInitScheduler(t *testing.T) {
 	}
 	if scheduler == nil {
 		t.Fatal("initScheduler() returned a nil scheduler")
+	}
+}
+
+func TestInitServices(t *testing.T) {
+	cfg := &config.Config{
+		Miniflux: config.ConfigMiniflux{
+			Host:     "http://localhost",
+			ApiToken: "test",
+		},
+		AI: config.ConfigAI{
+			ApiKey: "test",
+		},
+	}
+
+	app, err := initServices(cfg)
+	if err != nil {
+		t.Fatalf("initServices returned an unexpected error: %v", err)
+	}
+
+	if app.ArchiveService == nil {
+		t.Error("ArchiveService should not be nil")
+	}
+
+	if app.EmailService == nil {
+		t.Error("EmailService should not be nil")
+	}
+
+	if app.MinifluxClientService == nil {
+		t.Error("MinifluxClientService should not be nil")
+	}
+
+	if app.DigestService == nil {
+		t.Error("DigestService should not be nil")
+	}
+
+	if app.LLMService == nil {
+		t.Error("LLMService should not be nil")
+	}
+
+	emailServiceImpl, ok := app.EmailService.(*email.EmailServiceImpl)
+	if !ok {
+		t.Fatal("EmailService is not of type *email.EmailServiceImpl")
+	}
+
+	if emailServiceImpl.EmailTemplate == nil {
+		t.Error("EmailTemplate should not be nil")
 	}
 }
