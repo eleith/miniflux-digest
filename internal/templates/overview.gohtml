@@ -18,7 +18,7 @@
         {{if .OverviewSummary}}
         <section class="summary">
             <h2 class="group-entries-title">Summary</h2>
-            <div>{{.OverviewSummary}}</div>
+            <div>{{textToHTML .OverviewSummary}}</div>
         </section>
         {{end}}
 
@@ -31,7 +31,7 @@
                     </summary>
                     {{if .Summary}}
                     <div class="entry-content">
-                        {{.Summary}}
+                        {{textToHTML .Summary}}
                     </div>
                     {{end}}
                     <div class="entry-meta">

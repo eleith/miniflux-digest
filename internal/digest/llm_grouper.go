@@ -45,35 +45,34 @@ const llmPrompt = `You will be given a large list of unread entry JSON Objects f
 
 Your task is to generate the metadata according to the instructions below:
 
-	- an 'overview'
+	- an 'overview' string field
 		- this is a 3-5 sentence overview for ALL entries, less than 250 words.
 		- the overview is really a brief overview. you are not to summarize every single entry
-		- The overview should be concise. don't go beyond 5 sentences. 
-  	- The overview should help the user quickly understand your overview of all entries in total
-		- the overview should help the user decide whether to skim fast or slow and what to narrow in on. 
 		- the overview could highlight critical entries or summarize the main topics or both, you decide
+		- To improve readability, please insert two line breaks (\n\n) after every 1-2 sentences.
 
-	- a list of 'primary_group_summaries'
-		- the 'primary_group_id' will be found associated to one or more entry objects
+	- a list of 'primary_group_summaries' objects
+		- the 'primary_group_id' will be in every entry id
 		- the summary is really a brief overview using all entries associated to the primary group
 		- you don't need to summarize every single entry
 		- entries are only ever are associated with one primary group id
 		- this is a 2-3 sentence overview, less than 150 words.
-  	- The overview should be concise.
 		- the overview should help the user decide whether to skim all entries in this group fast or slow and what to narrow in on. 
 		- the overview could highlight critical entries or summarize the main topics or both whatever helps the user skip, skim or find the most important entries
+		- To improve readability, please insert two line breaks (\n\n) after every 1-2 sentences.
 
 - 'sub_groups':
-  - The sub_groups field should contain a list of subgroup objects
-  - Each subgroup should have a 'title' that you come up with
-	- a title is generally only 2-3 words, please no more than 70 characters total (including spaces)
-  - Each subgroup should have an array of 'entry_ids'
-	- an entry id can ONLY be associated to one sub_group
-  - all entry_ids in a sub_group must share the same group_id.
-  - The purpose of subgroups is to group related entries together to allow for faster skimming. The grouping can be based on topic, relevance, or any other criteria that you think would be helpful to the user.
-	- sometimes you'll want to subgroup entries because they are all about the same topic
-	- sometimes you'll want to subgroup entries because they are just basically leading to the same article itself
-	- sometimes you'll want to subgroup entries because they are just all complementing each other and worth reading together
+  - The sub_groups field should contain a list of subgroup objects.
+  - Each subgroup should have a 'title' that you come up with (generally 2-3 words, max 70 characters).
+  - Each subgroup should have an array of 'entry_ids'. An entry can only belong to one subgroup.
+  - The purpose of subgroups is to group related entries to help the user skim efficiently.
+  - For each entry, you must attempt to group it using only one of the strategies below
+	- Aim for sub_groups that have more than 2 entries but less than 20 entries.
+  - not all groups are created the same. below are a list groups from best to worst. do your best to fit entries in one of these types.
+		- Priority 1: Exact Duplicates. Group entries that are effectively identical or point to the same content. Goal: De-duplication.
+    - Priority 2: Specific Topic/Theme. Group entries about the same narrow subject (e.g., a specific product launch, a single news event). Goal: Thematic exploration.
+    - Priority 3: General Topic/Theme. Group entries under broader categories like 'Science', 'Technology', or 'Business'. Goal: General organization.
+    - Priority 4: Source. Only if an entry cannot be grouped by topic, group it with other entries from the same website or publication. Goal: Source-based review.
 
 Your goal is to help the user get through their unread entries as efficiently as possible. The metadata you generate will be used to create a digest that allows the user to quickly understand and navigate their unread entries.
 
