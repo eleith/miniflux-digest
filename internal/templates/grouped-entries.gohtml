@@ -8,6 +8,43 @@
 	<style>
 		{{include "static/style.css"}}
 
+		section.header {
+			text-align: left;
+			margin-bottom: 2rem;
+		}
+
+		.subtitle {
+			font-size: 0.9rem;
+			color: var(--header-date-color);
+			margin-top: 0;
+		}
+
+		.subtitle a {
+			color: var(--entry-link-color);
+			text-decoration: none;
+		}
+
+		.subtitle a:hover {
+			text-decoration: underline;
+		}
+
+		h1.title {
+			margin-top: 0;
+			margin-bottom: 0;
+		}
+
+		.container {
+			min-width: 360px;
+		}
+
+		.group-entries-title, .sub-group-title {
+			font-size: 1.25rem;
+			font-weight: 500;
+			color: var(--text-color);
+			margin-top: 0.5rem;
+			margin-bottom: 0.5rem;
+		}
+
 		{{range .FeedIcons}} div.feed-icon-{{.FeedID}} {
 			background-image: url("data:{{.Data}}");
 			background-size: contain;
@@ -22,19 +59,17 @@
 	<div class="container">
 		<section class="header">
 			<h1 class="title">{{.PrimaryGroup.Title}}</h1>
-			<span class="date">generated on {{.GeneratedDate.Format
-				"Jan 2, 2006"}}</span>
-		</section>
-
-		<section class="summary">
-			<h2 class="group-entries-title">Summary</h2>
-      {{if .PrimaryGroup.Summary}}
-			<p>{{textToHTML .PrimaryGroup.Summary}}</p>
-			{{end}}
-			<p>
-				This digest has {{.PrimaryGroup.TotalEntries}} entries from {{.PrimaryGroup.TotalFeeds}} feeds.
+			<p class="subtitle">
+				generated <a href=".." title="Back to Overview">{{.GeneratedDate.Format "Jan 2, 2006"}}</a>, with {{.PrimaryGroup.TotalEntries}} entries from {{.PrimaryGroup.TotalFeeds}} feeds.
 			</p>
 		</section>
+
+		{{if .PrimaryGroup.Summary}}
+		<section class="summary">
+			<h2 class="group-entries-title">Summary</h2>
+			<p>{{textToHTML .PrimaryGroup.Summary}}</p>
+		</section>
+		{{end}}
 
 		<section class="entries">
     {{range .PrimaryGroup.SubGroups}}
