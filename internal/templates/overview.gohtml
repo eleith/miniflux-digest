@@ -9,31 +9,36 @@
 <body>
     <div class="container">
         <section class="header">
-            <h1>Miniflux Digest Overview</h1>
-            <span class="date">generated on {{.GeneratedDate.Format "Jan 2, 2006"}}</span>
+            <h1 class="title">Miniflux Digest Overview</h1>
+            <p class="subtitle">
+                Generated on {{.GeneratedDate.Format "Jan 2, 2006"}}, with {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.
+            </p>
         </section>
 
+        {{if .OverviewSummary}}
         <section class="summary">
             <h2 class="group-entries-title">Summary</h2>
-            {{if .OverviewSummary}}
             <div>{{.OverviewSummary}}</div>
-            {{end}}
-            <p>You have {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</p>
         </section>
+        {{end}}
 
         <section class="grouped-digests">
             <h2 class="group-entries-title">Grouped Digests</h2>
-            <ul>
-                {{range .PrimaryGroups}}
-                    <li>
-                        <h3><a href="digests/{{.Slug}}.html">{{.Title}}</a></h3>
-                        {{if .Summary}}
-                        <div>{{.Summary}}</div>
-                        {{end}}
-                        <p>{{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</p>
-                    </li>
-                {{end}}
-            </ul>
+            {{range .PrimaryGroups}}
+                <section class="entry">
+                    <summary class="entry">
+                        <a href="digests/{{.Slug}}.html" class="entry-link">{{.Title}}</a>
+                    </summary>
+                    {{if .Summary}}
+                    <div class="entry-content">
+                        {{.Summary}}
+                    </div>
+                    {{end}}
+                    <div class="entry-meta">
+                        <div class="entry-meta-tab">{{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</div>
+                    </div>
+                </section>
+            {{end}}
         </section>
     </div>
 </body>
