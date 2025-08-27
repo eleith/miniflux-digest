@@ -36,10 +36,12 @@
                     {{end}}
                     <div class="entry-meta">
                         <div class="entry-meta-tab">{{.TotalEntries}} entries from {{.TotalFeeds}} feeds.</div>
+                        <div class="entry-meta-tab" style="margin-left: auto;"><a href="#" class="mark-as-read-link">Mark as read</a></div>
                     </div>
                 </section>
             {{end}}
         </section>
     </div>
+    <script>{{include "static/overview.js"}}</script>
 </body>
 </html>
