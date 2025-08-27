@@ -4,7 +4,6 @@
 
 Miniflux digests, an antidote to my doom scrolling.
 
-[![build](https://ci.eleith.com/api/badges/26/status.svg)](https://ci.eleith.com/repos/26)
 [![ghcr build](https://github.com/eleith/miniflux-digest/actions/workflows/build.yml/badge.svg)](https://github.com/eleith/miniflux-digest/actions/workflows/build.yml)
 
 ### Overview
@@ -23,6 +22,7 @@ and your inbox.
 > many of the following features are optional
 
 * ⏰ Automated scheduling via cron syntax
+* 🌞 Dark and light themes
 * 📥 Fetches all unread entries
 * 📧 Delivers personalized HTML digests via email
 * 🛜 Archives HTML digests for static web serving
