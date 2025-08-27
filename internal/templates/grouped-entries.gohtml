@@ -22,19 +22,17 @@
 	<div class="container">
 		<section class="header">
 			<h1 class="title">{{.PrimaryGroup.Title}}</h1>
-			<span class="date">generated on {{.GeneratedDate.Format
-				"Jan 2, 2006"}}</span>
-		</section>
-
-		<section class="summary">
-			<h2 class="group-entries-title">Summary</h2>
-      {{if .PrimaryGroup.Summary}}
-			<p>{{textToHTML .PrimaryGroup.Summary}}</p>
-			{{end}}
-			<p>
-				This digest has {{.PrimaryGroup.TotalEntries}} entries from {{.PrimaryGroup.TotalFeeds}} feeds.
+			<p class="subtitle">
+				generated <a href=".." title="Back to Overview">{{.GeneratedDate.Format "Jan 2, 2006"}}</a>, with {{.PrimaryGroup.TotalEntries}} entries from {{.PrimaryGroup.TotalFeeds}} feeds.
 			</p>
 		</section>
+
+		{{if .PrimaryGroup.Summary}}
+		<section class="summary">
+			<h2 class="group-entries-title">Summary</h2>
+			<div>{{textToHTML .PrimaryGroup.Summary}}</div>
+		</section>
+		{{end}}
 
 		<section class="entries">
     {{range .PrimaryGroup.SubGroups}}
