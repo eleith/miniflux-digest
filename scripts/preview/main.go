@@ -79,7 +79,7 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	}
 
 	log.Println("generateDigestData: Building digest data...")
-	return digestSvc.BuildDigestData(
+	data := digestSvc.BuildDigestData(
 		entries,
 		icons,
 		cfg.Digest.GroupBy,
@@ -87,6 +87,15 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 		cfg.Digest.SortBy,
 		cfg.Miniflux.Host,
 	)
+
+	if len(data.PrimaryGroups) > 0 {
+		data.PrimaryGroups[0].Summary = "This is a mock summary for the first group to test the layout."
+	}
+	if len(data.PrimaryGroups) > 2 {
+		data.PrimaryGroups[2].Summary = "This is another mock summary for a different group, showing that not all groups have summaries."
+	}
+
+	return data
 }
 
 func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.MinifluxClientService) *models.OverviewTemplateData {

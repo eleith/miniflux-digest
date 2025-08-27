@@ -89,7 +89,7 @@ section.header .date {
     color: var(--header-date-color);
 }
 
-section.summary p:first-of-type {
+section.summary div:first-of-type {
     margin: 1rem auto;
     padding: 0.5rem 1rem;
     background-color: var(--container-background);
@@ -100,10 +100,9 @@ section.summary p:first-of-type {
 h2.group-entries-title {
     font-size: 1.25rem;
     font-weight: 500;
-    color: var(--group-title-color);
+    color: var(--text-color);
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
-    padding-left: 0.5rem;
 }
 
 section.entry {
