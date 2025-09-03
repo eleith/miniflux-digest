@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	Model               = "gemini-2.5-pro"
+	Model               = "gemini-2.5-flash"
 	maxRetries          = 3
 	Temperature float32 = 0.4
 )
