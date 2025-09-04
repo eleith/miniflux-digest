@@ -15,6 +15,12 @@ decrease time spent catching up.
 
 ## Development Workflow
 
+### Writing Code
+
+- Avoid writing extraneous comments. Code should be written to be readable. Only
+leave comments to help explain what the code can not, or because a function is
+complicated and the reader would want support in understanding it.
+
 ### Branching
 
 - All work must be done on a branch.
@@ -55,12 +61,3 @@ accessed without permission.
 - The application interacts with external services (Miniflux, email).
 - All network calls should be assumed to be fallible and must include robust
 error handling.
-
-## Agent Philosophy
-
-- This document should be updated as new project conventions or philosophies are
-established.
-- Ensure that all contributions (features, abstractions, code) align with the
-project's intentions.
-- The agent has access to the network and can use `google_search` and
-`web_fetch` to gather information.
