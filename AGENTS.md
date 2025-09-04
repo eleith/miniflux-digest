@@ -40,6 +40,7 @@ tools.
 - Run `make test` to run the test suite.
 - Run `make test-coverage` or `make test-coverage-full` to check test
 coverage.
+- During code writing, use `make lint && make test` since its faster
 
 ### Commits
 

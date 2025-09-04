@@ -129,7 +129,7 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	}
 
 	catA := findPrimaryGroup(groups, "Category A")
-	if catA == nil || len(catA.SubGroups) != 2 { // Sub-group 1 and Uncategorized
+	if catA == nil || len(catA.SubGroups) != 2 {
 		t.Fatalf("Incorrect number of sub-groups for Category A: %+v", catA)
 	}
 
@@ -143,7 +143,7 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	}
 
 	uncategorized := findSubGroup(catA, "Uncategorized")
-	if uncategorized == nil || len(uncategorized.Entries) != 1 { // Entry 3
+	if uncategorized == nil || len(uncategorized.Entries) != 1 {
 		t.Fatalf("Incorrect entries for Uncategorized sub-group: %+v", uncategorized)
 	}
 }
@@ -179,16 +179,13 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		if len(overviewData.PrimaryGroups) != 3 {
 			t.Errorf("Expected 3 primary groups, got %d", len(overviewData.PrimaryGroups))
 		}
-		// Check for date-based primary grouping
 		dateGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Jan 1, 2024")
 		if dateGroup == nil {
 			t.Fatalf("Did not find expected primary group 'Jan 1, 2024'")
 		}
-		// Check for feed-based sub-grouping
 		if len(dateGroup.SubGroups) != 2 {
 			t.Fatalf("Incorrect sub-groups for Jan 1, 2024: %+v", dateGroup)
 		}
-		// Check that entries are sorted by date
 		firstSubGroup := dateGroup.SubGroups[0]
 		if !sort.SliceIsSorted(firstSubGroup.Entries, func(i, j int) bool {
 			return firstSubGroup.Entries[i].Date.Before(firstSubGroup.Entries[j].Date)
@@ -205,12 +202,10 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		if len(overviewData.PrimaryGroups) != 3 {
 			t.Errorf("Expected 3 primary groups, got %d", len(overviewData.PrimaryGroups))
 		}
-		// Check for feed-based sub-grouping
 		catAGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Category A")
 		if catAGroup == nil || len(catAGroup.SubGroups) != 3 {
 			t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
 		}
-		// Check that entries are sorted by date
 		firstSubGroup := catAGroup.SubGroups[0]
 		if !sort.SliceIsSorted(firstSubGroup.Entries, func(i, j int) bool {
 			return firstSubGroup.Entries[i].Date.Before(firstSubGroup.Entries[j].Date)
@@ -220,7 +215,6 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 	})
 
 	t.Run("view=ai", func(t *testing.T) {
-		// Note: Using different entries for AI test for simplicity
 		aiEntries := createLLMGrouperMockEntries()
 		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test")
 		if overviewData == nil {
@@ -247,7 +241,6 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		if overviewData.OverviewSummary != "" {
 			t.Errorf("Expected empty summary on fallback, got %q", overviewData.OverviewSummary)
 		}
-		// On fallback, it should behave like view=category
 		catAGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Category A")
 		if catAGroup == nil || len(catAGroup.SubGroups) != 3 {
 			t.Fatalf("Incorrect sub-groups for Category A on fallback: %+v", catAGroup)
