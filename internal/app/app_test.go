@@ -12,7 +12,6 @@ import (
 	"miniflux-digest/internal/models"
 )
 
-// Mock services for testing
 type mockArchiveService struct{}
 
 func (m *mockArchiveService) MakeArchiveHTML(data *models.OverviewTemplateData, compress bool) (*os.File, []*os.File, error) {

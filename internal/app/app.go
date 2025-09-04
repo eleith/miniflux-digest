@@ -54,7 +54,7 @@ func WithDigestService(s services.DigestService) Option {
 	}
 }
 
-func WithLLMService(s services.LLMService) Option { // Changed
+func WithLLMService(s services.LLMService) Option {
 	return func(a *App) {
 		a.LLMService = s
 	}

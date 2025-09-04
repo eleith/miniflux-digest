@@ -190,7 +190,7 @@ func (s *ArchiveServiceImpl) removeEmptyDirs() {
 
 	for i := len(dirs) - 1; i >= 0; i-- {
 		dir := dirs[i]
-		// Don't try to remove the root archive directory
+
 		if dir == s.ArchiveBaseDir {
 			continue
 		}

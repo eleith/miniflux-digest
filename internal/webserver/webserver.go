@@ -29,7 +29,7 @@ func (fs noDirListingFileSystem) Open(name string) (http.File, error) {
 		return nil, err
 	}
 	if stat.IsDir() {
-		_ = f.Close() // Ignore error on close, as we are returning an error anyway
+		_ = f.Close()
 		return nil, os.ErrNotExist
 	}
 	return f, nil

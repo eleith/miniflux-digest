@@ -20,7 +20,6 @@ func TestGenerateContentWithRetry(t *testing.T) {
 		},
 	}
 
-	// Setup the mock to fail twice with a 503 error, then succeed.
 	attempts := 0
 	mockClient.GenerateContentFunc = func(ctx context.Context, model string, parts []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
 		attempts++
@@ -57,7 +56,6 @@ func TestGenerateContentWithRetry_NonRecoverableError(t *testing.T) {
 		},
 	}
 
-	// Setup the mock to fail with a non-503 error.
 	mockClient.GenerateContentFunc = func(ctx context.Context, model string, parts []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
 		return nil, errors.New("a non-recoverable error")
 	}

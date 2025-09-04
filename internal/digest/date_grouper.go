@@ -27,7 +27,7 @@ func GroupByDate(entries []*models.Entry) []*primaryGroup {
 	sort.Slice(result, func(i, j int) bool {
 		iDate, _ := time.Parse("Jan 2, 2006", result[i].Title)
 		jDate, _ := time.Parse("Jan 2, 2006", result[j].Title)
-		return iDate.Before(jDate) // Oldest dates first
+		return iDate.Before(jDate)
 	})
 
 	return result

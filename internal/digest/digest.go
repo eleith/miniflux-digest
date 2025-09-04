@@ -19,7 +19,7 @@ func GroupEntries(entries []*models.Entry, groupBy string) []*primaryGroup {
 		if groupBy == "feed" {
 			groupID = entry.FeedID
 			groupTitle = entry.FeedTitle
-		} else { // category
+		} else {
 			groupID = entry.GroupID
 			groupTitle = entry.GroupTitle
 			if groupTitle == "" {
@@ -77,7 +77,7 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 		sort.Slice(allPrimaryGroups, func(i, j int) bool {
 			return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 		})
-	default: // category
+	default:
 		primaryGroups := GroupEntries(entries, "category")
 		allPrimaryGroups, overallDigestSummary = SubGroupByFeed(primaryGroups)
 		sort.Slice(allPrimaryGroups, func(i, j int) bool {
@@ -85,7 +85,6 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 		})
 	}
 
-	// Sort entries by date for date and category views
 	if view == "date" || view == "category" {
 		for _, pg := range allPrimaryGroups {
 			for _, sg := range pg.SubGroups {
