@@ -7,11 +7,7 @@ import (
 	"time"
 )
 
-type primaryGroup struct {
-	ID      int64
-	Title   string
-	Entries []*models.Entry
-}
+
 
 func GroupEntries(entries []*models.Entry, groupBy string) []*primaryGroup {
 	groups := make(map[int64]*primaryGroup)
@@ -62,29 +58,43 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 		iconsSlice = append(iconsSlice, icon)
 	}
 
-	var groupBy, subGroupBy string
+	var allPrimaryGroups []*models.PrimaryGroupDigestData
+	var overallDigestSummary *string
+
 	switch view {
 	case "date":
-		groupBy = "category"
-		subGroupBy = "date"
+		primaryGroups := GroupByDate(entries)
+		allPrimaryGroups, overallDigestSummary = SubGroupByFeed(primaryGroups)
 	case "category":
-		groupBy = "category"
-		subGroupBy = "feed"
+		primaryGroups := GroupEntries(entries, "category")
+		allPrimaryGroups, overallDigestSummary = SubGroupByFeed(primaryGroups)
+		sort.Slice(allPrimaryGroups, func(i, j int) bool {
+			return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
+		})
 	case "ai":
-		groupBy = "category"
-		subGroupBy = "ai"
-	default: // also "category"
-		groupBy = "category"
-		subGroupBy = "feed"
+		primaryGroups := GroupEntries(entries, "category")
+		allPrimaryGroups, overallDigestSummary = SubGroupByAI(primaryGroups, s.llmService)
+		sort.Slice(allPrimaryGroups, func(i, j int) bool {
+			return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
+		})
+	default: // category
+		primaryGroups := GroupEntries(entries, "category")
+		allPrimaryGroups, overallDigestSummary = SubGroupByFeed(primaryGroups)
+		sort.Slice(allPrimaryGroups, func(i, j int) bool {
+			return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
+		})
 	}
 
-	primaryGroups := GroupEntries(entries, groupBy)
-	grouper := NewSubGrouper(subGroupBy, s.llmService)
-	allPrimaryGroups, overallDigestSummary := grouper.GroupEntries(primaryGroups)
-
-	sort.Slice(allPrimaryGroups, func(i, j int) bool {
-		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
-	})
+	// Sort entries by date for date and category views
+	if view == "date" || view == "category" {
+		for _, pg := range allPrimaryGroups {
+			for _, sg := range pg.SubGroups {
+				sort.Slice(sg.Entries, func(i, j int) bool {
+					return sg.Entries[i].Date.Before(sg.Entries[j].Date)
+				})
+			}
+		}
+	}
 
 	for _, primaryGroup := range allPrimaryGroups {
 		primaryGroupTotalEntries := 0

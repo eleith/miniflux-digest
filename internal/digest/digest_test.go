@@ -5,6 +5,7 @@ import (
 	"errors"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/testutil"
+	"sort"
 	"testing"
 
 	"google.golang.org/genai"
@@ -51,8 +52,7 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 	entries := testutil.CreateMockEntries(0)
 	primaryGroupsMap := GroupEntries(entries, "category")
 
-	grouper := &DayGrouper{}
-	groups, summary := grouper.GroupEntries(primaryGroupsMap)
+	groups, summary := SubGroupByDay(primaryGroupsMap)
 
 	if summary != nil {
 		t.Errorf("Expected an empty summary for DayGrouper, got %q", *summary)
@@ -67,7 +67,7 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 		t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
 	}
 
-	subGroup := findSubGroup(catAGroup, "Category A - Jan 2, 2024")
+	subGroup := findSubGroup(catAGroup, "Jan 2, 2024")
 	if subGroup == nil || len(subGroup.Entries) != 4 {
 		t.Fatalf("Incorrect entries for sub-group: %+v", subGroup)
 	}
@@ -77,8 +77,7 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 	entries := testutil.CreateMockEntries(0)
 	primaryGroupsMap := GroupEntries(entries, "category")
 
-	grouper := &FeedGrouper{}
-	groups, summary := grouper.GroupEntries(primaryGroupsMap)
+	groups, summary := SubGroupByFeed(primaryGroupsMap)
 
 	if summary != nil {
 		t.Errorf("Expected an empty summary for FeedGrouper, got %q", *summary)
@@ -119,8 +118,7 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 		},
 	}
 
-	grouper := &LLMGrouper{LLMService: mockLLM}
-	groups, summary := grouper.GroupEntries(primaryGroupsMap)
+	groups, summary := SubGroupByAI(primaryGroupsMap, mockLLM)
 
 	if summary == nil || *summary != "This is a summary of all entries." {
 		t.Errorf("Expected summary 'This is a summary of all entries.', got %q", *summary)
@@ -181,14 +179,21 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		if len(overviewData.PrimaryGroups) != 3 {
 			t.Errorf("Expected 3 primary groups, got %d", len(overviewData.PrimaryGroups))
 		}
-		// Check for date-based sub-grouping
-		catAGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Category A")
-		if catAGroup == nil || len(catAGroup.SubGroups) != 1 {
-			t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
+		// Check for date-based primary grouping
+		dateGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Jan 1, 2024")
+		if dateGroup == nil {
+			t.Fatalf("Did not find expected primary group 'Jan 1, 2024'")
 		}
-		subGroup := findSubGroup(catAGroup, "Category A - Jan 2, 2024")
-		if subGroup == nil {
-			t.Fatalf("Did not find expected sub-group 'Category A - Jan 2, 2024'")
+		// Check for feed-based sub-grouping
+		if len(dateGroup.SubGroups) != 2 {
+			t.Fatalf("Incorrect sub-groups for Jan 1, 2024: %+v", dateGroup)
+		}
+		// Check that entries are sorted by date
+		firstSubGroup := dateGroup.SubGroups[0]
+		if !sort.SliceIsSorted(firstSubGroup.Entries, func(i, j int) bool {
+			return firstSubGroup.Entries[i].Date.Before(firstSubGroup.Entries[j].Date)
+		}) {
+			t.Errorf("Entries in sub-group are not sorted by date")
 		}
 	})
 
@@ -204,6 +209,13 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		catAGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Category A")
 		if catAGroup == nil || len(catAGroup.SubGroups) != 3 {
 			t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
+		}
+		// Check that entries are sorted by date
+		firstSubGroup := catAGroup.SubGroups[0]
+		if !sort.SliceIsSorted(firstSubGroup.Entries, func(i, j int) bool {
+			return firstSubGroup.Entries[i].Date.Before(firstSubGroup.Entries[j].Date)
+		}) {
+			t.Errorf("Entries in sub-group are not sorted by date")
 		}
 	})
 

@@ -28,9 +28,7 @@ type LLMResponse struct {
 	} `json:"sub_groups"`
 }
 
-type LLMGrouper struct {
-	LLMService services.LLMService
-}
+
 
 type llmEntry struct {
 	ID             int64  `json:"id"`
@@ -120,7 +118,7 @@ var llmResponseSchema = &genai.Schema{
 	},
 }
 
-func (g *LLMGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByAI(pgs []*primaryGroup, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, *string) {
 	var llmEntries []llmEntry
 	entryMap := make(map[int64]*models.Entry)
 	primaryGroupMap := make(map[int64]*primaryGroup)
@@ -153,7 +151,7 @@ func (g *LLMGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDi
 	ctx, cancel := context.WithTimeout(context.Background(), LLMTimeout)
 	defer cancel()
 
-	llmResponse, err := g.LLMService.GenerateContent(ctx, prompt, llmResponseSchema)
+	llmResponse, err := llmService.GenerateContent(ctx, prompt, llmResponseSchema)
 	if err != nil {
 		log.Printf("LLM service failed, falling back to feed grouping: %v\n", err)
 		return fallbackToFeedGrouper(pgs)
@@ -236,5 +234,5 @@ func (g *LLMGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDi
 }
 
 func fallbackToFeedGrouper(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
-	return (&FeedGrouper{}).GroupEntries(pgs)
+	return SubGroupByFeed(pgs)
 }
