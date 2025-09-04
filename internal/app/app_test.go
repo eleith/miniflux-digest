@@ -40,7 +40,7 @@ func (m *mockMinifluxClientService) UpdateEntries(entryIDs []int64, status strin
 
 type mockDigestService struct{}
 
-func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
+func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData {
 	return nil
 }
 

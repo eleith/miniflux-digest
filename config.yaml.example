@@ -17,9 +17,7 @@ digest:
   compress: true
   mark_as_read: true
   run_on_startup: false
-  group_by: "category" # choices: category, feed
-  sub_group_by: "day" # choices: date, feed, ai
-  sort_by: "date" # choices: date, title, ai
+  view: "date" # choices: date, category, ai
 
 ai:
   api_key: "YOUR_GEMINI_API_KEY"

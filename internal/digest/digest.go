@@ -56,10 +56,26 @@ type digestServiceImpl struct {
 	llmService services.LLMService
 }
 
-func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
+func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData {
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
 		iconsSlice = append(iconsSlice, icon)
+	}
+
+	var groupBy, subGroupBy string
+	switch view {
+	case "date":
+		groupBy = "category"
+		subGroupBy = "date"
+	case "category":
+		groupBy = "category"
+		subGroupBy = "feed"
+	case "ai":
+		groupBy = "category"
+		subGroupBy = "ai"
+	default: // also "category"
+		groupBy = "category"
+		subGroupBy = "feed"
 	}
 
 	primaryGroups := GroupEntries(entries, groupBy)

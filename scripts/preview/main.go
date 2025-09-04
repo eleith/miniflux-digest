@@ -82,9 +82,7 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	data := digestSvc.BuildDigestData(
 		entries,
 		icons,
-		cfg.Digest.GroupBy,
-		cfg.Digest.SubGroupBy,
-		cfg.Digest.SortBy,
+		cfg.Digest.View,
 		cfg.Miniflux.Host,
 	)
 
@@ -135,9 +133,7 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 	return digestSvc.BuildDigestData(
 		entries,
 		icons,
-		cfg.Digest.GroupBy,
-		cfg.Digest.SubGroupBy,
-		cfg.Digest.SortBy,
+		cfg.Digest.View,
 		cfg.Miniflux.Host,
 	)
 }

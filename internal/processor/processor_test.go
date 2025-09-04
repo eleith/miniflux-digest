@@ -30,11 +30,11 @@ func (m *mockMinifluxClientService) UpdateEntries(entryIDs []int64, status strin
 }
 
 type mockDigestService struct {
-	buildDigestDataFunc func(entries []*models.Entry, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData
+	buildDigestDataFunc func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData
 }
 
-func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
-	return m.buildDigestDataFunc(entries, icons, groupBy, subGroupBy, sortBy, minifluxHost)
+func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData {
+	return m.buildDigestDataFunc(entries, icons, view, minifluxHost)
 }
 
 type mockArchiveService struct {
@@ -78,7 +78,7 @@ func TestProcessDigest_Success(t *testing.T) {
 		},
 	}
 	mockDigestService := &mockDigestService{
-		buildDigestDataFunc: func(entries []*models.Entry, icons map[int64]*models.FeedIcon, groupBy string, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
+		buildDigestDataFunc: func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData {
 			return expectedOverviewData
 		},
 	}
@@ -95,9 +95,7 @@ func TestProcessDigest_Success(t *testing.T) {
 			Digest: config.ConfigDigest{
 				MarkAsRead: true,
 				Compress:   true,
-				GroupBy:    "category",
-				SubGroupBy: "feed",
-				SortBy:     "date",
+				View:       "category",
 			},
 			Miniflux: config.ConfigMiniflux{Host: "http://miniflux.test"},
 		}),
