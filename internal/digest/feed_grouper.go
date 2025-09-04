@@ -1,15 +1,13 @@
 package digest
 
 import (
-	"fmt"
+	
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
 	"sort"
 )
 
-type FeedGrouper struct{}
-
-func (g *FeedGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByFeed(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
 
 	for _, pg := range pgs {
@@ -46,9 +44,7 @@ func (g *FeedGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupD
 			})
 		}
 
-		for _, seg := range entryGroups {
-			seg.Title = fmt.Sprintf("%s - %s", pg.Title, seg.Title)
-		}
+		
 
 		allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
 			ID:        pg.ID,

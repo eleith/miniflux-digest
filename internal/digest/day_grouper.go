@@ -1,16 +1,19 @@
 package digest
 
 import (
-	"fmt"
+	
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
 	"sort"
 	"time"
 )
 
-type DayGrouper struct{}
+const (
+	DayGroupLayout      = "2006-01-02"
+	DayGroupTitleLayout = "Jan 2, 2006"
+)
 
-func (g *DayGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByDay(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
 
 	for _, pg := range pgs {
@@ -50,9 +53,7 @@ func (g *DayGrouper) GroupEntries(pgs []*primaryGroup) ([]*models.PrimaryGroupDi
 			})
 		}
 
-		for _, seg := range sortedEntryGroups {
-			seg.Title = fmt.Sprintf("%s - %s", pg.Title, seg.Title)
-		}
+		
 
 		allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
 			ID:        pg.ID,
