@@ -7,6 +7,7 @@ import (
 	"miniflux-digest/internal/testutil"
 	"sort"
 	"testing"
+	"miniflux-digest/internal/digest/group_by"
 
 	"google.golang.org/genai"
 )
@@ -50,9 +51,9 @@ func createLLMGrouperMockEntries() []*models.Entry {
 
 func TestDayGrouper_GroupEntries(t *testing.T) {
 	entries := testutil.CreateMockEntries(0)
-	primaryGroupsMap := GroupEntries(entries, "category")
+	primaryGroupsMap := group_by.GroupByCategory(entries)
 
-	groups, summary := SubGroupByDay(primaryGroupsMap)
+	groups, summary := group_by.SubGroupByDay(primaryGroupsMap)
 
 	if summary != nil {
 		t.Errorf("Expected an empty summary for DayGrouper, got %q", *summary)
@@ -75,9 +76,9 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 
 func TestFeedGrouper_GroupEntries(t *testing.T) {
 	entries := testutil.CreateMockEntries(0)
-	primaryGroupsMap := GroupEntries(entries, "category")
+	primaryGroupsMap := group_by.GroupByCategory(entries)
 
-	groups, summary := SubGroupByFeed(primaryGroupsMap)
+	groups, summary := group_by.SubGroupByFeed(primaryGroupsMap)
 
 	if summary != nil {
 		t.Errorf("Expected an empty summary for FeedGrouper, got %q", *summary)
@@ -95,7 +96,7 @@ func TestFeedGrouper_GroupEntries(t *testing.T) {
 
 func TestLLMGrouper_GroupEntries(t *testing.T) {
 	entries := createLLMGrouperMockEntries()
-	primaryGroupsMap := GroupEntries(entries, "category")
+	primaryGroupsMap := group_by.GroupByCategory(entries)
 
 	mockLLM := &mockLLMService{
 		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
@@ -118,7 +119,7 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 		},
 	}
 
-	groups, summary := SubGroupByAI(primaryGroupsMap, mockLLM)
+	groups, summary := group_by.SubGroupByAI(primaryGroupsMap, mockLLM)
 
 	if summary == nil || *summary != "This is a summary of all entries." {
 		t.Errorf("Expected summary 'This is a summary of all entries.', got %q", *summary)

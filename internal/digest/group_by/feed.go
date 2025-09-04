@@ -1,13 +1,12 @@
-package digest
+package group_by
 
 import (
-	
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
 	"sort"
 )
 
-func SubGroupByFeed(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByFeed(pgs []*models.PrimaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
 
 	for _, pg := range pgs {

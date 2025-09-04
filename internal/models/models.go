@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+type PrimaryGroup struct {
+	ID      int64
+	Title   string
+	Entries []*Entry
+}
+
 type Entry struct {
 	ID         int64
 	Title      string

@@ -1,4 +1,4 @@
-package digest
+package group_by
 
 import (
 	"context"
@@ -118,10 +118,10 @@ var llmResponseSchema = &genai.Schema{
 	},
 }
 
-func SubGroupByAI(pgs []*primaryGroup, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByAI(pgs []*models.PrimaryGroup, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, *string) {
 	var llmEntries []llmEntry
 	entryMap := make(map[int64]*models.Entry)
-	primaryGroupMap := make(map[int64]*primaryGroup)
+	primaryGroupMap := make(map[int64]*models.PrimaryGroup)
 
 	for _, pg := range pgs {
 		primaryGroupMap[pg.ID] = pg
@@ -233,6 +233,6 @@ func SubGroupByAI(pgs []*primaryGroup, llmService services.LLMService) ([]*model
 	return finalPrimaryGroups, &response.Overview
 }
 
-func fallbackToFeedGrouper(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func fallbackToFeedGrouper(pgs []*models.PrimaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
 	return SubGroupByFeed(pgs)
 }

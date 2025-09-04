@@ -6,11 +6,13 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"miniflux-digest/internal/digest"
 	"miniflux-digest/internal/models"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/tdewolff/minify/v2"
+	"github.com/tdewolff/minify/v2/html"
 )
 
 type HTMLTemplate interface {
@@ -35,7 +37,17 @@ func (s *ArchiveServiceImpl) getHTML(template HTMLTemplate, data any, compress b
 		return nil, err
 	}
 
-	return digest.MinifyHTML(buf.Bytes(), compress)
+	return s.minifyHTML(buf.Bytes(), compress)
+}
+
+func (s *ArchiveServiceImpl) minifyHTML(data []byte, compress bool) ([]byte, error) {
+	if !compress {
+		return data, nil
+	}
+
+	m := minify.New()
+	m.AddFunc("text/html", html.Minify)
+	return m.Bytes("text/html", data)
 }
 
 func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.PrimaryGroupDigestData, dateFolderPath string) (*os.File, error) {
