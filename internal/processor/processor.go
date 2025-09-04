@@ -35,9 +35,7 @@ func ProcessDigest(application *app.App) (*os.File, []*os.File, *models.Overview
 	data := application.DigestService.BuildDigestData(
 		entries,
 		icons,
-		application.Config.Digest.GroupBy,
-		application.Config.Digest.SubGroupBy,
-		application.Config.Digest.SortBy,
+		application.Config.Digest.View,
 		application.Config.Miniflux.Host,
 	)
 

@@ -150,8 +150,21 @@ func TestLLMGrouper_GroupEntries(t *testing.T) {
 	}
 }
 
-func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
-	mockLLM := &mockLLMService{}
+func TestDigestService_BuildDigestData(t *testing.T) {
+	mockLLM := &mockLLMService{
+		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			return []byte(`{
+				"overview": "This is a summary of all entries.",
+				"primary_group_summaries": [],
+				"sub_groups": [
+					{
+						"title": "Sub-group 1",
+						"entry_ids": [1, 2]
+					}
+				]
+			}`), nil
+		},
+	}
 	digestService := NewDigestService(mockLLM)
 
 	entries := testutil.CreateMockEntries(0)
@@ -160,41 +173,72 @@ func TestDigestService_BuildDigestData_NonAI(t *testing.T) {
 		102: {FeedID: 102, Data: "iconB"},
 	}
 
-	overviewData := digestService.BuildDigestData(entries, icons, "category", "day", "date", "http://miniflux.test")
+	t.Run("view=date", func(t *testing.T) {
+		overviewData := digestService.BuildDigestData(entries, icons, "date", "http://miniflux.test")
+		if overviewData == nil {
+			t.Fatal("overviewData is nil")
+		}
+		if len(overviewData.PrimaryGroups) != 3 {
+			t.Errorf("Expected 3 primary groups, got %d", len(overviewData.PrimaryGroups))
+		}
+		// Check for date-based sub-grouping
+		catAGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Category A")
+		if catAGroup == nil || len(catAGroup.SubGroups) != 1 {
+			t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
+		}
+		subGroup := findSubGroup(catAGroup, "Category A - Jan 2, 2024")
+		if subGroup == nil {
+			t.Fatalf("Did not find expected sub-group 'Category A - Jan 2, 2024'")
+		}
+	})
 
-	if overviewData == nil {
-		t.Fatal("overviewData is nil")
-	}
-	if len(overviewData.PrimaryGroups) != 3 {
-		t.Errorf("Expected 3 primary groups, got %d", len(overviewData.PrimaryGroups))
-	}
-}
+	t.Run("view=category", func(t *testing.T) {
+		overviewData := digestService.BuildDigestData(entries, icons, "category", "http://miniflux.test")
+		if overviewData == nil {
+			t.Fatal("overviewData is nil")
+		}
+		if len(overviewData.PrimaryGroups) != 3 {
+			t.Errorf("Expected 3 primary groups, got %d", len(overviewData.PrimaryGroups))
+		}
+		// Check for feed-based sub-grouping
+		catAGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Category A")
+		if catAGroup == nil || len(catAGroup.SubGroups) != 3 {
+			t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
+		}
+	})
 
-func TestDigestService_BuildDigestData_LLMFallback(t *testing.T) {
-	entries := testutil.CreateMockEntries(0)
-	icons := map[int64]*models.FeedIcon{
-		100: {FeedID: 100, Data: "icon100"},
-		200: {FeedID: 200, Data: "icon200"},
-	}
+	t.Run("view=ai", func(t *testing.T) {
+		// Note: Using different entries for AI test for simplicity
+		aiEntries := createLLMGrouperMockEntries()
+		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test")
+		if overviewData == nil {
+			t.Fatal("overviewData is nil")
+		}
+		if overviewData.OverviewSummary != "This is a summary of all entries." {
+			t.Errorf("Expected summary, got %q", overviewData.OverviewSummary)
+		}
+		if len(overviewData.PrimaryGroups) != 1 {
+			t.Errorf("Expected 1 primary group, got %d", len(overviewData.PrimaryGroups))
+		}
+	})
 
-	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
-			return nil, errors.New("LLM service error during test")
-		},
-	}
-	digestService := NewDigestService(mockLLM)
-
-	overviewData := digestService.BuildDigestData(entries, icons, "category", "ai", "date", "http://miniflux.test")
-
-	if overviewData == nil {
-		t.Fatal("overviewData is nil")
-	}
-
-	if overviewData.OverviewSummary != "" {
-		t.Errorf("Expected OverviewSummary to be empty, got %q", overviewData.OverviewSummary)
-	}
-
-	if len(overviewData.PrimaryGroups) != 3 { // Category A, Category B, Category C
-		t.Fatalf("Expected 3 primary groups after fallback, got %d", len(overviewData.PrimaryGroups))
-	}
+	t.Run("view=ai fallback", func(t *testing.T) {
+		llmErrorService := NewDigestService(&mockLLMService{
+			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+				return nil, errors.New("LLM service error")
+			},
+		})
+		overviewData := llmErrorService.BuildDigestData(entries, icons, "ai", "http://miniflux.test")
+		if overviewData == nil {
+			t.Fatal("overviewData is nil")
+		}
+		if overviewData.OverviewSummary != "" {
+			t.Errorf("Expected empty summary on fallback, got %q", overviewData.OverviewSummary)
+		}
+		// On fallback, it should behave like view=category
+		catAGroup := findPrimaryGroup(overviewData.PrimaryGroups, "Category A")
+		if catAGroup == nil || len(catAGroup.SubGroups) != 3 {
+			t.Fatalf("Incorrect sub-groups for Category A on fallback: %+v", catAGroup)
+		}
+	})
 }

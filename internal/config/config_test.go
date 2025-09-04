@@ -199,8 +199,9 @@ func TestLoad(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		
 		{
-			name: "invalid group_by value",
+			name: "invalid view value",
 			config: map[string]any{
 				"miniflux": map[string]any{
 					"host":      "miniflux.example.com",
@@ -208,13 +209,13 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule": "@daily",
-					"group_by": "magic",
+					"view": "magic",
 				},
 			},
 			wantErr: true,
 		},
 		{
-			name: "missing ai.api_key when sub_group_by is ai",
+			name: "missing ai.api_key when view is ai",
 			config: map[string]any{
 				"miniflux": map[string]any{
 					"host":      "miniflux.example.com",
@@ -222,7 +223,7 @@ func TestLoad(t *testing.T) {
 				},
 				"digest": map[string]any{
 					"schedule":     "@daily",
-					"sub_group_by": "ai",
+					"view": "ai",
 				},
 			},
 			wantErr: true,
