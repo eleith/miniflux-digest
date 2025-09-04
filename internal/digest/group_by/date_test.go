@@ -1,4 +1,4 @@
-package digest
+package group_by
 
 import (
 	"miniflux-digest/internal/testutil"

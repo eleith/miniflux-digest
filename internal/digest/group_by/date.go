@@ -1,19 +1,45 @@
-package digest
+package group_by
 
 import (
-	
 	"miniflux-digest/internal/models"
-	"miniflux-digest/internal/utils"
 	"sort"
 	"time"
+	"miniflux-digest/internal/utils"
 )
+
+func GroupByDate(entries []*models.Entry) []*models.PrimaryGroup {
+	groups := make(map[string]*models.PrimaryGroup)
+
+	for _, entry := range entries {
+		dateKey := entry.Date.Format("2006-01-02")
+		if _, ok := groups[dateKey]; !ok {
+			groups[dateKey] = &models.PrimaryGroup{
+				Title: entry.Date.Format("Jan 2, 2006"),
+			}
+		}
+		groups[dateKey].Entries = append(groups[dateKey].Entries, entry)
+	}
+
+	var result []*models.PrimaryGroup
+	for _, pg := range groups {
+		result = append(result, pg)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		iDate, _ := time.Parse("Jan 2, 2006", result[i].Title)
+		jDate, _ := time.Parse("Jan 2, 2006", result[j].Title)
+		return iDate.Before(jDate)
+	})
+
+	return result
+}
 
 const (
 	DayGroupLayout      = "2006-01-02"
 	DayGroupTitleLayout = "Jan 2, 2006"
 )
 
-func SubGroupByDay(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByDay(pgs []*models.PrimaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
 
 	for _, pg := range pgs {
@@ -52,8 +78,6 @@ func SubGroupByDay(pgs []*primaryGroup) ([]*models.PrimaryGroupDigestData, *stri
 				return group.Entries[i].Date.Before(group.Entries[j].Date)
 			})
 		}
-
-		
 
 		allPrimaryGroups = append(allPrimaryGroups, &models.PrimaryGroupDigestData{
 			ID:        pg.ID,

@@ -3,46 +3,12 @@ package digest
 import (
 	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/digest/group_by"
 	"sort"
 	"time"
 )
 
 
-
-func GroupEntries(entries []*models.Entry, groupBy string) []*primaryGroup {
-	groups := make(map[int64]*primaryGroup)
-
-	for _, entry := range entries {
-		var groupID int64
-		var groupTitle string
-
-		if groupBy == "feed" {
-			groupID = entry.FeedID
-			groupTitle = entry.FeedTitle
-		} else {
-			groupID = entry.GroupID
-			groupTitle = entry.GroupTitle
-			if groupTitle == "" {
-				groupTitle = "Uncategorized"
-			}
-		}
-
-		if _, ok := groups[groupID]; !ok {
-			groups[groupID] = &primaryGroup{
-				ID:    groupID,
-				Title: groupTitle,
-			}
-		}
-		groups[groupID].Entries = append(groups[groupID].Entries, entry)
-	}
-
-	var result []*primaryGroup
-	for _, pg := range groups {
-		result = append(result, pg)
-	}
-
-	return result
-}
 
 func NewDigestService(llmService services.LLMService) services.DigestService {
 	return &digestServiceImpl{llmService: llmService}
@@ -63,23 +29,23 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 
 	switch view {
 	case "date":
-		primaryGroups := GroupByDate(entries)
-		allPrimaryGroups, overallDigestSummary = SubGroupByFeed(primaryGroups)
+		primaryGroups := group_by.GroupByDate(entries)
+		allPrimaryGroups, overallDigestSummary = group_by.SubGroupByFeed(primaryGroups)
 	case "category":
-		primaryGroups := GroupEntries(entries, "category")
-		allPrimaryGroups, overallDigestSummary = SubGroupByFeed(primaryGroups)
+		primaryGroups := group_by.GroupByCategory(entries)
+		allPrimaryGroups, overallDigestSummary = group_by.SubGroupByFeed(primaryGroups)
 		sort.Slice(allPrimaryGroups, func(i, j int) bool {
 			return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 		})
 	case "ai":
-		primaryGroups := GroupEntries(entries, "category")
-		allPrimaryGroups, overallDigestSummary = SubGroupByAI(primaryGroups, s.llmService)
+		primaryGroups := group_by.GroupByCategory(entries)
+		allPrimaryGroups, overallDigestSummary = group_by.SubGroupByAI(primaryGroups, s.llmService)
 		sort.Slice(allPrimaryGroups, func(i, j int) bool {
 			return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 		})
 	default:
-		primaryGroups := GroupEntries(entries, "category")
-		allPrimaryGroups, overallDigestSummary = SubGroupByFeed(primaryGroups)
+		primaryGroups := group_by.GroupByCategory(entries)
+		allPrimaryGroups, overallDigestSummary = group_by.SubGroupByFeed(primaryGroups)
 		sort.Slice(allPrimaryGroups, func(i, j int) bool {
 			return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 		})
@@ -95,22 +61,22 @@ func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[i
 		}
 	}
 
-	for _, primaryGroup := range allPrimaryGroups {
-		primaryGroupTotalEntries := 0
-		primaryGroupUniqueFeedIDs := make(map[int64]bool)
-		for _, subGroup := range primaryGroup.SubGroups {
-			primaryGroupTotalEntries += len(subGroup.Entries)
+	for _, pg := range allPrimaryGroups {
+		pgTotalEntries := 0
+		pgUniqueFeedIDs := make(map[int64]bool)
+		for _, subGroup := range pg.SubGroups {
+			pgTotalEntries += len(subGroup.Entries)
 			for _, entry := range subGroup.Entries {
-				primaryGroupUniqueFeedIDs[entry.FeedID] = true
+				pgUniqueFeedIDs[entry.FeedID] = true
 			}
 		}
-		primaryGroup.TotalEntries = primaryGroupTotalEntries
-		primaryGroup.TotalFeeds = len(primaryGroupUniqueFeedIDs)
+		pg.TotalEntries = pgTotalEntries
+		pg.TotalFeeds = len(pgUniqueFeedIDs)
 	}
 
 	var allEntryGroups []*models.EntryGroup
-	for _, primaryGroup := range allPrimaryGroups {
-		allEntryGroups = append(allEntryGroups, primaryGroup.SubGroups...)
+	for _, pg := range allPrimaryGroups {
+		allEntryGroups = append(allEntryGroups, pg.SubGroups...)
 	}
 
 	uniqueFeedIDs := make(map[int64]bool)
