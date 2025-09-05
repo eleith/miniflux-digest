@@ -95,6 +95,49 @@ func TestGroupAIEntries(t *testing.T) {
 		_, err := GroupAIEntries(context.Background(), entries, llmService)
 		assert.Error(t, err)
 	})
+
+	t.Run("handles chunking", func(t *testing.T) {
+		var largeEntries []*models.Entry
+		for i := 0; i < 1005; i++ {
+			largeEntries = append(largeEntries, &models.Entry{ID: int64(i)})
+		}
+
+		callCount := 0
+		llmService := &mockLLMService{
+			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+				callCount++
+				var resp GroupingResponse
+				if callCount == 1 { // First chunk
+					resp.Groups = []struct {
+						Title    string  `json:"title"`
+						EntryIDs []int64 `json:"entry_ids"`
+					}{
+						{Title: "Chunk 1 Group", EntryIDs: []int64{0, 1}},
+					}
+				} else { // Second chunk
+					resp.Groups = []struct {
+						Title    string  `json:"title"`
+						EntryIDs []int64 `json:"entry_ids"`
+					}{
+						{Title: "Chunk 2 Group", EntryIDs: []int64{1000, 1001}},
+					}
+				}
+				mockJSON, _ := json.Marshal(resp)
+				return mockJSON, nil
+			},
+		}
+
+		groups, err := GroupAIEntries(context.Background(), largeEntries, llmService)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, callCount, "Expected LLM to be called twice")
+
+		assert.Len(t, groups, 3, "Expected 2 groups from chunks and 1 uncategorized")
+		assert.NotNil(t, testutil.FindPrimaryGroup(groups, "Chunk 1 Group"))
+		assert.NotNil(t, testutil.FindPrimaryGroup(groups, "Chunk 2 Group"))
+		uncategorized := testutil.FindPrimaryGroup(groups, "Uncategorized")
+		assert.NotNil(t, uncategorized)
+		assert.Equal(t, 1001, uncategorized.TotalEntries, "Expected 1001 entries to be uncategorized (1005 total - 4 grouped)")
+	})
 }
 
 func TestProcessPrimaryGroupWithAI(t *testing.T) {
@@ -216,7 +259,7 @@ func TestBuildDigestDataByAI(t *testing.T) {
 			Groups: []struct {
 				Title    string  `json:"title"`
 				EntryIDs []int64 `json:"entry_ids"`
-			}{{Title: "AI Group 1", EntryIDs: []int64{1, 2}}},
+			}{{Title: "AI Group 2", EntryIDs: []int64{3}}, {Title: "AI Group 1", EntryIDs: []int64{1, 2}}},
 		}
 		groupingJSON, _ := json.Marshal(groupingResp)
 
@@ -249,11 +292,15 @@ func TestBuildDigestDataByAI(t *testing.T) {
 		groups := BuildDigestDataByAI(entries, context.Background(), llmService)
 		assert.Len(t, groups, 2)
 
-		aiGroup := testutil.FindPrimaryGroup(groups, "AI Group 1")
-		assert.NotNil(t, aiGroup)
-		assert.Equal(t, "AI summary", aiGroup.Summary)
-		assert.Len(t, aiGroup.SubGroups, 1)
-		assert.Equal(t, "AI Sub-group", aiGroup.SubGroups[0].Title)
+		// Assertions are now made on a sorted slice
+		assert.Equal(t, "AI Group 1", groups[0].Title)
+		assert.Equal(t, "AI Group 2", groups[1].Title)
+
+		aiGroup1 := groups[0]
+		assert.NotNil(t, aiGroup1)
+		assert.Equal(t, "AI summary", aiGroup1.Summary)
+		assert.Len(t, aiGroup1.SubGroups, 1)
+		assert.Equal(t, "AI Sub-group", aiGroup1.SubGroups[0].Title)
 	})
 
 	t.Run("fallback to category grouping", func(t *testing.T) {

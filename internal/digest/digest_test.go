@@ -9,6 +9,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/genai"
 )
 
@@ -39,12 +40,12 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 				return []byte(`{
 					"groups": [
 						{
-							"title": "AI News",
-							"entry_ids": [1, 3]
-						},
-						{
 							"title": "Go Lang",
 							"entry_ids": [2, 4]
+						},
+						{
+							"title": "AI News",
+							"entry_ids": [1, 3]
 						}
 					]
 				}`), nil
@@ -121,6 +122,9 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		if len(overviewData.PrimaryGroups) != 2 {
 			t.Errorf("Expected 2 primary groups, got %d", len(overviewData.PrimaryGroups))
 		}
+		// Assert on sorted order
+		assert.Equal(t, "AI News", overviewData.PrimaryGroups[0].Title)
+		assert.Equal(t, "Go Lang", overviewData.PrimaryGroups[1].Title)
 	})
 
 	t.Run("view=ai - GroupAIEntries error fallback", func(t *testing.T) {
