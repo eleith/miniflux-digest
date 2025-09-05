@@ -129,7 +129,7 @@ func TestGroupAIEntries(t *testing.T) {
 
 		groups, err := GroupAIEntries(context.Background(), largeEntries, llmService)
 		assert.NoError(t, err)
-		assert.Equal(t, 2, callCount, "Expected LLM to be called twice")
+		assert.Equal(t, 6, callCount, "Expected LLM to be called 6 times for 1005 entries with chunk size 200")
 
 		assert.Len(t, groups, 3, "Expected 2 groups from chunks and 1 uncategorized")
 		assert.NotNil(t, testutil.FindPrimaryGroup(groups, "Chunk 1 Group"))
