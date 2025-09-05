@@ -23,6 +23,18 @@ type Entry struct {
 	Date       time.Time
 }
 
+type Feed struct {
+	ID          int64
+	Title       string
+	Description string
+}
+
+type Category struct {
+	ID          int64
+	Title       string
+	Description string
+}
+
 type FeedIcon struct {
 	FeedID int64
 	Data   string
@@ -34,7 +46,6 @@ type OverviewTemplateData struct {
 	FeedIcons     []*FeedIcon
 	EntryGroups   []*EntryGroup
 	PrimaryGroups []*PrimaryGroupDigestData
-	OverviewSummary       string
 	TotalEntries          int
 	TotalFeeds            int
 	MinifluxHost  string

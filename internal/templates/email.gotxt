@@ -1,19 +1,19 @@
-Hello,
+Your digest for {{ .GeneratedDate.Format "Jan 2, 2006" }} is ready with {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.
 
-Your daily digest of {{ .Entries | len }} entries from {{ .EntryGroups | len }} feeds is ready.
+----------------------------------------
 
-{{ if .OverviewSummary -}}
-Overall Summary:
-{{ .OverviewSummary }}
+{{range .PrimaryGroups -}}
+{{ .Title }}
+{{ if .Summary -}}
+{{ .Summary }}
+{{- else -}}
+(no summary)
 {{- end }}
 
-You have {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.
+{{end}}----------------------------------------
 
 {{ if .URL -}}
-You can view the full digest online:
-{{ .URL }}
-{{- end }}
-
-{{ if .EntryGroups -}}
-The individual digests are attached to this email for offline reading.
+The individual HTML digests for each group are attached, or you can view the full digest online: {{ .URL }}
+{{- else -}}
+The individual HTML digests for each group are attached.
 {{- end }}

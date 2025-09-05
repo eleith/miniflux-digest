@@ -56,7 +56,7 @@ func TestSend(t *testing.T) {
 	data := models.OverviewTemplateData{
 		Entries:         testutil.NewMockEntries(),
 		FeedIcons:       testutil.NewMockFeedIcons(),
-		OverviewSummary: "Test summary",
+		
 		EntryGroups: []*models.EntryGroup{
 			testutil.NewMockEntryGroup(),
 		},

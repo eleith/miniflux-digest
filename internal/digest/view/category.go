@@ -1,7 +1,8 @@
-package group_by
+package view
 
 import (
 	"miniflux-digest/internal/models"
+	"sort"
 )
 
 func GroupByCategory(entries []*models.Entry) []*models.PrimaryGroup {
@@ -32,4 +33,16 @@ func GroupByCategory(entries []*models.Entry) []*models.PrimaryGroup {
 	}
 
 	return result
+}
+
+func BuildDigestDataByCategory(entries []*models.Entry) []*models.PrimaryGroupDigestData {
+	primaryGroups := GroupByCategory(entries)
+
+	allPrimaryGroups := SubGroupByFeed(primaryGroups)
+
+	sort.Slice(allPrimaryGroups, func(i, j int) bool {
+		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
+	})
+
+	return allPrimaryGroups
 }

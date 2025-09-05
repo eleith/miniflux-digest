@@ -93,7 +93,7 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 		data.PrimaryGroups[2].Summary = "This is another mock summary for a different group, showing that not all groups have summaries."
 	}
 
-	data.OverviewSummary = "This is a mock overview summary to see how it looks on the page. It should provide a high-level overview of all the digests included below."
+	
 
 	return data
 }

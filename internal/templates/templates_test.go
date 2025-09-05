@@ -73,7 +73,7 @@ func TestOverviewTemplateExecution(t *testing.T) {
 		Entries: testutil.NewMockEntries(),
 		GeneratedDate: time.Now(),
 		FeedIcons: testutil.NewMockFeedIcons(),
-		OverviewSummary: "This is a test summary.",
+		
 		TotalEntries: 5,
 		TotalFeeds: 2,
 		MinifluxHost: "http://localhost:8080",

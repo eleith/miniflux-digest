@@ -46,7 +46,7 @@ func (s *EmailServiceImpl) Send(cfg *config.Config, overviewFile *os.File, group
 	emailData := templates.EmailTemplateData{
 		OverviewTemplateData: *data,
 		URL:                  overviewURL,
-		Summary:              data.OverviewSummary,
+		
 	}
 
 	var body bytes.Buffer
