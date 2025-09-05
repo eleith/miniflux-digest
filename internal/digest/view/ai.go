@@ -1,6 +1,7 @@
 package view
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,13 +11,15 @@ import (
 	"sync"
 	"sort"
 	"log"
+	"strings"
+	"text/template"
 
 	"google.golang.org/genai"
 )
 
 const (
 	MaxEntryContentLengthForLLM = 1000
-	MaxEntriesForSummarization  = 1000
+	MaxEntriesForSummarization  = 200
 )
 
 type GroupingResponse struct {
@@ -49,17 +52,30 @@ var GroupingResponseSchema = &genai.Schema{
 	},
 }
 
-const groupingPrompt = `You will be given a list of unread JSON entry objects from an RSS feed reader. Each entry includes its ID, Title, URL, Content, and the Title of the Feed it came from.
+const groupingPrompt = `You are creating high-level primary groups for a digest.
 
-Your task is to group these entries based on their content. Follow these instructions:
+**Existing Primary Groups:**
+{{if .ExistingGroups -}}
+You have already created the following groups. Try to fit new entries into these if they are a good match.
+- {{join .ExistingGroups "\n- "}}
+{{- else -}}
+This is the first batch of entries.
+{{- end }}
 
-- Group entries that are about the same specific topic or event.
-- Create group titles that are concise and descriptive (2-5 words).
+**Your Task:**
+Group the entries below into broad, high-level primary groups.
+
+The nature of a good primary group can vary:
+- Sometimes it's a broad **topic** (e.g., "AI Development", "Global Economics").
+- Sometimes it's based on the **source** (e.g., "Hacker News Discussions", "TechCrunch Articles").
+- Sometimes it's about the **type of content** (e.g., "Software Development Blogs", "Video Game Reviews").
+
+Follow these instructions:
+- If an entry fits into an existing group, add it to that group.
+- Only create a new group if an entry does not fit well into an existing one.
+- Create group titles that are concise and high-level (2-5 words).
+- Aim for larger groups, ideally with 15 to 50 entries.
 - An entry can only belong to one group.
-- Aim for groups with 2 to 20 entries.
-- If an entry cannot be grouped, leave it out of the response.
-
-Your goal is to create meaningful groups that help the user quickly understand the main themes in their feed.
 
 Below is the list of entries:
 ----------------------------
@@ -74,7 +90,7 @@ type llmEntry struct {
 }
 
 func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, error) {
-	const chunkSize = 1000
+	const chunkSize = 200
 
 	entryMap := make(map[int64]*models.Entry)
 	for _, entry := range entries {
@@ -85,6 +101,15 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 	var allPrimaryGroupDigestData []*models.PrimaryGroupDigestData
 	primaryGroupMap := make(map[string]*models.PrimaryGroupDigestData)
 	currentPrimaryGroupID := int64(1)
+
+	promptTemplate, err := template.New("grouping").Funcs(template.FuncMap{
+		"join": func(s []string, sep string) string {
+			return strings.Join(s, sep)
+		},
+	}).Parse(groupingPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse grouping prompt template: %w", err)
+	}
 
 	for i := 0; i < len(entries); i += chunkSize {
 		end := min(i + chunkSize, len(entries))
@@ -110,9 +135,25 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 			return nil, fmt.Errorf("failed to marshal entries to JSON: %w", err)
 		}
 
-		prompt := groupingPrompt + string(entriesJSON)
+		var existingGroups []string
+		for _, pg := range allPrimaryGroupDigestData {
+			existingGroups = append(existingGroups, pg.Title)
+		}
 
-		llmResponse, err := llmService.GenerateContent(ctx, prompt, GroupingResponseSchema)
+		promptData := struct {
+			ExistingGroups []string
+		}{
+			ExistingGroups: existingGroups,
+		}
+
+		var prompt bytes.Buffer
+		if err := promptTemplate.Execute(&prompt, promptData); err != nil {
+			return nil, fmt.Errorf("failed to execute prompt template: %w", err)
+		}
+
+		prompt.Write(entriesJSON)
+
+		llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), GroupingResponseSchema)
 		if err != nil {
 			log.Printf("LLM call for 'primary-grouping' failed on chunk %d-%d: %v", i, end, err)
 			return nil, fmt.Errorf("LLM service failed for chunk %d-%d: %w", i, end, err)
@@ -236,24 +277,24 @@ var SubGroupingResponseSchema = &genai.Schema{
 	},
 }
 
-const summaryPrompt = `You will be given a list of JSON entry objects from a primary group titled '%s'. Generate a 2-3 sentence summary (less than 150 words) of the main topics. To improve readability, insert two line breaks (\n\n) after every 1-2 sentences.
+const summaryPrompt = `You are an expert at summarizing content for busy readers. You will be given a list of entries from a primary group titled '%s'.
 
-Below is the list of entries for the primary group:
-----------------------------
+Your task is to write a concise, 2-3 sentence summary (under 150 words) that achieves two goals:
+1.  **Provide a high-level overview** of the main themes in the group.
+2.  **Highlight the most significant or surprising entries.** This could be a major announcement, a controversial opinion, or a particularly popular discussion.
+
+The goal is to give the reader enough information to quickly decide if this group contains entries they want to explore further. Do not just list the topics; provide some insight into the content.
 `
 
-const subGroupingPrompt = `You will be given a list of JSON entry objects from a primary group titled '%s'. Your task is to identify relevant sub-groups within it.
+const subGroupingPrompt = `You are an expert at organizing content. You will be given a list of entries that are already part of a primary group titled '%s'.
 
-- Create sub-groups for entries about the same specific topic or event.
-- Create concise, descriptive titles (2-5 words) for each sub-group.
+Your task is to create smaller, more granular sub-groups to help a user navigate the content. A good sub-group contains entries that are very closely related.
+
+- Create sub-groups that represent a specific **story, product, or discussion thread**.
+- The sub-group titles should be very specific and descriptive (3-7 words). For example, instead of "AI News", a good sub-group title might be "Gemini 1.5 Pro Announcement" or "Discussion on AI Safety".
+- Aim for smaller, tight-knit groups of 2 to 15 entries.
 - An entry can only belong to one sub-group.
-- Aim for sub-groups with 2 to 20 entries.
-- If an entry cannot be sub-grouped, leave it out of the response.
-
-Your goal is to create meaningful sub-groups that help the user navigate the entries.
-
-Below is the list of entries for the primary group:
-----------------------------
+- If an entry doesn't fit into a specific sub-group, leave it out of your response.
 `
 
 func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llmService services.LLMService) (string, []*models.EntryGroup, error) {
