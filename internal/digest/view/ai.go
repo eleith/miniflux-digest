@@ -7,7 +7,7 @@ import (
 	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
-	
+	"sync"
 	"sort"
 	"log"
 
@@ -385,39 +385,50 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 	}
 
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	for _, hlg := range highLevelGroups {
-		var allEntriesInHlg []*models.Entry
-		for _, subGroup := range hlg.SubGroups {
-			allEntriesInHlg = append(allEntriesInHlg, subGroup.Entries...)
-		}
+		wg.Add(1)
+		go func(hlg *models.PrimaryGroupDigestData) {
+			defer wg.Done()
 
-		pg := &models.PrimaryGroup{
-			ID:      hlg.ID,
-			Title:   hlg.Title,
-			Entries: allEntriesInHlg,
-		}
-
-		summary, subGroups, err := ProcessPrimaryGroupWithAI(ctx, pg, llmService)
-		if err != nil {
-			log.Printf("Failed to process primary group '%s' with AI: %v. Using original group.", pg.Title, err)
-			// If processing fails, use the original primary group's entries as a single sub-group
-			hlg.SubGroups = []*models.EntryGroup{
-				{
-					Title:   pg.Title,
-					Entries: pg.Entries,
-					Slug:    utils.Slugify(pg.Title),
-					TotalEntries: len(pg.Entries),
-					TotalFeeds:   getUniqueFeedIDs(pg.Entries),
-				},
+			var allEntriesInHlg []*models.Entry
+			for _, subGroup := range hlg.SubGroups {
+				allEntriesInHlg = append(allEntriesInHlg, subGroup.Entries...)
 			}
-		} else {
-			hlg.Summary = summary
-			hlg.SubGroups = subGroups
-		}
 
-		allPrimaryGroups = append(allPrimaryGroups, hlg)
+			pg := &models.PrimaryGroup{
+				ID:      hlg.ID,
+				Title:   hlg.Title,
+				Entries: allEntriesInHlg,
+			}
+
+			summary, subGroups, err := ProcessPrimaryGroupWithAI(ctx, pg, llmService)
+			if err != nil {
+				log.Printf("Failed to process primary group '%s' with AI: %v. Using original group.", pg.Title, err)
+				// If processing fails, use the original primary group's entries as a single sub-group
+				hlg.SubGroups = []*models.EntryGroup{
+					{
+						Title:   pg.Title,
+						Entries: pg.Entries,
+						Slug:    utils.Slugify(pg.Title),
+						TotalEntries: len(pg.Entries),
+						TotalFeeds:   getUniqueFeedIDs(pg.Entries),
+					},
+				}
+			} else {
+				hlg.Summary = summary
+				hlg.SubGroups = subGroups
+			}
+
+			mu.Lock()
+			allPrimaryGroups = append(allPrimaryGroups, hlg)
+			mu.Unlock()
+		}(hlg)
 	}
+
+	wg.Wait()
 
 	sort.Slice(allPrimaryGroups, func(i, j int) bool {
 		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
