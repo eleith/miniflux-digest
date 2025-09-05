@@ -1,4 +1,4 @@
-package group_by
+package view
 
 import (
 	"miniflux-digest/internal/models"
@@ -39,7 +39,7 @@ const (
 	DayGroupTitleLayout = "Jan 2, 2006"
 )
 
-func SubGroupByDay(pgs []*models.PrimaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByDay(pgs []*models.PrimaryGroup) []*models.PrimaryGroupDigestData {
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
 
 	for _, pg := range pgs {
@@ -87,5 +87,17 @@ func SubGroupByDay(pgs []*models.PrimaryGroup) ([]*models.PrimaryGroupDigestData
 		})
 	}
 
-	return allPrimaryGroups, nil
+	return allPrimaryGroups
+}
+
+func BuildDigestDataByDate(entries []*models.Entry) []*models.PrimaryGroupDigestData {
+	primaryGroups := GroupByDate(entries)
+
+	allPrimaryGroups := SubGroupByDay(primaryGroups)
+
+	sort.Slice(allPrimaryGroups, func(i, j int) bool {
+		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
+	})
+
+	return allPrimaryGroups
 }

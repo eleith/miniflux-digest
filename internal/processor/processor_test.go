@@ -61,7 +61,7 @@ func TestProcessDigest_Success(t *testing.T) {
 		101: {FeedID: 101, Data: "icon1"},
 		102: {FeedID: 102, Data: "icon2"},
 	}
-	expectedOverviewData := &models.OverviewTemplateData{OverviewSummary: "Test Digest"}
+	expectedOverviewData := &models.OverviewTemplateData{}
 
 	mockMinifluxClient := &mockMinifluxClientService{
 		getAllUnreadEntriesFunc: func() ([]*models.Entry, error) {

@@ -12,21 +12,13 @@ import (
 
 type MockMinifluxClient struct {
 	services.MinifluxClientService
-	
-	
-	
-	
+
+
 	FeedIconFunc func(feedID int64) (*miniflux.FeedIcon, error)
-	
+
 	GetAllUnreadEntriesFunc func() (*miniflux.Entries, error)
 	UpdateEntriesFunc func(entryIDs []int64, status string) error
 }
-
-
-
-
-
-
 
 
 
@@ -36,8 +28,6 @@ func (m *MockMinifluxClient) FeedIcon(feedID int64) (*miniflux.FeedIcon, error) 
 	}
 	return nil, nil
 }
-
-
 
 
 
@@ -83,6 +73,25 @@ type MockDigestService struct {
 func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries *miniflux.Entries, icons map[int64]*models.FeedIcon, subGroupBy string, sortBy string, minifluxHost string) *models.OverviewTemplateData {
 	if m.BuildDigestDataFunc != nil {
 		return m.BuildDigestDataFunc(category, entries, icons, subGroupBy, sortBy, minifluxHost)
+	}
+	return nil
+}
+
+// Helper functions for tests
+func FindPrimaryGroup(groups []*models.PrimaryGroupDigestData, title string) *models.PrimaryGroupDigestData {
+	for _, group := range groups {
+		if group.Title == title {
+			return group
+		}
+	}
+	return nil
+}
+
+func FindSubGroup(primaryGroup *models.PrimaryGroupDigestData, title string) *models.EntryGroup {
+	for _, group := range primaryGroup.SubGroups {
+		if group.Title == title {
+			return group
+		}
 	}
 	return nil
 }

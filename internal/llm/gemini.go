@@ -13,6 +13,7 @@ import (
 const (
 	Model               = "gemini-2.5-flash"
 	maxRetries          = 3
+	perTryTimeout       = 3 * time.Minute
 	Temperature float32 = 0.4
 )
 
@@ -42,36 +43,38 @@ func NewGeminiService(apiKey string) (services.LLMService, error) {
 }
 
 func (s *GeminiService) generateContentWithRetry(ctx context.Context, prompt string, schema *genai.Schema) (*genai.GenerateContentResponse, error) {
-	var resp *genai.GenerateContentResponse
-	var err error
+	var lastErr error
 
-	for i := range maxRetries {
-		resp, err = s.client.GenerateContent(ctx, s.modelName, genai.Text(prompt), &genai.GenerateContentConfig{
+	for i := 1; i <= maxRetries; i++ {
+		tryCtx, tryCancel := context.WithTimeout(ctx, perTryTimeout)
+		resp, err := s.client.GenerateContent(tryCtx, s.modelName, genai.Text(prompt), &genai.GenerateContentConfig{
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   schema,
 			Temperature:      genai.Ptr(Temperature),
 		})
+		tryCancel()
 
 		if err == nil {
 			return resp, nil
 		}
 
-		log.Printf("LLM call failed: %v", err)
+		lastErr = err
+
+		log.Printf("LLM attempt %d/%d failed: %v", i, maxRetries, err)
 
 		var apiError genai.APIError
-		if errors.As(err, &apiError) {
-			log.Printf("LLM API error: Code=%d, Status=%s, Message=%s", apiError.Code, apiError.Status, apiError.Message)
-			if apiError.Code == 503 || apiError.Code == 500 {
-				log.Printf("Retrying LLM call (%d/%d)...", i+1, maxRetries)
-				s.sleep(time.Second * time.Duration(i+1))
+		if errors.As(err, &apiError) && (apiError.Code == 503 || apiError.Code == 500) {
+			if i < maxRetries {
+				log.Printf("Retrying after server error...")
+				s.sleep(time.Second * time.Duration(i))
 				continue
 			}
 		}
 
-		return nil, err
+		break
 	}
 
-	return nil, err
+	return nil, lastErr
 }
 
 func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {

@@ -1,4 +1,4 @@
-package group_by
+package view
 
 import (
 	"miniflux-digest/internal/models"
@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-func SubGroupByFeed(pgs []*models.PrimaryGroup) ([]*models.PrimaryGroupDigestData, *string) {
+func SubGroupByFeed(pgs []*models.PrimaryGroup) []*models.PrimaryGroupDigestData {
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
 
 	for _, pg := range pgs {
@@ -53,5 +53,5 @@ func SubGroupByFeed(pgs []*models.PrimaryGroup) ([]*models.PrimaryGroupDigestDat
 		})
 	}
 
-	return allPrimaryGroups, nil
+	return allPrimaryGroups
 }
