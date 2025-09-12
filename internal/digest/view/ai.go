@@ -5,81 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
-	"sync"
 	"sort"
-	"log"
-	"strings"
+	"sync"
 	"text/template"
 
-	"google.golang.org/genai"
+	
 )
 
 const (
 	MaxEntryContentLengthForLLM = 1000
 	MaxEntriesForSummarization  = 200
 )
-
-type GroupingResponse struct {
-	Groups []struct {
-		Title    string  `json:"title"`
-		EntryIDs []int64 `json:"entry_ids"`
-	} `json:"groups"`
-}
-
-var GroupingResponseSchema = &genai.Schema{
-	Type: genai.TypeObject,
-	Properties: map[string]*genai.Schema{
-		"groups": {
-			Type: genai.TypeArray,
-			Items: &genai.Schema{
-				Type: genai.TypeObject,
-				Properties: map[string]*genai.Schema{
-					"title": {
-						Type: genai.TypeString,
-					},
-					"entry_ids": {
-						Type: genai.TypeArray,
-						Items: &genai.Schema{
-							Type: genai.TypeInteger,
-						},
-					},
-				},
-			},
-		},
-	},
-}
-
-const groupingPrompt = `You are creating high-level primary groups for a digest.
-
-**Existing Primary Groups:**
-{{if .ExistingGroups -}}
-You have already created the following groups. Try to fit new entries into these if they are a good match.
-- {{join .ExistingGroups "\n- "}}
-{{- else -}}
-This is the first batch of entries.
-{{- end }}
-
-**Your Task:**
-Group the entries below into broad, high-level primary groups.
-
-The nature of a good primary group can vary:
-- Sometimes it's a broad **topic** (e.g., "AI Development", "Global Economics").
-- Sometimes it's based on the **source** (e.g., "Hacker News Discussions", "TechCrunch Articles").
-- Sometimes it's about the **type of content** (e.g., "Software Development Blogs", "Video Game Reviews").
-
-Follow these instructions:
-- If an entry fits into an existing group, add it to that group.
-- Only create a new group if an entry does not fit well into an existing one.
-- Create group titles that are concise and high-level (2-5 words).
-- Aim for larger groups, ideally with 15 to 50 entries.
-- An entry can only belong to one group.
-
-Below is the list of entries:
-----------------------------
-`
 
 type llmEntry struct {
 	ID        int64  `json:"id"`
@@ -89,213 +29,190 @@ type llmEntry struct {
 	FeedTitle string `json:"feed_title"`
 }
 
-func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, error) {
+func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService) (map[string][]*models.Entry, map[int64]bool, error) {
 	const chunkSize = 200
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	errs := make(chan error, len(entries)/chunkSize+1)
 
+	rawGroups := make(map[string][]*models.Entry)
+	groupedEntryIDs := make(map[int64]bool)
 	entryMap := make(map[int64]*models.Entry)
 	for _, entry := range entries {
 		entryMap[entry.ID] = entry
 	}
 
-	groupedEntryIDs := make(map[int64]bool)
-	var allPrimaryGroupDigestData []*models.PrimaryGroupDigestData
-	primaryGroupMap := make(map[string]*models.PrimaryGroupDigestData)
-	currentPrimaryGroupID := int64(1)
-
-	promptTemplate, err := template.New("grouping").Funcs(template.FuncMap{
-		"join": func(s []string, sep string) string {
-			return strings.Join(s, sep)
-		},
-	}).Parse(groupingPrompt)
+	promptTemplate, err := template.New("grouping").Parse(initialGroupingPrompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse grouping prompt template: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse grouping prompt template: %w", err)
 	}
 
 	for i := 0; i < len(entries); i += chunkSize {
-		end := min(i + chunkSize, len(entries))
+		end := min(i+chunkSize, len(entries))
 		chunk := entries[i:end]
+		wg.Add(1)
 
-		var llmEntries []llmEntry
-		for _, entry := range chunk {
-			content := entry.Content
-			if len(content) > MaxEntryContentLengthForLLM {
-				content = content[:MaxEntryContentLengthForLLM]
-			}
-			llmEntries = append(llmEntries, llmEntry{
-				ID:        entry.ID,
-				Title:     entry.Title,
-				URL:       entry.URL,
-				Content:   content,
-				FeedTitle: entry.FeedTitle,
-			})
-		}
+		go func(chunk []*models.Entry, i, end int) {
+			defer wg.Done()
 
-		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal entries to JSON: %w", err)
-		}
-
-		var existingGroups []string
-		for _, pg := range allPrimaryGroupDigestData {
-			existingGroups = append(existingGroups, pg.Title)
-		}
-
-		promptData := struct {
-			ExistingGroups []string
-		}{
-			ExistingGroups: existingGroups,
-		}
-
-		var prompt bytes.Buffer
-		if err := promptTemplate.Execute(&prompt, promptData); err != nil {
-			return nil, fmt.Errorf("failed to execute prompt template: %w", err)
-		}
-
-		prompt.Write(entriesJSON)
-
-		llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), GroupingResponseSchema)
-		if err != nil {
-			log.Printf("LLM call for 'primary-grouping' failed on chunk %d-%d: %v", i, end, err)
-			return nil, fmt.Errorf("LLM service failed for chunk %d-%d: %w", i, end, err)
-		}
-
-		var response GroupingResponse
-		if err := json.Unmarshal(llmResponse, &response); err != nil {
-			return nil, fmt.Errorf("failed to parse LLM response for chunk %d-%d: %w", i, end, err)
-		}
-
-		for _, group := range response.Groups {
-			var groupEntries []*models.Entry
-			for _, entryID := range group.EntryIDs {
-				if _, exists := groupedEntryIDs[entryID]; exists {
-					continue
+			var llmEntries []llmEntry
+			for _, entry := range chunk {
+				content := entry.Content
+				if len(content) > MaxEntryContentLengthForLLM {
+					content = content[:MaxEntryContentLengthForLLM]
 				}
-				if entry, ok := entryMap[entryID]; ok {
-					groupEntries = append(groupEntries, entry)
-					groupedEntryIDs[entryID] = true
-				}
+				llmEntries = append(llmEntries, llmEntry{
+					ID:        entry.ID,
+					Title:     entry.Title,
+					URL:       entry.URL,
+					Content:   content,
+					FeedTitle: entry.FeedTitle,
+				})
 			}
 
-			if len(groupEntries) > 0 {
-				if existingPGDD, ok := primaryGroupMap[group.Title]; ok {
-					existingPGDD.SubGroups[0].Entries = append(existingPGDD.SubGroups[0].Entries, groupEntries...)
-					existingPGDD.TotalEntries += len(groupEntries)
-					existingPGDD.TotalFeeds = getUniqueFeedIDs(existingPGDD.SubGroups[0].Entries)
-				} else {
-					newPGDD := &models.PrimaryGroupDigestData{
-						ID:           currentPrimaryGroupID,
-						Title:        group.Title,
-						Slug:         utils.Slugify(group.Title),
-						SubGroups:    []*models.EntryGroup{
-							{
-								Title:   group.Title,
-								Entries: groupEntries,
-								Slug:    utils.Slugify(group.Title),
-							},
-						},
-						Summary:      "",
-						TotalEntries: len(groupEntries),
-						TotalFeeds:   getUniqueFeedIDs(groupEntries),
+			entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
+			if err != nil {
+				errs <- fmt.Errorf("failed to marshal entries to JSON for chunk %d-%d: %w", i, end, err)
+				return
+			}
+
+			var prompt bytes.Buffer
+			if err := promptTemplate.Execute(&prompt, nil); err != nil {
+				errs <- fmt.Errorf("failed to execute prompt template for chunk %d-%d: %w", i, end, err)
+				return
+			}
+			prompt.Write(entriesJSON)
+
+			llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), InitialGroupingResponseSchema)
+			if err != nil {
+				errs <- fmt.Errorf("LLM service failed for chunk %d-%d: %w", i, end, err)
+				return
+			}
+
+			var response InitialGroupingResponse
+			if err := json.Unmarshal(llmResponse, &response); err != nil {
+				errs <- fmt.Errorf("failed to parse LLM response for chunk %d-%d: %w", i, end, err)
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			for _, group := range response.Groups {
+				if _, ok := rawGroups[group.Title]; !ok {
+					rawGroups[group.Title] = []*models.Entry{}
+				}
+				for _, entryID := range group.EntryIDs {
+					if _, exists := groupedEntryIDs[entryID]; exists {
+						continue
 					}
-					allPrimaryGroupDigestData = append(allPrimaryGroupDigestData, newPGDD)
-					primaryGroupMap[group.Title] = newPGDD
-					currentPrimaryGroupID++
+					if entry, ok := entryMap[entryID]; ok {
+						rawGroups[group.Title] = append(rawGroups[group.Title], entry)
+						groupedEntryIDs[entryID] = true
+					}
 				}
+			}
+		}(chunk, i, end)
+	}
+
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			// For now, we log the first error and return. A more robust solution could be to
+			// collect all errors or decide to proceed with partial data.
+			return nil, nil, err
+		}
+	}
+
+	return rawGroups, groupedEntryIDs, nil
+}
+
+func consolidatePrimaryGroups(ctx context.Context, rawGroups map[string][]*models.Entry, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, error) {
+	var initialTitles []string
+	for title := range rawGroups {
+		initialTitles = append(initialTitles, title)
+	}
+
+	if len(initialTitles) <= 10 { // No need to consolidate if we already have a small number of groups
+		return convertRawGroupsToDigestData(rawGroups), nil
+	}
+
+	tmpl, err := template.New("consolidation").Parse(consolidationPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse consolidation prompt template: %w", err)
+	}
+
+	var prompt bytes.Buffer
+	if err := tmpl.Execute(&prompt, initialTitles); err != nil {
+		return nil, fmt.Errorf("failed to execute consolidation prompt template: %w", err)
+	}
+
+	llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), ConsolidationResponseSchema)
+	if err != nil {
+		// Fallback: If LLM fails, use the original, unconsolidated groups
+		log.Printf("LLM consolidation failed, falling back to original groups: %v", err)
+		return convertRawGroupsToDigestData(rawGroups), nil
+	}
+
+	var response ConsolidationResponse
+	if err := json.Unmarshal(llmResponse, &response); err != nil {
+		log.Printf("Failed to parse LLM consolidation response, falling back to original groups: %v", err)
+		return convertRawGroupsToDigestData(rawGroups), nil
+	}
+
+	// Merge groups based on consolidation response
+	consolidatedGroups := make(map[string][]*models.Entry)
+	mappedOldTitles := make(map[string]bool)
+	for _, cg := range response.ConsolidatedGroups {
+		if _, ok := consolidatedGroups[cg.NewTitle]; !ok {
+			consolidatedGroups[cg.NewTitle] = []*models.Entry{}
+		}
+		for _, oldTitle := range cg.OldTitles {
+			if entries, ok := rawGroups[oldTitle]; ok {
+				consolidatedGroups[cg.NewTitle] = append(consolidatedGroups[cg.NewTitle], entries...)
+				mappedOldTitles[oldTitle] = true
 			}
 		}
 	}
 
-	var ungroupedEntries []*models.Entry
-
-	for _, entry := range entries {
-		if !groupedEntryIDs[entry.ID] {
-			ungroupedEntries = append(ungroupedEntries, entry)
+	// Add any groups that the LLM may have missed
+	for oldTitle, entries := range rawGroups {
+		if !mappedOldTitles[oldTitle] {
+			consolidatedGroups[oldTitle] = entries
 		}
 	}
 
-	if len(ungroupedEntries) > 0 {
-		allPrimaryGroupDigestData = append(allPrimaryGroupDigestData, &models.PrimaryGroupDigestData{
-			ID:           currentPrimaryGroupID,
-			Title:        "Uncategorized",
-			Slug:         "uncategorized",
-			SubGroups:    []*models.EntryGroup{
+	return convertRawGroupsToDigestData(consolidatedGroups), nil
+}
+
+func convertRawGroupsToDigestData(rawGroups map[string][]*models.Entry) []*models.PrimaryGroupDigestData {
+	var digestData []*models.PrimaryGroupDigestData
+	currentPrimaryGroupID := int64(1)
+	for title, entries := range rawGroups {
+		if len(entries) == 0 {
+			continue
+		}
+		newPGDD := &models.PrimaryGroupDigestData{
+			ID:    currentPrimaryGroupID,
+			Title: title,
+			Slug:  utils.Slugify(title),
+			SubGroups: []*models.EntryGroup{
 				{
-					Title:   "Uncategorized",
-					Entries: ungroupedEntries,
-					Slug:    "uncategorized",
+					Title:   title, // Initial sub-group is the same as the primary group
+					Entries: entries,
+					Slug:    utils.Slugify(title),
 				},
 			},
 			Summary:      "",
-			TotalEntries: len(ungroupedEntries),
-			TotalFeeds:   getUniqueFeedIDs(ungroupedEntries),
-		})
+			TotalEntries: len(entries),
+			TotalFeeds:   getUniqueFeedIDs(entries),
+		}
+		digestData = append(digestData, newPGDD)
+		currentPrimaryGroupID++
 	}
-
-	return allPrimaryGroupDigestData, nil
+	return digestData
 }
-
-type AIGroupSummaryResponse struct {
-	Summary string `json:"summary"`
-}
-
-type AISubGroupingResponse struct {
-	SubGroups []struct {
-		Title    string  `json:"title"`
-		EntryIDs []int64 `json:"entry_ids"`
-	} `json:"sub_groups"`
-}
-
-var SummaryResponseSchema = &genai.Schema{
-	Type: genai.TypeObject,
-	Properties: map[string]*genai.Schema{
-		"summary": {
-			Type: genai.TypeString,
-		},
-	},
-}
-
-var SubGroupingResponseSchema = &genai.Schema{
-	Type: genai.TypeObject,
-	Properties: map[string]*genai.Schema{
-		"sub_groups": {
-			Type: genai.TypeArray,
-			Items: &genai.Schema{
-				Type: genai.TypeObject,
-				Properties: map[string]*genai.Schema{
-					"title": {
-						Type: genai.TypeString,
-					},
-					"entry_ids": {
-						Type: genai.TypeArray,
-						Items: &genai.Schema{
-							Type: genai.TypeInteger,
-						},
-					},
-				},
-			},
-		},
-	},
-}
-
-const summaryPrompt = `You are an expert at summarizing content for busy readers. You will be given a list of entries from a primary group titled '%s'.
-
-Your task is to write a concise, 2-3 sentence summary (under 150 words) that achieves two goals:
-1.  **Provide a high-level overview** of the main themes in the group.
-2.  **Highlight the most significant or surprising entries.** This could be a major announcement, a controversial opinion, or a particularly popular discussion.
-
-The goal is to give the reader enough information to quickly decide if this group contains entries they want to explore further. Do not just list the topics; provide some insight into the content.
-`
-
-const subGroupingPrompt = `You are an expert at organizing content. You will be given a list of entries that are already part of a primary group titled '%s'.
-
-Your task is to create smaller, more granular sub-groups to help a user navigate the content. A good sub-group contains entries that are very closely related.
-
-- Create sub-groups that represent a specific **story, product, or discussion thread**.
-- The sub-group titles should be very specific and descriptive (3-7 words). For example, instead of "AI News", a good sub-group title might be "Gemini 1.5 Pro Announcement" or "Discussion on AI Safety".
-- Aim for smaller, tight-knit groups of 2 to 15 entries.
-- An entry can only belong to one sub-group.
-- If an entry doesn't fit into a specific sub-group, leave it out of your response.
-`
 
 func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llmService services.LLMService) (string, []*models.EntryGroup, error) {
 	var llmEntries []llmEntry
@@ -334,7 +251,7 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 	if err != nil {
 		log.Printf("LLM service failed during summarization for primary group '%s': %v", pg.Title, err)
 	} else {
-		var summaryResponse AIGroupSummaryResponse
+		var summaryResponse SummaryResponse
 		if err := json.Unmarshal(summaryResponseBytes, &summaryResponse); err != nil {
 			log.Printf("Failed to parse LLM summarization response for primary group '%s': %v", pg.Title, err)
 		} else {
@@ -351,7 +268,7 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 	if err != nil {
 		log.Printf("LLM service failed during sub-grouping for primary group '%s': %v. Creating single 'Uncategorized' group.", pg.Title, err)
 	} else {
-		var subGroupingResponse AISubGroupingResponse
+		var subGroupingResponse SubGroupingResponse
 		if err := json.Unmarshal(subGroupingResponseBytes, &subGroupingResponse); err != nil {
 			log.Printf("Failed to parse LLM sub-grouping response for primary group '%s': %v. Creating single 'Uncategorized' group.", pg.Title, err)
 		} else {
@@ -416,13 +333,46 @@ func getUniqueFeedIDs(entries []*models.Entry) int {
 }
 
 func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmService services.LLMService) []*models.PrimaryGroupDigestData {
-	highLevelGroups, err := GroupAIEntries(ctx, entries, llmService)
+	rawGroups, groupedEntryIDs, err := GroupAIEntries(ctx, entries, llmService)
 	if err != nil {
+		log.Printf("AI grouping failed, falling back to category grouping: %v", err)
 		categoryGroups := BuildDigestDataByCategory(entries)
 		if len(categoryGroups) == 1 && len(entries) > 1 {
 			return BuildDigestDataByDate(entries)
 		}
 		return categoryGroups
+	}
+
+	highLevelGroups, err := consolidatePrimaryGroups(ctx, rawGroups, llmService)
+	if err != nil {
+		// This case should ideally not be hit if consolidatePrimaryGroups has a fallback
+		log.Printf("AI group consolidation failed unexpectedly: %v", err)
+		highLevelGroups = convertRawGroupsToDigestData(rawGroups)
+	}
+
+	// Handle entries that were not grouped by the initial LLM call
+	var ungroupedEntries []*models.Entry
+	for _, entry := range entries {
+		if !groupedEntryIDs[entry.ID] {
+			ungroupedEntries = append(ungroupedEntries, entry)
+		}
+	}
+	if len(ungroupedEntries) > 0 {
+		highLevelGroups = append(highLevelGroups, &models.PrimaryGroupDigestData{
+			ID:    int64(len(highLevelGroups) + 1),
+			Title: "Uncategorized",
+			Slug:  "uncategorized",
+			SubGroups: []*models.EntryGroup{
+				{
+					Title:   "Uncategorized",
+					Entries: ungroupedEntries,
+					Slug:    "uncategorized",
+				},
+			},
+			Summary:      "",
+			TotalEntries: len(ungroupedEntries),
+			TotalFeeds:   getUniqueFeedIDs(ungroupedEntries),
+		})
 	}
 
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
@@ -448,12 +398,11 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 			summary, subGroups, err := ProcessPrimaryGroupWithAI(ctx, pg, llmService)
 			if err != nil {
 				log.Printf("Failed to process primary group '%s' with AI: %v. Using original group.", pg.Title, err)
-				// If processing fails, use the original primary group's entries as a single sub-group
 				hlg.SubGroups = []*models.EntryGroup{
 					{
-						Title:   pg.Title,
-						Entries: pg.Entries,
-						Slug:    utils.Slugify(pg.Title),
+						Title:        pg.Title,
+						Entries:      pg.Entries,
+						Slug:         utils.Slugify(pg.Title),
 						TotalEntries: len(pg.Entries),
 						TotalFeeds:   getUniqueFeedIDs(pg.Entries),
 					},
@@ -475,6 +424,5 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 	})
 
-	
 	return allPrimaryGroups
 }
