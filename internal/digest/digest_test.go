@@ -36,7 +36,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 	mockLLM := &mockLLMService{
 		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
 			switch schema {
-			case view.GroupingResponseSchema:
+			case view.InitialGroupingResponseSchema:
 				return []byte(`{
 					"groups": [
 						{
@@ -130,7 +130,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 	t.Run("view=ai - GroupAIEntries error fallback", func(t *testing.T) {
 		mockLLM := &mockLLMService{
 			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
-				if schema == view.GroupingResponseSchema {
+				if schema == view.InitialGroupingResponseSchema {
 					return nil, errors.New("mock LLM grouping error")
 				}
 				return nil, errors.New("unexpected LLM call")
@@ -155,7 +155,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 	t.Run("view=ai - sub-grouping error", func(t *testing.T) {
 		mockLLM := &mockLLMService{
 			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
-				if schema == view.GroupingResponseSchema {
+				if schema == view.InitialGroupingResponseSchema {
 					return []byte(`{
 						"groups": [
 							{
