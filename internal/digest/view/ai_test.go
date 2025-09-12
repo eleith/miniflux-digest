@@ -36,7 +36,7 @@ func TestGroupAIEntries(t *testing.T) {
 	}
 
 	t.Run("happy path", func(t *testing.T) {
-		mockResp := GroupingResponse{
+		mockResp := InitialGroupingResponse{
 			Groups: []struct {
 				Title    string  `json:"title"`
 				EntryIDs []int64 `json:"entry_ids"`
@@ -107,7 +107,7 @@ func TestGroupAIEntries(t *testing.T) {
 				callCount++
 				mu.Unlock()
 
-				var resp GroupingResponse
+				var resp InitialGroupingResponse
 				if callCount == 1 { // First chunk
 					resp.Groups = []struct {
 						Title    string  `json:"title"`
@@ -237,10 +237,10 @@ func TestProcessPrimaryGroupWithAI(t *testing.T) {
 	}
 
 	t.Run("happy path", func(t *testing.T) {
-		summaryResp := AIGroupSummaryResponse{Summary: "This is a summary."}
+		summaryResp := SummaryResponse{Summary: "This is a summary."}
 		summaryJSON, _ := json.Marshal(summaryResp)
 
-		subGroupingResp := AISubGroupingResponse{
+		subGroupingResp := SubGroupingResponse{
 			SubGroups: []struct {
 				Title    string  `json:"title"`
 				EntryIDs []int64 `json:"entry_ids"`
@@ -290,7 +290,7 @@ func TestBuildDigestDataByAI(t *testing.T) {
 
 	t.Run("happy path with consolidation", func(t *testing.T) {
 		// 1. Initial Grouping Response
-		groupingResp := GroupingResponse{
+		groupingResp := InitialGroupingResponse{
 			Groups: []struct {
 				Title    string  `json:"title"`
 				EntryIDs []int64 `json:"entry_ids"`
@@ -322,9 +322,9 @@ func TestBuildDigestDataByAI(t *testing.T) {
 		consolidationJSON, _ := json.Marshal(consolidationResp)
 
 		// 3. Summary & Sub-grouping Response
-		summaryResp := AIGroupSummaryResponse{Summary: "Tech summary"}
+		summaryResp := SummaryResponse{Summary: "Tech summary"}
 		summaryJSON, _ := json.Marshal(summaryResp)
-		subGroupingResp := AISubGroupingResponse{
+		subGroupingResp := SubGroupingResponse{
 			SubGroups: []struct {
 				Title    string  `json:"title"`
 				EntryIDs []int64 `json:"entry_ids"`
@@ -335,7 +335,7 @@ func TestBuildDigestDataByAI(t *testing.T) {
 		llmService := &mockLLMService{
 			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
 				switch schema {
-				case GroupingResponseSchema:
+				case InitialGroupingResponseSchema:
 					return groupingJSON, nil
 				case ConsolidationResponseSchema:
 					return consolidationJSON, nil

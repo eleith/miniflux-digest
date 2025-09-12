@@ -13,45 +13,13 @@ import (
 	"sync"
 	"text/template"
 
-	"google.golang.org/genai"
+	
 )
 
 const (
 	MaxEntryContentLengthForLLM = 1000
 	MaxEntriesForSummarization  = 200
 )
-
-type GroupingResponse struct {
-	Groups []struct {
-		Title    string  `json:"title"`
-		EntryIDs []int64 `json:"entry_ids"`
-	} `json:"groups"`
-}
-
-var GroupingResponseSchema = &genai.Schema{
-	Type: genai.TypeObject,
-	Properties: map[string]*genai.Schema{
-		"groups": {
-			Type: genai.TypeArray,
-			Items: &genai.Schema{
-				Type: genai.TypeObject,
-				Properties: map[string]*genai.Schema{
-					"title": {
-						Type: genai.TypeString,
-					},
-					"entry_ids": {
-						Type: genai.TypeArray,
-						Items: &genai.Schema{
-							Type: genai.TypeInteger,
-						},
-					},
-				},
-			},
-		},
-	},
-}
-
-
 
 type llmEntry struct {
 	ID        int64  `json:"id"`
@@ -115,13 +83,13 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 			}
 			prompt.Write(entriesJSON)
 
-			llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), GroupingResponseSchema)
+			llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), InitialGroupingResponseSchema)
 			if err != nil {
 				errs <- fmt.Errorf("LLM service failed for chunk %d-%d: %w", i, end, err)
 				return
 			}
 
-			var response GroupingResponse
+			var response InitialGroupingResponse
 			if err := json.Unmarshal(llmResponse, &response); err != nil {
 				errs <- fmt.Errorf("failed to parse LLM response for chunk %d-%d: %w", i, end, err)
 				return
@@ -159,38 +127,6 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 
 	return rawGroups, groupedEntryIDs, nil
 }
-
-type ConsolidationResponse struct {
-	ConsolidatedGroups []struct {
-		NewTitle  string   `json:"new_title"`
-		OldTitles []string `json:"old_titles"`
-	} `json:"consolidated_groups"`
-}
-
-var ConsolidationResponseSchema = &genai.Schema{
-	Type: genai.TypeObject,
-	Properties: map[string]*genai.Schema{
-		"consolidated_groups": {
-			Type: genai.TypeArray,
-			Items: &genai.Schema{
-				Type: genai.TypeObject,
-				Properties: map[string]*genai.Schema{
-					"new_title": {
-						Type: genai.TypeString,
-					},
-					"old_titles": {
-						Type: genai.TypeArray,
-						Items: &genai.Schema{
-							Type: genai.TypeString,
-						},
-					},
-				},
-			},
-		},
-	},
-}
-
-
 
 func consolidatePrimaryGroups(ctx context.Context, rawGroups map[string][]*models.Entry, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, error) {
 	var initialTitles []string
@@ -278,51 +214,6 @@ func convertRawGroupsToDigestData(rawGroups map[string][]*models.Entry) []*model
 	return digestData
 }
 
-type AIGroupSummaryResponse struct {
-	Summary string `json:"summary"`
-}
-
-type AISubGroupingResponse struct {
-	SubGroups []struct {
-		Title    string  `json:"title"`
-		EntryIDs []int64 `json:"entry_ids"`
-	} `json:"sub_groups"`
-}
-
-var SummaryResponseSchema = &genai.Schema{
-	Type: genai.TypeObject,
-	Properties: map[string]*genai.Schema{
-		"summary": {
-			Type: genai.TypeString,
-		},
-	},
-}
-
-var SubGroupingResponseSchema = &genai.Schema{
-	Type: genai.TypeObject,
-	Properties: map[string]*genai.Schema{
-		"sub_groups": {
-			Type: genai.TypeArray,
-			Items: &genai.Schema{
-				Type: genai.TypeObject,
-				Properties: map[string]*genai.Schema{
-					"title": {
-						Type: genai.TypeString,
-					},
-					"entry_ids": {
-						Type: genai.TypeArray,
-						Items: &genai.Schema{
-							Type: genai.TypeInteger,
-						},
-					},
-				},
-			},
-		},
-	},
-}
-
-
-
 func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llmService services.LLMService) (string, []*models.EntryGroup, error) {
 	var llmEntries []llmEntry
 	entriesToProcess := pg.Entries
@@ -360,7 +251,7 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 	if err != nil {
 		log.Printf("LLM service failed during summarization for primary group '%s': %v", pg.Title, err)
 	} else {
-		var summaryResponse AIGroupSummaryResponse
+		var summaryResponse SummaryResponse
 		if err := json.Unmarshal(summaryResponseBytes, &summaryResponse); err != nil {
 			log.Printf("Failed to parse LLM summarization response for primary group '%s': %v", pg.Title, err)
 		} else {
@@ -377,7 +268,7 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 	if err != nil {
 		log.Printf("LLM service failed during sub-grouping for primary group '%s': %v. Creating single 'Uncategorized' group.", pg.Title, err)
 	} else {
-		var subGroupingResponse AISubGroupingResponse
+		var subGroupingResponse SubGroupingResponse
 		if err := json.Unmarshal(subGroupingResponseBytes, &subGroupingResponse); err != nil {
 			log.Printf("Failed to parse LLM sub-grouping response for primary group '%s': %v. Creating single 'Uncategorized' group.", pg.Title, err)
 		} else {

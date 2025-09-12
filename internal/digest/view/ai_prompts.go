@@ -1,5 +1,7 @@
 package view
 
+import "google.golang.org/genai"
+
 const initialGroupingPrompt = `You are creating high-level primary groups for a digest.
 
 **Your Task:**
@@ -67,3 +69,108 @@ Your task is to create smaller, more granular sub-groups to help a user navigate
 - An entry can only belong to one sub-group.
 - If an entry doesn't fit into a specific sub-group, leave it out of your response.
 `
+
+// --- Prompt Response Types ---
+
+type InitialGroupingResponse struct {
+	Groups []struct {
+		Title    string  `json:"title"`
+		EntryIDs []int64 `json:"entry_ids"`
+	} `json:"groups"`
+}
+
+var InitialGroupingResponseSchema = &genai.Schema{
+	Type: genai.TypeObject,
+	Properties: map[string]*genai.Schema{
+		"groups": {
+			Type: genai.TypeArray,
+			Items: &genai.Schema{
+				Type: genai.TypeObject,
+				Properties: map[string]*genai.Schema{
+					"title": {
+						Type: genai.TypeString,
+					},
+					"entry_ids": {
+						Type: genai.TypeArray,
+						Items: &genai.Schema{
+							Type: genai.TypeInteger,
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+type ConsolidationResponse struct {
+	ConsolidatedGroups []struct {
+		NewTitle  string   `json:"new_title"`
+		OldTitles []string `json:"old_titles"`
+	} `json:"consolidated_groups"`
+}
+
+var ConsolidationResponseSchema = &genai.Schema{
+	Type: genai.TypeObject,
+	Properties: map[string]*genai.Schema{
+		"consolidated_groups": {
+			Type: genai.TypeArray,
+			Items: &genai.Schema{
+				Type: genai.TypeObject,
+				Properties: map[string]*genai.Schema{
+					"new_title": {
+						Type: genai.TypeString,
+					},
+					"old_titles": {
+						Type: genai.TypeArray,
+						Items: &genai.Schema{
+							Type: genai.TypeString,
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+type SummaryResponse struct {
+	Summary string `json:"summary"`
+}
+
+var SummaryResponseSchema = &genai.Schema{
+	Type: genai.TypeObject,
+	Properties: map[string]*genai.Schema{
+		"summary": {
+			Type: genai.TypeString,
+		},
+	},
+}
+
+type SubGroupingResponse struct {
+	SubGroups []struct {
+		Title    string  `json:"title"`
+		EntryIDs []int64 `json:"entry_ids"`
+	} `json:"sub_groups"`
+}
+
+var SubGroupingResponseSchema = &genai.Schema{
+	Type: genai.TypeObject,
+	Properties: map[string]*genai.Schema{
+		"sub_groups": {
+			Type: genai.TypeArray,
+			Items: &genai.Schema{
+				Type: genai.TypeObject,
+				Properties: map[string]*genai.Schema{
+					"title": {
+						Type: genai.TypeString,
+					},
+					"entry_ids": {
+						Type: genai.TypeArray,
+						Items: &genai.Schema{
+							Type: genai.TypeInteger,
+						},
+					},
+				},
+			},
+		},
+	},
+}
