@@ -118,6 +118,7 @@ func setDefaultValues(k *koanf.Koanf) error {
 	return k.Load(confmap.Provider(map[string]any{
 		"digest.compress":       true,
 		"digest.view":           "date",
+		"digest.host":					 "http://localhost:8080",
 		"digest.schedule":       "@weekly",
 		"digest.mark_as_read":   true,
 		"digest.run_on_startup": false,
