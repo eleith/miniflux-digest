@@ -10,8 +10,7 @@
 /vendor
 
 # Web archive
-/web/miniflux-archive
-/web/preview.html
+/web/archive
 
 # Gemini CLI state
 /.gemini/

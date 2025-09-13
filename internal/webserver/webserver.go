@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	ArchiveBasePath = "web/miniflux-archive"
+	ArchiveBasePath = "web/archive"
+	StaticBasePath  = "web/static"
 	Port            = ":8080"
 )
 
@@ -44,6 +45,9 @@ func SetupServer(archiveBasePath string) *http.ServeMux {
 			log.Printf("Error writing healthcheck response: %v", err)
 		}
 	})
+
+	staticFs := http.FileServer(http.Dir(StaticBasePath))
+	mux.Handle("/static/", http.StripPrefix("/static/", staticFs))
 
 	fs := http.FileServer(noDirListingFileSystem{http.Dir(archiveBasePath)})
 

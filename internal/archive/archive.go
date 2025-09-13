@@ -46,7 +46,10 @@ func (s *ArchiveServiceImpl) minifyHTML(data []byte, compress bool) ([]byte, err
 	}
 
 	m := minify.New()
-	m.AddFunc("text/html", html.Minify)
+	m.Add("text/html", &html.Minifier{
+		KeepDocumentTags: true,
+		KeepEndTags: true,
+	})
 	return m.Bytes("text/html", data)
 }
 
@@ -129,6 +132,7 @@ func (s *ArchiveServiceImpl) MakeArchiveHTML(data *models.OverviewTemplateData, 
 			MinifluxHost:  data.MinifluxHost,
 			GeneratedDate: data.GeneratedDate,
 			TotalEntries:  totalEntriesInPrimaryGroup,
+			DigestHost:    data.DigestHost,
 		}
 		groupedEntriesFile, err := s.makeGroupedEntriesArchiveFile(primaryGroup, dateFolderPath)
 		if err != nil {

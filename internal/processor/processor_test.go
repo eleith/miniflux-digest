@@ -30,11 +30,11 @@ func (m *mockMinifluxClientService) UpdateEntries(entryIDs []int64, status strin
 }
 
 type mockDigestService struct {
-	buildDigestDataFunc func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData
+	buildDigestDataFunc func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string) *models.OverviewTemplateData
 }
 
-func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData {
-	return m.buildDigestDataFunc(entries, icons, view, minifluxHost)
+func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string) *models.OverviewTemplateData {
+	return m.buildDigestDataFunc(entries, icons, view, minifluxHost, digestHost)
 }
 
 type mockArchiveService struct {
@@ -78,7 +78,7 @@ func TestProcessDigest_Success(t *testing.T) {
 		},
 	}
 	mockDigestService := &mockDigestService{
-		buildDigestDataFunc: func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string) *models.OverviewTemplateData {
+		buildDigestDataFunc: func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string) *models.OverviewTemplateData {
 			return expectedOverviewData
 		},
 	}

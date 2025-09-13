@@ -84,6 +84,7 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 		icons,
 		cfg.Digest.View,
 		cfg.Miniflux.Host,
+		cfg.Digest.Host,
 	)
 
 	if len(data.PrimaryGroups) > 0 {
@@ -135,6 +136,7 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 		icons,
 		cfg.Digest.View,
 		cfg.Miniflux.Host,
+		cfg.Digest.Host,
 	)
 }
 

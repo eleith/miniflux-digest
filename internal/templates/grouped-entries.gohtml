@@ -5,6 +5,11 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>{{.PrimaryGroup.Title}}</title>
+	<meta property="og:title" content="{{.PrimaryGroup.Title}}">
+    <meta property="og:description" content="{{.PrimaryGroup.Summary}}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{.DigestHost}}/digests/{{.PrimaryGroup.Slug}}.html">
+    <meta property="og:image" content="{{.DigestHost}}/static/images/opengraph.png">
 	<style>
 		{{include "static/style.css"}}
 

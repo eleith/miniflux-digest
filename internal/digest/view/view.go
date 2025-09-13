@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, llmService services.LLMService) *models.OverviewTemplateData {
+func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, digestHost string, llmService services.LLMService) *models.OverviewTemplateData {
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
 		iconsSlice = append(iconsSlice, icon)
@@ -69,6 +69,7 @@ func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.Fee
 		TotalEntries:    len(entries),
 		TotalFeeds:      len(uniqueFeedIDs),
 		MinifluxHost:    minifluxHost,
+		DigestHost:      digestHost,
 	}
 }
 

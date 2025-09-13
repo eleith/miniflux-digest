@@ -49,6 +49,7 @@ type OverviewTemplateData struct {
 	TotalEntries          int
 	TotalFeeds            int
 	MinifluxHost  string
+	DigestHost    string
 }
 
 type EntryGroup struct {
@@ -93,4 +94,5 @@ type GroupedDigestPageData struct {
 	GeneratedDate time.Time
 	TotalEntries  int
 	TotalFeeds    int
+	DigestHost    string
 }
