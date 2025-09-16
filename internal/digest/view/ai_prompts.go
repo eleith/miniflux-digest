@@ -70,6 +70,17 @@ Your task is to create smaller, more granular sub-groups to help a user navigate
 - If an entry doesn't fit into a specific sub-group, leave it out of your response.
 `
 
+const summaryOfSummariesPrompt = `You are an expert at summarizing content. You will be given a collection of summaries from different chunks of a larger document.
+
+Your task is to synthesize these individual summaries into a single, coherent, and concise summary (2-3 sentences, under 150 words) that represents the entire collection of content.
+
+Do not just list the topics from each summary. Find the overarching themes and most important points from across all the provided summaries and weave them into a single narrative.
+
+Here are the summaries to synthesize:
+----------------------------
+%s
+`
+
 // --- Prompt Response Types ---
 
 type InitialGroupingResponse struct {

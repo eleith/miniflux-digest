@@ -41,7 +41,7 @@ func TestDayGrouper_GroupEntries(t *testing.T) {
 		t.Fatalf("Incorrect sub-groups for Category A: %+v", catAGroup)
 	}
 
-	subGroup := testutil.FindSubGroup(catAGroup, "Jan 2, 2024")
+	subGroup := testutil.FindSubGroup(catAGroup.SubGroups, "Jan 2, 2024")
 	if subGroup == nil || len(subGroup.Entries) != 4 {
 		t.Fatalf("Incorrect entries for sub-group: %+v", subGroup)
 	}

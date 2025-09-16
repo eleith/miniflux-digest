@@ -79,18 +79,18 @@ func (m *MockDigestService) BuildDigestData(category *miniflux.Category, entries
 
 // Helper functions for tests
 func FindPrimaryGroup(groups []*models.PrimaryGroupDigestData, title string) *models.PrimaryGroupDigestData {
-	for _, group := range groups {
-		if group.Title == title {
-			return group
+	for _, g := range groups {
+		if g.Title == title {
+			return g
 		}
 	}
 	return nil
 }
 
-func FindSubGroup(primaryGroup *models.PrimaryGroupDigestData, title string) *models.EntryGroup {
-	for _, group := range primaryGroup.SubGroups {
-		if group.Title == title {
-			return group
+func FindSubGroup(groups []*models.EntryGroup, title string) *models.EntryGroup {
+	for _, g := range groups {
+		if g.Title == title {
+			return g
 		}
 	}
 	return nil

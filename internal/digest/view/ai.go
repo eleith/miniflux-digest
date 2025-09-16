@@ -11,7 +11,7 @@ import (
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
 	"sort"
-	
+	"strings"
 	"sync"
 	"text/template"
 )
@@ -28,6 +28,8 @@ type llmEntry struct {
 	Content   string `json:"content"`
 	FeedTitle string `json:"feed_title"`
 }
+
+
 
 func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService) (map[string][]*models.Entry, map[int64]bool, map[string][]*models.Entry) {
 	const chunkSize = 200
@@ -75,7 +77,7 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 
 		llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), InitialGroupingResponseSchema)
 		if err != nil {
-			return nil, err // The error will be caught by processInChunks
+			return nil, err // The error will be caught by ProcessInChunks
 		}
 
 		var response InitialGroupingResponse
@@ -198,14 +200,10 @@ func convertRawGroupsToDigestData(rawGroups map[string][]*models.Entry) []*model
 	return digestData
 }
 
-func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llmService services.LLMService) (string, []*models.EntryGroup, error) {
-	var llmEntries []llmEntry
-	entriesToProcess := pg.Entries
-	if len(entriesToProcess) > MaxEntriesForSummarization {
-		entriesToProcess = entriesToProcess[:MaxEntriesForSummarization]
-	}
-
+// processSingleChunk is a helper to process a single group of entries without chunking.
+func processSingleChunk(ctx context.Context, groupTitle string, entriesToProcess []*models.Entry, llmService services.LLMService) (string, []*models.EntryGroup, error) {
 	entryMap := make(map[int64]*models.Entry)
+	var llmEntries []llmEntry
 	for _, entry := range entriesToProcess {
 		entryMap[entry.ID] = entry
 		content := entry.Content
@@ -228,16 +226,16 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 
 	// 1. Get Summary
 	var summary string
-	summaryPromptFmt := fmt.Sprintf(summaryPrompt, pg.Title)
+	summaryPromptFmt := fmt.Sprintf(summaryPrompt, groupTitle)
 	summaryFullPrompt := summaryPromptFmt + string(entriesJSON)
 
 	summaryResponseBytes, err := llmService.GenerateContent(ctx, summaryFullPrompt, SummaryResponseSchema)
 	if err != nil {
-		log.Printf("LLM service failed during summarization for primary group '%s': %v", pg.Title, err)
+		log.Printf("LLM service failed during summarization for primary group '%s': %v", groupTitle, err)
 	} else {
 		var summaryResponse SummaryResponse
 		if err := json.Unmarshal(summaryResponseBytes, &summaryResponse); err != nil {
-			log.Printf("Failed to parse LLM summarization response for primary group '%s': %v", pg.Title, err)
+			log.Printf("Failed to parse LLM summarization response for primary group '%s': %v", groupTitle, err)
 		} else {
 			summary = summaryResponse.Summary
 		}
@@ -245,16 +243,16 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 
 	// 2. Get Sub-groups
 	var subGroups []*models.EntryGroup
-	subGroupingPromptFmt := fmt.Sprintf(subGroupingPrompt, pg.Title)
+	subGroupingPromptFmt := fmt.Sprintf(subGroupingPrompt, groupTitle)
 	subGroupingFullPrompt := subGroupingPromptFmt + string(entriesJSON)
 
 	subGroupingResponseBytes, err := llmService.GenerateContent(ctx, subGroupingFullPrompt, SubGroupingResponseSchema)
 	if err != nil {
-		log.Printf("LLM service failed during sub-grouping for primary group '%s': %v. Creating single 'Uncategorized' group.", pg.Title, err)
+		log.Printf("LLM service failed during sub-grouping for primary group '%s': %v. Creating single 'Uncategorized' group.", groupTitle, err)
 	} else {
 		var subGroupingResponse SubGroupingResponse
 		if err := json.Unmarshal(subGroupingResponseBytes, &subGroupingResponse); err != nil {
-			log.Printf("Failed to parse LLM sub-grouping response for primary group '%s': %v. Creating single 'Uncategorized' group.", pg.Title, err)
+			log.Printf("Failed to parse LLM sub-grouping response for primary group '%s': %v. Creating single 'Uncategorized' group.", groupTitle, err)
 		} else {
 			groupedEntryIDs := make(map[int64]bool)
 			for _, llmSubGroup := range subGroupingResponse.SubGroups {
@@ -306,6 +304,258 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 	}
 
 	return summary, subGroups, nil
+}
+
+func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*models.Entry, llmService services.LLMService) (string, error) {
+	summaryWorker := func(chunk []*models.Entry) (string, error) {
+		var llmEntries []llmEntry
+		for _, entry := range chunk {
+			content := entry.Content
+			if len(content) > MaxEntryContentLengthForLLM {
+				content = content[:MaxEntryContentLengthForLLM]
+			}
+			llmEntries = append(llmEntries, llmEntry{
+				ID:        entry.ID,
+				Title:     entry.Title,
+				URL:       entry.URL,
+				Content:   content,
+				FeedTitle: entry.FeedTitle,
+			})
+		}
+
+		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal entries to JSON for summary: %w", err)
+		}
+
+		summaryPromptFmt := fmt.Sprintf(summaryPrompt, groupTitle)
+		summaryFullPrompt := summaryPromptFmt + string(entriesJSON)
+
+		summaryResponseBytes, err := llmService.GenerateContent(ctx, summaryFullPrompt, SummaryResponseSchema)
+		if err != nil {
+			return "", err
+		}
+
+		var summaryResponse SummaryResponse
+		if err := json.Unmarshal(summaryResponseBytes, &summaryResponse); err != nil {
+			return "", fmt.Errorf("failed to parse summary response: %w", err)
+		}
+		return summaryResponse.Summary, nil
+	}
+
+	partialSummaries, failedChunks := llm.ProcessInChunks(entries, MaxEntriesForSummarization, summaryWorker)
+
+	if len(partialSummaries) == 0 {
+		return "", fmt.Errorf("all summary chunks failed for group '%s'", groupTitle)
+	}
+
+	// Reduce step: summarize the summaries
+	summariesString := strings.Join(partialSummaries, "\n\n---\n\n")
+	finalSummaryPromptStr := fmt.Sprintf(summaryOfSummariesPrompt, summariesString)
+
+	finalSummaryBytes, err := llmService.GenerateContent(ctx, finalSummaryPromptStr, SummaryResponseSchema)
+	if err != nil {
+		return "", fmt.Errorf("summary of summaries failed: %w", err)
+	}
+
+	var finalSummaryResponse SummaryResponse
+	if err := json.Unmarshal(finalSummaryBytes, &finalSummaryResponse); err != nil {
+		return "", fmt.Errorf("failed to parse final summary response: %w", err)
+	}
+
+	finalSummary := finalSummaryResponse.Summary
+	var failedItems []*models.Entry
+	for _, items := range failedChunks {
+		failedItems = append(failedItems, items...)
+	}
+	if len(failedItems) > 0 {
+		finalSummary += fmt.Sprintf("\n\n(Note: %d entries could not be included in the summary due to processing errors.)", len(failedItems))
+	}
+
+	return finalSummary, nil
+}
+
+func getSubGroupsForGroup(ctx context.Context, groupTitle string, entries []*models.Entry, llmService services.LLMService) ([]*models.EntryGroup, error) {
+	entryMap := make(map[int64]*models.Entry)
+	for _, entry := range entries {
+		entryMap[entry.ID] = entry
+	}
+
+	subGroupWorker := func(chunk []*models.Entry) (*SubGroupingResponse, error) {
+		var llmEntries []llmEntry
+		for _, entry := range chunk {
+			content := entry.Content
+			if len(content) > MaxEntryContentLengthForLLM {
+				content = content[:MaxEntryContentLengthForLLM]
+			}
+			llmEntries = append(llmEntries, llmEntry{
+				ID:        entry.ID,
+				Title:     entry.Title,
+				URL:       entry.URL,
+				Content:   content,
+				FeedTitle: entry.FeedTitle,
+			})
+		}
+
+		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal entries to JSON for sub-grouping: %w", err)
+		}
+
+		subGroupingPromptFmt := fmt.Sprintf(subGroupingPrompt, groupTitle)
+		subGroupingFullPrompt := subGroupingPromptFmt + string(entriesJSON)
+
+		subGroupingResponseBytes, err := llmService.GenerateContent(ctx, subGroupingFullPrompt, SubGroupingResponseSchema)
+		if err != nil {
+			return nil, err
+		}
+
+		var subGroupingResponse SubGroupingResponse
+		if err := json.Unmarshal(subGroupingResponseBytes, &subGroupingResponse); err != nil {
+			return nil, fmt.Errorf("failed to parse sub-grouping response: %w", err)
+		}
+		return &subGroupingResponse, nil
+	}
+
+	partialSubGroupResponses, failedChunks := llm.ProcessInChunks(entries, MaxEntriesForSummarization, subGroupWorker)
+
+	if len(partialSubGroupResponses) == 0 {
+		return nil, fmt.Errorf("all sub-grouping chunks failed for group '%s'", groupTitle)
+	}
+
+	// Reduce step: merge sub-groups
+	mergedSubGroups := make(map[string][]*models.Entry)
+	allGroupedEntryIDs := make(map[int64]bool)
+
+	for _, response := range partialSubGroupResponses {
+		for _, llmSubGroup := range response.SubGroups {
+			if _, ok := mergedSubGroups[llmSubGroup.Title]; !ok {
+				mergedSubGroups[llmSubGroup.Title] = []*models.Entry{}
+			}
+			for _, entryID := range llmSubGroup.EntryIDs {
+				if _, exists := allGroupedEntryIDs[entryID]; exists {
+					continue // Avoid duplicating entries if they appear in multiple chunk responses
+				}
+				if entry, ok := entryMap[entryID]; ok {
+					mergedSubGroups[llmSubGroup.Title] = append(mergedSubGroups[llmSubGroup.Title], entry)
+					allGroupedEntryIDs[entryID] = true
+				}
+			}
+		}
+	}
+
+	var finalSubGroups []*models.EntryGroup
+	for title, groupEntries := range mergedSubGroups {
+		if len(groupEntries) > 0 {
+			finalSubGroups = append(finalSubGroups, &models.EntryGroup{
+				Title:        title,
+				Entries:      groupEntries,
+				Slug:         utils.Slugify(title),
+				TotalEntries: len(groupEntries),
+				TotalFeeds:   getUniqueFeedIDs(groupEntries),
+			})
+		}
+	}
+
+	// Handle all ungrouped entries from all chunks
+	var allUngroupedEntries []*models.Entry
+	for _, entry := range entries {
+		if !allGroupedEntryIDs[entry.ID] {
+			allUngroupedEntries = append(allUngroupedEntries, entry)
+		}
+	}
+
+	// Collect all failed items from the map into a single slice
+	var allFailedItems []*models.Entry
+	for _, items := range failedChunks {
+		allFailedItems = append(allFailedItems, items...)
+	}
+
+	// Add items from failed chunks to a separate group
+	if len(allFailedItems) > 0 {
+		finalSubGroups = append(finalSubGroups, &models.EntryGroup{
+			Title:        "Uncategorized - Processing Failed",
+			Entries:      allFailedItems,
+			Slug:         "uncategorized-processing-failed",
+			TotalEntries: len(allFailedItems),
+			TotalFeeds:   getUniqueFeedIDs(allFailedItems),
+		})
+	}
+
+	if len(allUngroupedEntries) > 0 {
+		// Find existing "Uncategorized" group to append to, if it exists
+		var uncategorizedGroup *models.EntryGroup
+		for _, sg := range finalSubGroups {
+			if sg.Title == "Uncategorized" {
+				uncategorizedGroup = sg
+				break
+			}
+		}
+		if uncategorizedGroup != nil {
+			uncategorizedGroup.Entries = append(uncategorizedGroup.Entries, allUngroupedEntries...)
+		} else {
+			finalSubGroups = append(finalSubGroups, &models.EntryGroup{
+				Title:        "Uncategorized",
+				Entries:      allUngroupedEntries,
+				Slug:         "uncategorized",
+				TotalEntries: len(allUngroupedEntries),
+				TotalFeeds:   getUniqueFeedIDs(allUngroupedEntries),
+			})
+		}
+	}
+
+	return finalSubGroups, nil
+}
+
+func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llmService services.LLMService) (string, []*models.EntryGroup, error) {
+	entriesToProcess := pg.Entries
+
+	// If the group is small, process it directly without chunking.
+	if len(entriesToProcess) <= MaxEntriesForSummarization {
+		return processSingleChunk(ctx, pg.Title, entriesToProcess, llmService)
+	}
+
+	// If the group is large, process in chunks concurrently.
+	var finalSummary string
+	var finalSubGroups []*models.EntryGroup
+	var errSummary, errSubgroup error
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	// Goroutine for Summarization
+	go func() {
+		defer wg.Done()
+		finalSummary, errSummary = getSummaryForGroup(ctx, pg.Title, entriesToProcess, llmService)
+	}()
+
+	// Goroutine for Sub-grouping
+	go func() {
+		defer wg.Done()
+		finalSubGroups, errSubgroup = getSubGroupsForGroup(ctx, pg.Title, entriesToProcess, llmService)
+	}()
+
+	wg.Wait()
+
+	// Combine errors if any. For now, we just log them but don't halt everything.
+	if errSummary != nil {
+		log.Printf("Error generating summary for group '%s': %v", pg.Title, errSummary)
+	}
+	if errSubgroup != nil {
+		log.Printf("Error generating sub-groups for group '%s': %v", pg.Title, errSubgroup)
+		// If sub-grouping completely failed, create a single group as a fallback.
+		if finalSubGroups == nil {
+			finalSubGroups = []*models.EntryGroup{{
+				Title:        pg.Title,
+				Entries:      entriesToProcess,
+				Slug:         utils.Slugify(pg.Title),
+				TotalEntries: len(entriesToProcess),
+				TotalFeeds:   getUniqueFeedIDs(entriesToProcess),
+			}}
+		}
+	}
+
+	return finalSummary, finalSubGroups, nil
 }
 
 func getUniqueFeedIDs(entries []*models.Entry) int {
