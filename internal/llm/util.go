@@ -6,6 +6,9 @@ import (
 	"sync"
 )
 
+// WorkerFunc is a generic function type for processing a chunk of items.
+type WorkerFunc[T any, R any] func(chunk []T) (R, error)
+
 // ProcessInChunks is a generic function that processes a slice of items in parallel chunks.
 // It takes a slice of items, a chunk size, and a worker function to process each chunk.
 // It returns a slice of results from the successful chunks and a map of failed items, keyed by the error reason.

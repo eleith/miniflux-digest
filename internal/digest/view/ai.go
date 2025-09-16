@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+
+	"google.golang.org/genai"
 )
 
 const (
@@ -47,27 +49,14 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 		return nil, nil, failedChunks
 	}
 
-	// Define the worker function for processing a single chunk
-	worker := func(chunk []*models.Entry) (*InitialGroupingResponse, error) {
-		llmEntries := prepareLLMEntries(chunk)
-
-		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal entries to JSON: %w", err)
-		}
-
-		var prompt bytes.Buffer
-		if err := promptTemplate.Execute(&prompt, nil); err != nil {
-			return nil, fmt.Errorf("failed to execute prompt template: %w", err)
-		}
-		prompt.Write(entriesJSON)
-
-		var response InitialGroupingResponse
-		if err := llmService.GenerateContentWithResponse(ctx, prompt.String(), InitialGroupingResponseSchema, &response); err != nil {
-			return nil, err
-		}
-		return &response, nil
+	workerConfig := llmWorkerConfig{
+		promptTemplate: promptTemplate,
+		responseSchema: InitialGroupingResponseSchema,
+		prepareEntries: func(entries []*models.Entry) interface{} {
+			return prepareLLMEntries(entries)
+		},
 	}
+	worker := createLLMWorker[*InitialGroupingResponse](ctx, llmService, workerConfig, "")
 
 	// Run the parallel processing
 	chunkResponses, failedChunks := llm.ProcessInChunks(entries, chunkSize, worker)
@@ -179,22 +168,20 @@ func convertRawGroupsToDigestData(rawGroups map[string][]*models.Entry) []*model
 
 
 func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*models.Entry, llmService services.LLMService) (string, error) {
+	llmResponseWorker := createLLMWorker[SummaryResponse](ctx, llmService, llmWorkerConfig{
+		promptFormat:   summaryPrompt,
+		responseSchema: SummaryResponseSchema,
+		prepareEntries: func(entries []*models.Entry) interface{} {
+			return prepareLLMEntries(entries)
+		},
+	}, groupTitle)
+
 	summaryWorker := func(chunk []*models.Entry) (string, error) {
-		llmEntries := prepareLLMEntries(chunk)
-
-		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
+		resp, err := llmResponseWorker(chunk)
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal entries to JSON for summary: %w", err)
-		}
-
-		summaryPromptFmt := fmt.Sprintf(summaryPrompt, groupTitle)
-		summaryFullPrompt := summaryPromptFmt + string(entriesJSON)
-
-		var summaryResponse SummaryResponse
-		if err := llmService.GenerateContentWithResponse(ctx, summaryFullPrompt, SummaryResponseSchema, &summaryResponse); err != nil {
 			return "", err
 		}
-		return summaryResponse.Summary, nil
+		return resp.Summary, nil
 	}
 
 	partialSummaries, failedChunks := llm.ProcessInChunks(entries, MaxEntriesPerJob, summaryWorker)
@@ -230,23 +217,13 @@ func getSubGroupsForGroup(ctx context.Context, groupTitle string, entries []*mod
 		entryMap[entry.ID] = entry
 	}
 
-	subGroupWorker := func(chunk []*models.Entry) (*SubGroupingResponse, error) {
-		llmEntries := prepareLLMEntries(chunk)
-
-		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal entries to JSON for sub-grouping: %w", err)
-		}
-
-		subGroupingPromptFmt := fmt.Sprintf(subGroupingPrompt, groupTitle)
-		subGroupingFullPrompt := subGroupingPromptFmt + string(entriesJSON)
-
-		var subGroupingResponse SubGroupingResponse
-		if err := llmService.GenerateContentWithResponse(ctx, subGroupingFullPrompt, SubGroupingResponseSchema, &subGroupingResponse); err != nil {
-			return nil, err
-		}
-		return &subGroupingResponse, nil
-	}
+	subGroupWorker := createLLMWorker[*SubGroupingResponse](ctx, llmService, llmWorkerConfig{
+		promptFormat:   subGroupingPrompt,
+		responseSchema: SubGroupingResponseSchema,
+		prepareEntries: func(entries []*models.Entry) interface{} {
+			return prepareLLMEntries(entries)
+		},
+	}, groupTitle)
 
 	partialSubGroupResponses, failedChunks := llm.ProcessInChunks(entries, MaxEntriesPerJob, subGroupWorker)
 
@@ -371,7 +348,7 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 		log.Printf("Error generating sub-groups for group '%s': %v", pg.Title, errSubgroup)
 		// If sub-grouping completely failed, create a single group as a fallback.
 		if finalSubGroups == nil {
-			finalSubGroups = []*models.EntryGroup{{
+			finalSubGroups = []*models.EntryGroup{{ 
 				Title:        "Uncategorized",
 				Entries:      entriesToProcess,
 				Slug:         "uncategorized",
@@ -413,6 +390,23 @@ func prepareLLMEntries(entries []*models.Entry) []llmEntry {
 }
 
 func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmService services.LLMService) []*models.PrimaryGroupDigestData {
+	rawGroups, groupedEntryIDs, failedChunks, fallbackGroups := initialAIGGrouping(ctx, entries, llmService)
+	if fallbackGroups != nil {
+		return fallbackGroups
+	}
+
+	highLevelGroups := consolidateGroups(ctx, rawGroups, llmService)
+
+	highLevelGroups = handleFailedAndUngroupedEntries(highLevelGroups, entries, groupedEntryIDs, failedChunks)
+
+	allPrimaryGroups := processHighLevelGroupsConcurrently(ctx, highLevelGroups, llmService)
+
+	sortPrimaryGroups(allPrimaryGroups)
+
+	return allPrimaryGroups
+}
+
+func initialAIGGrouping(ctx context.Context, entries []*models.Entry, llmService services.LLMService) (map[string][]*models.Entry, map[int64]bool, map[string][]*models.Entry, []*models.PrimaryGroupDigestData) {
 	rawGroups, groupedEntryIDs, failedChunks := GroupAIEntries(ctx, entries, llmService)
 
 	// If all chunks failed and we have no raw groups, fall back to category grouping.
@@ -420,18 +414,24 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 		log.Printf("All AI grouping chunks failed, falling back to category grouping.")
 		categoryGroups := BuildDigestDataByCategory(entries)
 		if len(categoryGroups) == 1 && len(entries) > 1 {
-			return BuildDigestDataByDate(entries)
+			return nil, nil, nil, BuildDigestDataByDate(entries)
 		}
-		return categoryGroups
+		return nil, nil, nil, categoryGroups
 	}
+	return rawGroups, groupedEntryIDs, failedChunks, nil
+}
 
+func consolidateGroups(ctx context.Context, rawGroups map[string][]*models.Entry, llmService services.LLMService) []*models.PrimaryGroupDigestData {
 	highLevelGroups, err := consolidatePrimaryGroups(ctx, rawGroups, llmService)
 	if err != nil {
 		// This case should ideally not be hit if consolidatePrimaryGroups has a fallback
 		log.Printf("AI group consolidation failed unexpectedly: %v", err)
 		highLevelGroups = convertRawGroupsToDigestData(rawGroups)
 	}
+	return highLevelGroups
+}
 
+func handleFailedAndUngroupedEntries(highLevelGroups []*models.PrimaryGroupDigestData, allEntries []*models.Entry, groupedEntryIDs map[int64]bool, failedChunks map[string][]*models.Entry) []*models.PrimaryGroupDigestData {
 	failedEntryIDs := make(map[int64]bool)
 	for reason, chunkEntries := range failedChunks {
 		title := fmt.Sprintf("Uncategorized - %s", reason)
@@ -459,7 +459,7 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 
 	// Handle entries that were not grouped by the initial LLM call
 	var otherUngroupedEntries []*models.Entry
-	for _, entry := range entries {
+	for _, entry := range allEntries {
 		if !groupedEntryIDs[entry.ID] && !failedEntryIDs[entry.ID] {
 			otherUngroupedEntries = append(otherUngroupedEntries, entry)
 		}
@@ -484,7 +484,10 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 			TotalFeeds:   getUniqueFeedIDs(otherUngroupedEntries),
 		})
 	}
+	return highLevelGroups
+}
 
+func processHighLevelGroupsConcurrently(ctx context.Context, highLevelGroups []*models.PrimaryGroupDigestData, llmService services.LLMService) []*models.PrimaryGroupDigestData {
 	var allPrimaryGroups []*models.PrimaryGroupDigestData
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -529,10 +532,63 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 	}
 
 	wg.Wait()
+	return allPrimaryGroups
+}
 
+func sortPrimaryGroups(allPrimaryGroups []*models.PrimaryGroupDigestData) {
 	sort.Slice(allPrimaryGroups, func(i, j int) bool {
 		return allPrimaryGroups[i].Title < allPrimaryGroups[j].Title
 	})
+}
 
-	return allPrimaryGroups
+// llmWorkerConfig holds configuration for creating an LLM worker function.
+type llmWorkerConfig struct {
+	promptTemplate *template.Template
+	promptFormat   string // For prompts that use Sprintf
+	responseSchema *genai.Schema
+	prepareEntries func([]*models.Entry) interface{} // Function to prepare entries for LLM
+}
+
+// createLLMWorker creates a worker function for llm.ProcessInChunks.
+func createLLMWorker[R any](
+	ctx context.Context,
+	llmService services.LLMService,
+	config llmWorkerConfig,
+	groupTitle string, // Optional, for prompts that need it
+) llm.WorkerFunc[*models.Entry, R] {
+	return func(chunk []*models.Entry) (R, error) {
+		var zero R // Initialize a zero value of type R
+
+		// 1. Prepare LLM entries
+		var llmEntriesJSON []byte
+		if config.prepareEntries != nil {
+			prepared := config.prepareEntries(chunk)
+			var err error
+			llmEntriesJSON, err = json.MarshalIndent(prepared, "", "  ")
+			if err != nil {
+				return zero, fmt.Errorf("failed to marshal entries to JSON: %w", err)
+			}
+		}
+
+		// 2. Construct the prompt
+		var prompt bytes.Buffer
+		if config.promptTemplate != nil {
+			if err := config.promptTemplate.Execute(&prompt, nil); err != nil {
+				return zero, fmt.Errorf("failed to execute prompt template: %w", err)
+			}
+		} else if config.promptFormat != "" {
+			prompt.WriteString(fmt.Sprintf(config.promptFormat, groupTitle))
+		}
+
+		if len(llmEntriesJSON) > 0 {
+			prompt.Write(llmEntriesJSON)
+		}
+
+		// 3. Call LLM service
+		var response R
+		if err := llmService.GenerateContentWithResponse(ctx, prompt.String(), config.responseSchema, &response); err != nil {
+			return zero, err
+		}
+		return response, nil
+	}
 }
