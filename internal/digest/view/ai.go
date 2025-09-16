@@ -209,14 +209,9 @@ func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*model
 	summariesString := strings.Join(partialSummaries, "\n\n---\n\n")
 	finalSummaryPromptStr := fmt.Sprintf(summaryOfSummariesPrompt, summariesString)
 
-	finalSummaryBytes, err := llmService.GenerateContent(ctx, finalSummaryPromptStr, SummaryResponseSchema)
-	if err != nil {
-		return "", fmt.Errorf("summary of summaries failed: %w", err)
-	}
-
 	var finalSummaryResponse SummaryResponse
-	if err := json.Unmarshal(finalSummaryBytes, &finalSummaryResponse); err != nil {
-		return "", fmt.Errorf("failed to parse final summary response: %w", err)
+	if err := executeLLMRequestAndParse(ctx, llmService, finalSummaryPromptStr, SummaryResponseSchema, &finalSummaryResponse); err != nil {
+		return "", fmt.Errorf("summary of summaries failed: %w", err)
 	}
 
 	finalSummary := finalSummaryResponse.Summary
