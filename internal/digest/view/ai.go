@@ -14,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"text/template"
-
-	"google.golang.org/genai"
 )
 
 const (
@@ -65,7 +63,7 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 		prompt.Write(entriesJSON)
 
 		var response InitialGroupingResponse
-		if err := executeLLMRequestAndParse(ctx, llmService, prompt.String(), InitialGroupingResponseSchema, &response); err != nil {
+		if err := llm.ExecuteLLMRequestAndParse(ctx, llmService, prompt.String(), InitialGroupingResponseSchema, &response); err != nil {
 			return nil, err
 		}
 		return &response, nil
@@ -119,7 +117,7 @@ func consolidatePrimaryGroups(ctx context.Context, rawGroups map[string][]*model
 	}
 
 	var response ConsolidationResponse
-	if err := executeLLMRequestAndParse(ctx, llmService, prompt.String(), ConsolidationResponseSchema, &response); err != nil {
+	if err := llm.ExecuteLLMRequestAndParse(ctx, llmService, prompt.String(), ConsolidationResponseSchema, &response); err != nil {
 		// Fallback: If LLM fails, use the original, unconsolidated groups
 		log.Printf("LLM consolidation failed, falling back to original groups: %v", err)
 		return convertRawGroupsToDigestData(rawGroups), nil
@@ -193,7 +191,7 @@ func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*model
 		summaryFullPrompt := summaryPromptFmt + string(entriesJSON)
 
 		var summaryResponse SummaryResponse
-		if err := executeLLMRequestAndParse(ctx, llmService, summaryFullPrompt, SummaryResponseSchema, &summaryResponse); err != nil {
+		if err := llm.ExecuteLLMRequestAndParse(ctx, llmService, summaryFullPrompt, SummaryResponseSchema, &summaryResponse); err != nil {
 			return "", err
 		}
 		return summaryResponse.Summary, nil
@@ -210,7 +208,7 @@ func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*model
 	finalSummaryPromptStr := fmt.Sprintf(summaryOfSummariesPrompt, summariesString)
 
 	var finalSummaryResponse SummaryResponse
-	if err := executeLLMRequestAndParse(ctx, llmService, finalSummaryPromptStr, SummaryResponseSchema, &finalSummaryResponse); err != nil {
+	if err := llm.ExecuteLLMRequestAndParse(ctx, llmService, finalSummaryPromptStr, SummaryResponseSchema, &finalSummaryResponse); err != nil {
 		return "", fmt.Errorf("summary of summaries failed: %w", err)
 	}
 
@@ -244,7 +242,7 @@ func getSubGroupsForGroup(ctx context.Context, groupTitle string, entries []*mod
 		subGroupingFullPrompt := subGroupingPromptFmt + string(entriesJSON)
 
 		var subGroupingResponse SubGroupingResponse
-		if err := executeLLMRequestAndParse(ctx, llmService, subGroupingFullPrompt, SubGroupingResponseSchema, &subGroupingResponse); err != nil {
+		if err := llm.ExecuteLLMRequestAndParse(ctx, llmService, subGroupingFullPrompt, SubGroupingResponseSchema, &subGroupingResponse); err != nil {
 			return nil, err
 		}
 		return &subGroupingResponse, nil
@@ -394,16 +392,7 @@ func getUniqueFeedIDs(entries []*models.Entry) int {
 	return len(uniqueFeedIDs)
 }
 
-func executeLLMRequestAndParse(ctx context.Context, llmService services.LLMService, prompt string, schema *genai.Schema, response interface{}) error {
-	llmResponse, err := llmService.GenerateContent(ctx, prompt, schema)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(llmResponse, &response); err != nil {
-		return fmt.Errorf("failed to parse LLM response: %w", err)
-	}
-	return nil
-}
+
 
 func prepareLLMEntries(entries []*models.Entry) []llmEntry {
 	var llmEntries []llmEntry

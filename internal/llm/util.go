@@ -1,9 +1,15 @@
 package llm
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"miniflux-digest/internal/app/services"
 	"strings"
 	"sync"
+
+	"google.golang.org/genai"
 )
 
 // processInChunks is a generic function that processes a slice of items in parallel chunks.
@@ -62,4 +68,15 @@ func min(a, b int) int {
 			return a
 		}
 	return b
+}
+
+func ExecuteLLMRequestAndParse(ctx context.Context, llmService services.LLMService, prompt string, schema *genai.Schema, response interface{}) error {
+	llmResponse, err := llmService.GenerateContent(ctx, prompt, schema)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(llmResponse, &response); err != nil {
+		return fmt.Errorf("failed to parse LLM response: %w", err)
+	}
+	return nil
 }
