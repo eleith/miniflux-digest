@@ -52,7 +52,7 @@ A good consolidation would be:
 
 const summaryPrompt = `You are an expert at summarizing content for busy readers. You will be given a list of entries from a primary group titled '%s'.
 
-Your task is to write a concise, 2-3 sentence summary (under 150 words) that achieves two goals:
+Your task is to write a concise, 2-3 sentence summary (under 250 words) that achieves two goals:
 1.  **Provide a high-level overview** of the main themes in the group.
 2.  **Highlight the most significant or surprising entries.** This could be a major announcement, a controversial opinion, or a particularly popular discussion.
 
@@ -70,13 +70,15 @@ Your task is to create smaller, more granular sub-groups to help a user navigate
 - If an entry doesn't fit into a specific sub-group, leave it out of your response.
 `
 
-const summaryOfSummariesPrompt = `You are an expert at summarizing content. You will be given a collection of summaries from different chunks of a larger document.
+const summaryOfSummariesPrompt = `You are an expert at creating overviews of large swaths of web updates and web content.
 
-Your task is to synthesize these individual summaries into a single, coherent, and concise summary (2-3 sentences, under 150 words) that represents the entire collection of content.
+Your task is to write a concise, 2-3 sentence summary (under 250 words) that achieves two goals:
+1.  **Provide a high-level overview** of the main themes.
+2.  **Highlight the most significant or surprising entries.** This could be a major announcement, a controversial opinion, or a particularly popular discussion.
 
-Do not just list the topics from each summary. Find the overarching themes and most important points from across all the provided summaries and weave them into a single narrative.
+The goal is to give the reader enough information to quickly decide if this group contains entries they want to explore further. Do not just list the topics; provide some insight into the content.
 
-Here are the summaries to synthesize:
+Here are the summaries to combine:
 ----------------------------
 %s
 `

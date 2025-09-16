@@ -19,7 +19,7 @@ import (
 
 // mockLLMService is a mock implementation of the LLMService for testing.
 type mockLLMService struct {
-	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
+	GenerateContentFunc             func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
 	GenerateContentWithResponseFunc func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error
 }
 
@@ -67,8 +67,8 @@ func TestGroupAIEntries(t *testing.T) {
 		mockJSON, _ := json.Marshal(mockResp)
 
 		llmService := &mockLLMService{
-			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
-				return mockJSON, nil
+			GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
+				return json.Unmarshal(mockJSON, response)
 			},
 		}
 
@@ -91,8 +91,8 @@ func TestGroupAIEntries(t *testing.T) {
 
 	t.Run("llm service error", func(t *testing.T) {
 		llmService := &mockLLMService{
-			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
-				return nil, errors.New("llm error")
+			GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
+				return errors.New("llm error")
 			},
 		}
 
@@ -102,8 +102,8 @@ func TestGroupAIEntries(t *testing.T) {
 
 	t.Run("llm returns invalid json", func(t *testing.T) {
 		llmService := &mockLLMService{
-			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
-				return []byte("invalid json"), nil
+			GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
+				return json.Unmarshal([]byte(`invalid json`), response)
 			},
 		}
 
@@ -121,7 +121,7 @@ func TestGroupAIEntries(t *testing.T) {
 		var mu sync.Mutex
 
 		llmService := &mockLLMService{
-			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
 				mu.Lock()
 				callCount++
 				mu.Unlock()
@@ -142,8 +142,10 @@ func TestGroupAIEntries(t *testing.T) {
 						{Title: "Chunk 2 Group", EntryIDs: []int64{200, 201}},
 					}
 				}
-				mockJSON, _ := json.Marshal(resp)
-				return mockJSON, nil
+				return json.Unmarshal([]byte(func() []byte {
+					b, _ := json.Marshal(resp)
+					return b
+				}()), response)
 			},
 		}
 
@@ -287,33 +289,26 @@ func TestProcessPrimaryGroupWithAI(t *testing.T) {
 		pg := &models.PrimaryGroup{ID: 2, Title: "Large Group", Entries: entries}
 
 		llmService := &mockLLMService{
-			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
 				isLargeChunk := len(prompt) > 10000 // Heuristic to differentiate chunks
 
 				// Summarization
-				if strings.Contains(prompt, "You are an expert at summarizing content") {
-					// Partial summary call
-					if !strings.Contains(prompt, "---") {
-						return json.Marshal(SummaryResponse{Summary: "Partial summary."})
-					}
-					// Summary of summaries call
-					return json.Marshal(SummaryResponse{Summary: "Final synthesized summary."})
+				if strings.Contains(prompt, "You are an expert at summarizing content") && !strings.Contains(prompt, "overviews of large swaths") { // Partial summary call
+					return json.Unmarshal([]byte(`{"summary": "Partial summary."}`), response)
+				}
+				// Summary of summaries call
+				if strings.Contains(prompt, "You are an expert at creating overviews of large swaths of web updates and web content.") {
+					return json.Unmarshal([]byte(`{"summary": "Final synthesized summary."}`), response)
 				}
 				// Sub-grouping
 				if strings.Contains(prompt, "You are an expert at organizing content") {
 					if isLargeChunk {
-						return json.Marshal(SubGroupingResponse{SubGroups: []struct {
-							Title    string  `json:"title"`
-							EntryIDs []int64 `json:"entry_ids"`
-						}{{Title: "Chunk 1 Sub-Group", EntryIDs: []int64{0, 1}}}})
+						return json.Unmarshal([]byte(`{"sub_groups": [{"title": "Chunk 1 Sub-Group", "entry_ids": [0, 1]}]}`), response)
 					} else {
-						return json.Marshal(SubGroupingResponse{SubGroups: []struct {
-							Title    string  `json:"title"`
-							EntryIDs []int64 `json:"entry_ids"`
-						}{{Title: "Chunk 2 Sub-Group", EntryIDs: []int64{150, 151}}}})
+						return json.Unmarshal([]byte(`{"sub_groups": [{"title": "Chunk 2 Sub-Group", "entry_ids": [150, 151]}]}`), response)
 					}
 				}
-				return nil, fmt.Errorf("unexpected prompt: %s", prompt)
+				return fmt.Errorf("unexpected prompt: %s", prompt)
 			},
 		}
 
@@ -347,13 +342,14 @@ func TestProcessPrimaryGroupWithAI(t *testing.T) {
 				isLargeChunk := len(prompt) > 10000
 
 				// Summarization: one chunk fails
-				if strings.Contains(prompt, "You are an expert at summarizing content") {
-					if !strings.Contains(prompt, "---") { // Partial summary call
-						if isLargeChunk { // First chunk succeeds
-							return json.Marshal(SummaryResponse{Summary: "Partial summary."})
-						}
-						return nil, errors.New("summary failed") // Second chunk fails
+				if strings.Contains(prompt, "You are an expert at summarizing content") && !strings.Contains(prompt, "overviews of large swaths") { // Partial summary call
+					if isLargeChunk { // First chunk succeeds
+						return json.Marshal(SummaryResponse{Summary: "Partial summary."})
 					}
+					return nil, errors.New("summary failed") // Second chunk fails
+				}
+				// This handles the summary of summaries prompt
+				if strings.Contains(prompt, "You are an expert at creating overviews of large swaths of web updates and web content.") {
 					return json.Marshal(SummaryResponse{Summary: "Final summary from one chunk."})
 				}
 				// Sub-grouping: one chunk fails
@@ -362,11 +358,10 @@ func TestProcessPrimaryGroupWithAI(t *testing.T) {
 						return json.Marshal(SubGroupingResponse{SubGroups: []struct {
 							Title    string  `json:"title"`
 							EntryIDs []int64 `json:"entry_ids"`
-						}{{Title: "Good Sub-Group", EntryIDs: []int64{0}}}})
-					}
+						}{{Title: "Good Sub-Group", EntryIDs: []int64{0}}}})}
 					return nil, errors.New("sub-grouping failed") // Second chunk fails
 				}
-				return nil, nil
+				return nil, fmt.Errorf("unexpected prompt: %s", prompt)
 			},
 		}
 
@@ -484,3 +479,4 @@ func TestBuildDigestDataByAI(t *testing.T) {
 
 	// ... other fallback tests are similar and should still pass ...
 }
+
