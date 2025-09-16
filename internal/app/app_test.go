@@ -49,10 +49,49 @@ func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, sch
 	return nil, nil
 }
 
+func (m *mockLLMService) GenerateContentWithResponse(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
+	return nil
+}
+
 func TestNewApp(t *testing.T) {
-	app := NewApp()
+	mockArchiveSvc := &mockArchiveService{}
+	mockEmailSvc := &mockEmailService{}
+	mockMinifluxClientSvc := &mockMinifluxClientService{}
+	mockDigestSvc := &mockDigestService{}
+	mockLLMSvc := &mockLLMService{}
+	cfg := &config.Config{}
+
+	app := NewApp(
+		WithConfig(cfg),
+		WithArchiveService(mockArchiveSvc),
+		WithEmailService(mockEmailSvc),
+		WithMinifluxClientService(mockMinifluxClientSvc),
+		WithDigestService(mockDigestSvc),
+		WithLLMService(mockLLMSvc),
+	)
+
 	if app == nil {
 		t.Error("NewApp() should not return nil")
+		return
+	}
+
+	if app.Config != cfg {
+		t.Errorf("NewApp() did not set the config correctly. Got %v, want %v", app.Config, cfg)
+	}
+	if app.ArchiveService != mockArchiveSvc {
+		t.Errorf("NewApp() did not set the archive service correctly. Got %v, want %v", app.ArchiveService, mockArchiveSvc)
+	}
+	if app.EmailService != mockEmailSvc {
+		t.Errorf("NewApp() did not set the email service correctly. Got %v, want %v", app.EmailService, mockEmailSvc)
+	}
+	if app.MinifluxClientService != mockMinifluxClientSvc {
+		t.Errorf("NewApp() did not set the miniflux client service correctly. Got %v, want %v", app.MinifluxClientService, mockMinifluxClientSvc)
+	}
+	if app.DigestService != mockDigestSvc {
+		t.Errorf("NewApp() did not set the digest service correctly. Got %v, want %v", app.DigestService, mockDigestSvc)
+	}
+	if app.LLMService != mockLLMSvc {
+		t.Errorf("NewApp() did not set the LLM service correctly. Got %v, want %v", app.LLMService, mockLLMSvc)
 	}
 }
 

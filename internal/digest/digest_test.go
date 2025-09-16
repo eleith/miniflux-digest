@@ -2,6 +2,7 @@ package digest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"miniflux-digest/internal/digest/view"
 	"miniflux-digest/internal/models"
@@ -14,7 +15,8 @@ import (
 )
 
 type mockLLMService struct {
-	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
+	GenerateContentFunc             func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
+	GenerateContentWithResponseFunc func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error
 }
 
 func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
@@ -22,6 +24,13 @@ func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, sch
 		return m.GenerateContentFunc(ctx, prompt, schema)
 	}
 	return nil, errors.New("GenerateContentFunc not implemented")
+}
+
+func (m *mockLLMService) GenerateContentWithResponse(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
+	if m.GenerateContentWithResponseFunc != nil {
+		return m.GenerateContentWithResponseFunc(ctx, prompt, schema, response)
+	}
+	return errors.New("GenerateContentWithResponseFunc not implemented")
 }
 
 func createLLMGrouperMockEntries() []*models.Entry {
@@ -34,31 +43,40 @@ func createLLMGrouperMockEntries() []*models.Entry {
 
 func TestDigestService_BuildDigestData(t *testing.T) {
 	mockLLM := &mockLLMService{
-		GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+		GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
 			switch schema {
 			case view.InitialGroupingResponseSchema:
-				return []byte(`{
-					"groups": [
-						{
-							"title": "Go Lang",
-							"entry_ids": [2, 4]
-						},
-						{
-							"title": "AI News",
-							"entry_ids": [1, 3]
-						}
-					]
-				}`), nil
+				if err := json.Unmarshal([]byte(`{
+						"groups": [
+							{
+								"title": "AI News",
+								"entry_ids": [1]
+							},
+							{
+								"title": "Go Lang",
+								"entry_ids": [2, 3]
+							}
+						]
+					}`), response); err != nil {
+					return err
+				}
+				return nil
 			case view.SummaryResponseSchema:
-				return []byte(`{"summary": "This is a summary."}`), nil
+				if err := json.Unmarshal([]byte(`{"summary": "This is a summary."}`), response); err != nil {
+					return err
+				}
+				return nil
 			case view.SubGroupingResponseSchema:
-				return []byte(`{
-					"sub_groups": [
-						{"title": "Sub-group 1", "entry_ids": [1]}
-					]
-				}`), nil
+				if err := json.Unmarshal([]byte(`{
+						"sub_groups": [
+							{"title": "Sub-group 1", "entry_ids": [1]}
+						]
+					}`), response); err != nil {
+					return err
+				}
+				return nil
 			default:
-				return nil, errors.New("unexpected LLM call")
+				return errors.New("unexpected LLM call")
 			}
 		},
 	}
@@ -129,11 +147,11 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 
 	t.Run("view=ai - GroupAIEntries error fallback", func(t *testing.T) {
 		mockLLM := &mockLLMService{
-			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
 				if schema == view.InitialGroupingResponseSchema {
-					return nil, errors.New("mock LLM grouping error")
+					return errors.New("mock LLM grouping error")
 				}
-				return nil, errors.New("unexpected LLM call")
+				return errors.New("unexpected LLM call")
 			},
 		}
 		digestService := NewDigestService(mockLLM)
@@ -154,24 +172,30 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 
 	t.Run("view=ai - sub-grouping error", func(t *testing.T) {
 		mockLLM := &mockLLMService{
-			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+			GenerateContentWithResponseFunc: func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
 				if schema == view.InitialGroupingResponseSchema {
-					return []byte(`{
+					if err := json.Unmarshal([]byte(`{
 						"groups": [
 							{
 								"title": "Test Group",
 								"entry_ids": [1, 2, 3]
 							}
 						]
-					}`), nil
+						}`), response); err != nil {
+						return err
+					}
+					return nil
 				}
 				if schema == view.SummaryResponseSchema {
-					return []byte(`{"summary": "This is a summary."}`), nil
+					if err := json.Unmarshal([]byte(`{"summary": "This is a summary."}`), response); err != nil {
+						return err
+					}
+					return nil
 				}
 				if schema == view.SubGroupingResponseSchema {
-					return nil, errors.New("mock LLM sub-grouping error")
+					return errors.New("mock LLM sub-grouping error")
 				}
-				return nil, errors.New("unexpected LLM call")
+				return errors.New("unexpected LLM call")
 			},
 		}
 		digestService := NewDigestService(mockLLM)
@@ -193,3 +217,4 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		}
 	})
 }
+

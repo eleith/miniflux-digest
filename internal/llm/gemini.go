@@ -2,7 +2,9 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -103,4 +105,15 @@ func (s *GeminiService) GenerateContent(ctx context.Context, prompt string, sche
 	}
 
 	return jsonData, nil
+}
+
+func (s *GeminiService) GenerateContentWithResponse(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
+	llmResponseBytes, err := s.GenerateContent(ctx, prompt, schema)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(llmResponseBytes, &response); err != nil {
+		return fmt.Errorf("failed to parse LLM response: %w", err)
+	}
+	return nil
 }
