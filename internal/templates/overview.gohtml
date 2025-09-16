@@ -27,7 +27,7 @@
         <section class="grouped-digests">
             <h2 class="group-entries-title">Grouped Digests</h2>
             {{range .PrimaryGroups}}
-                <section class="entry">
+                <section class="entry" data-slug="{{.Slug}}">
                     <summary class="entry">
                         <a href="digests/{{.Slug}}.html" class="entry-link">{{.Title}}</a>
                     </summary>
