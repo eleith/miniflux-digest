@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	MaxEntryContentLengthForLLM = 1000
+	MaxEntryContentLengthForLLM = 250
 	MaxEntriesForSummarization  = 150
 )
 
