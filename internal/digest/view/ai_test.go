@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/testutil"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -226,58 +228,145 @@ func TestConsolidatePrimaryGroups(t *testing.T) {
 }
 
 func TestProcessPrimaryGroupWithAI(t *testing.T) {
-	pg := &models.PrimaryGroup{
-		ID:    1,
-		Title: "Test Primary Group",
-		Entries: []*models.Entry{
-			{ID: 1, Title: "Entry 1", Content: "Content 1"},
-			{ID: 2, Title: "Entry 2", Content: "Content 2"},
-			{ID: 3, Title: "Entry 3", Content: "Content 3"},
-		},
-	}
-
-	t.Run("happy path", func(t *testing.T) {
-		summaryResp := SummaryResponse{Summary: "This is a summary."}
-		summaryJSON, _ := json.Marshal(summaryResp)
-
-		subGroupingResp := SubGroupingResponse{
-			SubGroups: []struct {
-				Title    string  `json:"title"`
-				EntryIDs []int64 `json:"entry_ids"`
-			}{
-				{Title: "Sub-group 1", EntryIDs: []int64{1, 2}},
+	// --- Test Case 1: Small group (no chunking) ---
+	t.Run("small group - no chunking", func(t *testing.T) {
+		pg := &models.PrimaryGroup{
+			ID:    1,
+			Title: "Small Group",
+			Entries: []*models.Entry{
+				{ID: 1, Title: "E1"},
+				{ID: 2, Title: "E2"},
 			},
 		}
-		subGroupingJSON, _ := json.Marshal(subGroupingResp)
 
 		llmService := &mockLLMService{
 			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
 				if schema == SummaryResponseSchema {
-					return summaryJSON, nil
+					return json.Marshal(SummaryResponse{Summary: "Small group summary"})
 				}
 				if schema == SubGroupingResponseSchema {
-					return subGroupingJSON, nil
+					return json.Marshal(SubGroupingResponse{SubGroups: []struct {
+						Title    string  `json:"title"`
+						EntryIDs []int64 `json:"entry_ids"`
+					}{{Title: "Sub 1", EntryIDs: []int64{1, 2}}}})
 				}
-				return nil, errors.New("unexpected schema in happy path test")
+				return nil, errors.New("unexpected schema")
 			},
 		}
 
 		summary, subGroups, err := ProcessPrimaryGroupWithAI(context.Background(), pg, llmService)
 		assert.NoError(t, err)
-		assert.Equal(t, "This is a summary.", summary)
-		assert.Len(t, subGroups, 2, "Expected 1 sub-group and 1 uncategorized")
-
-		sg1 := subGroups[0]
-		assert.Equal(t, "Sub-group 1", sg1.Title)
-		assert.Len(t, sg1.Entries, 2)
-
-		uncategorized := subGroups[1]
-		assert.Equal(t, "Uncategorized", uncategorized.Title)
-		assert.Len(t, uncategorized.Entries, 1)
-		assert.Equal(t, int64(3), uncategorized.Entries[0].ID)
+		assert.Equal(t, "Small group summary", summary)
+		require.Len(t, subGroups, 1)
+		assert.Equal(t, "Sub 1", subGroups[0].Title)
 	})
 
-	// ... other tests for ProcessPrimaryGroupWithAI are unchanged ...
+	// --- Test Case 2: Large group (with chunking) ---
+	t.Run("large group - with chunking", func(t *testing.T) {
+		var entries []*models.Entry
+		for i := 0; i < 200; i++ { // Will create 2 chunks of 150
+			entries = append(entries, &models.Entry{ID: int64(i)})
+		}
+		pg := &models.PrimaryGroup{ID: 2, Title: "Large Group", Entries: entries}
+
+		llmService := &mockLLMService{
+			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+				isLargeChunk := len(prompt) > 10000 // Heuristic to differentiate chunks
+
+				// Summarization
+				if strings.Contains(prompt, "You are an expert at summarizing content") {
+					// Partial summary call
+					if !strings.Contains(prompt, "---") {
+						return json.Marshal(SummaryResponse{Summary: "Partial summary."})
+					}
+					// Summary of summaries call
+					return json.Marshal(SummaryResponse{Summary: "Final synthesized summary."})
+				}
+				// Sub-grouping
+				if strings.Contains(prompt, "You are an expert at organizing content") {
+					if isLargeChunk {
+						return json.Marshal(SubGroupingResponse{SubGroups: []struct {
+							Title    string  `json:"title"`
+							EntryIDs []int64 `json:"entry_ids"`
+						}{{Title: "Chunk 1 Sub-Group", EntryIDs: []int64{0, 1}}}})
+					} else {
+						return json.Marshal(SubGroupingResponse{SubGroups: []struct {
+							Title    string  `json:"title"`
+							EntryIDs []int64 `json:"entry_ids"`
+						}{{Title: "Chunk 2 Sub-Group", EntryIDs: []int64{150, 151}}}})
+					}
+				}
+				return nil, fmt.Errorf("unexpected prompt: %s", prompt)
+			},
+		}
+
+		summary, subGroups, err := ProcessPrimaryGroupWithAI(context.Background(), pg, llmService)
+		assert.NoError(t, err)
+		assert.Equal(t, "Final synthesized summary.", summary)
+		require.Len(t, subGroups, 3, "Expected 3 sub-groups: 2 from chunks + 1 for ungrouped")
+
+		sg1 := testutil.FindSubGroup(subGroups, "Chunk 1 Sub-Group")
+		require.NotNil(t, sg1)
+		sg2 := testutil.FindSubGroup(subGroups, "Chunk 2 Sub-Group")
+		require.NotNil(t, sg2)
+		uncat := testutil.FindSubGroup(subGroups, "Uncategorized")
+		require.NotNil(t, uncat)
+
+		assert.Len(t, sg1.Entries, 2)
+		assert.Len(t, sg2.Entries, 2)
+		assert.Equal(t, 196, uncat.TotalEntries) // 200 total - 4 grouped
+	})
+
+	// --- Test Case 3: Failure case ---
+	t.Run("large group - with failures", func(t *testing.T) {
+		var entries []*models.Entry
+		for i := 0; i < 200; i++ {
+			entries = append(entries, &models.Entry{ID: int64(i)})
+		}
+		pg := &models.PrimaryGroup{ID: 3, Title: "Failure Group", Entries: entries}
+
+		llmService := &mockLLMService{
+			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+				isLargeChunk := len(prompt) > 10000
+
+				// Summarization: one chunk fails
+				if strings.Contains(prompt, "You are an expert at summarizing content") {
+					if !strings.Contains(prompt, "---") { // Partial summary call
+						if isLargeChunk { // First chunk succeeds
+							return json.Marshal(SummaryResponse{Summary: "Partial summary."})
+						}
+						return nil, errors.New("summary failed") // Second chunk fails
+					}
+					return json.Marshal(SummaryResponse{Summary: "Final summary from one chunk."})
+				}
+				// Sub-grouping: one chunk fails
+				if strings.Contains(prompt, "You are an expert at organizing content") {
+					if isLargeChunk { // First chunk succeeds
+						return json.Marshal(SubGroupingResponse{SubGroups: []struct {
+							Title    string  `json:"title"`
+							EntryIDs []int64 `json:"entry_ids"`
+						}{{Title: "Good Sub-Group", EntryIDs: []int64{0}}}})
+					}
+					return nil, errors.New("sub-grouping failed") // Second chunk fails
+				}
+				return nil, nil
+			},
+		}
+
+		summary, subGroups, err := ProcessPrimaryGroupWithAI(context.Background(), pg, llmService)
+		assert.NoError(t, err) // The function itself shouldn't error
+
+		assert.Contains(t, summary, "Final summary from one chunk.")
+		assert.Contains(t, summary, "(Note: 50 entries could not be included") // 200 total - 150 in first chunk = 50 in second
+
+		failedSg := testutil.FindSubGroup(subGroups, "Uncategorized - Processing Failed")
+		require.NotNil(t, failedSg)
+		assert.Len(t, failedSg.Entries, 50)
+
+		goodSg := testutil.FindSubGroup(subGroups, "Good Sub-Group")
+		require.NotNil(t, goodSg)
+		assert.Len(t, goodSg.Entries, 1)
+	})
 }
 
 func TestBuildDigestDataByAI(t *testing.T) {
