@@ -13,7 +13,7 @@ import (
 const (
 	Model               = "gemini-2.5-flash"
 	maxRetries          = 3
-	perTryTimeout       = 3 * time.Minute
+	perTryTimeout       = 5 * time.Minute
 	Temperature float32 = 0.4
 )
 
