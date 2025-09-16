@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+
+	"google.golang.org/genai"
 )
 
 const (
@@ -49,20 +51,7 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 
 	// Define the worker function for processing a single chunk
 	worker := func(chunk []*models.Entry) (*InitialGroupingResponse, error) {
-		var llmEntries []llmEntry
-		for _, entry := range chunk {
-			content := entry.Content
-			if len(content) > MaxEntryContentLengthForLLM {
-				content = content[:MaxEntryContentLengthForLLM]
-			}
-			llmEntries = append(llmEntries, llmEntry{
-				ID:        entry.ID,
-				Title:     entry.Title,
-				URL:       entry.URL,
-				Content:   content,
-				FeedTitle: entry.FeedTitle,
-			})
-		}
+		llmEntries := prepareLLMEntries(chunk)
 
 		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
 		if err != nil {
@@ -75,14 +64,9 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 		}
 		prompt.Write(entriesJSON)
 
-		llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), InitialGroupingResponseSchema)
-		if err != nil {
-			return nil, err // The error will be caught by ProcessInChunks
-		}
-
 		var response InitialGroupingResponse
-		if err := json.Unmarshal(llmResponse, &response); err != nil {
-			return nil, fmt.Errorf("failed to parse LLM response: %w", err)
+		if err := executeLLMRequestAndParse(ctx, llmService, prompt.String(), InitialGroupingResponseSchema, &response); err != nil {
+			return nil, err
 		}
 		return &response, nil
 	}
@@ -204,20 +188,7 @@ func convertRawGroupsToDigestData(rawGroups map[string][]*models.Entry) []*model
 
 func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*models.Entry, llmService services.LLMService) (string, error) {
 	summaryWorker := func(chunk []*models.Entry) (string, error) {
-		var llmEntries []llmEntry
-		for _, entry := range chunk {
-			content := entry.Content
-			if len(content) > MaxEntryContentLengthForLLM {
-				content = content[:MaxEntryContentLengthForLLM]
-			}
-			llmEntries = append(llmEntries, llmEntry{
-				ID:        entry.ID,
-				Title:     entry.Title,
-				URL:       entry.URL,
-				Content:   content,
-				FeedTitle: entry.FeedTitle,
-			})
-		}
+		llmEntries := prepareLLMEntries(chunk)
 
 		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
 		if err != nil {
@@ -227,14 +198,9 @@ func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*model
 		summaryPromptFmt := fmt.Sprintf(summaryPrompt, groupTitle)
 		summaryFullPrompt := summaryPromptFmt + string(entriesJSON)
 
-		summaryResponseBytes, err := llmService.GenerateContent(ctx, summaryFullPrompt, SummaryResponseSchema)
-		if err != nil {
-			return "", err
-		}
-
 		var summaryResponse SummaryResponse
-		if err := json.Unmarshal(summaryResponseBytes, &summaryResponse); err != nil {
-			return "", fmt.Errorf("failed to parse summary response: %w", err)
+		if err := executeLLMRequestAndParse(ctx, llmService, summaryFullPrompt, SummaryResponseSchema, &summaryResponse); err != nil {
+			return "", err
 		}
 		return summaryResponse.Summary, nil
 	}
@@ -278,20 +244,7 @@ func getSubGroupsForGroup(ctx context.Context, groupTitle string, entries []*mod
 	}
 
 	subGroupWorker := func(chunk []*models.Entry) (*SubGroupingResponse, error) {
-		var llmEntries []llmEntry
-		for _, entry := range chunk {
-			content := entry.Content
-			if len(content) > MaxEntryContentLengthForLLM {
-				content = content[:MaxEntryContentLengthForLLM]
-			}
-			llmEntries = append(llmEntries, llmEntry{
-				ID:        entry.ID,
-				Title:     entry.Title,
-				URL:       entry.URL,
-				Content:   content,
-				FeedTitle: entry.FeedTitle,
-			})
-		}
+		llmEntries := prepareLLMEntries(chunk)
 
 		entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
 		if err != nil {
@@ -301,14 +254,9 @@ func getSubGroupsForGroup(ctx context.Context, groupTitle string, entries []*mod
 		subGroupingPromptFmt := fmt.Sprintf(subGroupingPrompt, groupTitle)
 		subGroupingFullPrompt := subGroupingPromptFmt + string(entriesJSON)
 
-		subGroupingResponseBytes, err := llmService.GenerateContent(ctx, subGroupingFullPrompt, SubGroupingResponseSchema)
-		if err != nil {
-			return nil, err
-		}
-
 		var subGroupingResponse SubGroupingResponse
-		if err := json.Unmarshal(subGroupingResponseBytes, &subGroupingResponse); err != nil {
-			return nil, fmt.Errorf("failed to parse sub-grouping response: %w", err)
+		if err := executeLLMRequestAndParse(ctx, llmService, subGroupingFullPrompt, SubGroupingResponseSchema, &subGroupingResponse); err != nil {
+			return nil, err
 		}
 		return &subGroupingResponse, nil
 	}
@@ -455,6 +403,35 @@ func getUniqueFeedIDs(entries []*models.Entry) int {
 		uniqueFeedIDs[entry.FeedID] = true
 	}
 	return len(uniqueFeedIDs)
+}
+
+func executeLLMRequestAndParse(ctx context.Context, llmService services.LLMService, prompt string, schema *genai.Schema, response interface{}) error {
+	llmResponse, err := llmService.GenerateContent(ctx, prompt, schema)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(llmResponse, &response); err != nil {
+		return fmt.Errorf("failed to parse LLM response: %w", err)
+	}
+	return nil
+}
+
+func prepareLLMEntries(entries []*models.Entry) []llmEntry {
+	var llmEntries []llmEntry
+	for _, entry := range entries {
+		content := entry.Content
+		if len(content) > MaxEntryContentLengthForLLM {
+			content = content[:MaxEntryContentLengthForLLM]
+		}
+		llmEntries = append(llmEntries, llmEntry{
+			ID:        entry.ID,
+			Title:     entry.Title,
+			URL:       entry.URL,
+			Content:   content,
+			FeedTitle: entry.FeedTitle,
+		})
+	}
+	return llmEntries
 }
 
 func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmService services.LLMService) []*models.PrimaryGroupDigestData {
