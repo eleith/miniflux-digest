@@ -17,7 +17,7 @@ import (
 
 const (
 	MaxEntryContentLengthForLLM = 1000
-	MaxEntriesForSummarization  = 200
+	MaxEntriesForSummarization  = 150
 )
 
 type llmEntry struct {
