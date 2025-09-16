@@ -1,8 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const digestDate = document.body.dataset.digestDate;
+    const localStorageKey = `readSubgroupSlugs_${digestDate}`;
 
     // Helper functions for localStorage
     const getReadSlugs = () => {
-        const slugs = localStorage.getItem('readSubgroupSlugs');
+        const slugs = localStorage.getItem(localStorageKey);
         return slugs ? JSON.parse(slugs) : [];
     };
 
@@ -10,14 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const slugs = getReadSlugs();
         if (!slugs.includes(slug)) {
             slugs.push(slug);
-            localStorage.setItem('readSubgroupSlugs', JSON.stringify(slugs));
+            localStorage.setItem(localStorageKey, JSON.stringify(slugs));
         }
     };
 
     const removeReadSlug = (slug) => {
         let slugs = getReadSlugs();
         slugs = slugs.filter(s => s !== slug);
-        localStorage.setItem('readSubgroupSlugs', JSON.stringify(slugs));
+        localStorage.setItem(localStorageKey, JSON.stringify(slugs));
     };
 
 
