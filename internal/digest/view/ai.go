@@ -118,16 +118,10 @@ func consolidatePrimaryGroups(ctx context.Context, rawGroups map[string][]*model
 		return nil, fmt.Errorf("failed to execute consolidation prompt template: %w", err)
 	}
 
-	llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), ConsolidationResponseSchema)
-	if err != nil {
+	var response ConsolidationResponse
+	if err := executeLLMRequestAndParse(ctx, llmService, prompt.String(), ConsolidationResponseSchema, &response); err != nil {
 		// Fallback: If LLM fails, use the original, unconsolidated groups
 		log.Printf("LLM consolidation failed, falling back to original groups: %v", err)
-		return convertRawGroupsToDigestData(rawGroups), nil
-	}
-
-	var response ConsolidationResponse
-	if err := json.Unmarshal(llmResponse, &response); err != nil {
-		log.Printf("Failed to parse LLM consolidation response, falling back to original groups: %v", err)
 		return convertRawGroupsToDigestData(rawGroups), nil
 	}
 
