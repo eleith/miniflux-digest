@@ -1,4 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+    // Helper functions for localStorage
+    const getReadSlugs = () => {
+        const slugs = localStorage.getItem('readSubgroupSlugs');
+        return slugs ? JSON.parse(slugs) : [];
+    };
+
+    const addReadSlug = (slug) => {
+        const slugs = getReadSlugs();
+        if (!slugs.includes(slug)) {
+            slugs.push(slug);
+            localStorage.setItem('readSubgroupSlugs', JSON.stringify(slugs));
+        }
+    };
+
+    const removeReadSlug = (slug) => {
+        let slugs = getReadSlugs();
+        slugs = slugs.filter(s => s !== slug);
+        localStorage.setItem('readSubgroupSlugs', JSON.stringify(slugs));
+    };
+
+
     const markAsReadLinks = document.querySelectorAll('.mark-as-read-link');
 
     markAsReadLinks.forEach(link => {
@@ -6,15 +28,40 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             const entry = event.target.closest('section.entry');
             if (entry) {
+                const slug = entry.dataset.slug;
+
                 entry.classList.toggle('viewed');
                 if (entry.classList.contains('viewed')) {
                     event.target.textContent = 'Mark as unread';
+                    if (slug) {
+                        addReadSlug(slug);
+                    }
                 } else {
                     event.target.textContent = 'Mark as read';
+                    if (slug) {
+                        removeReadSlug(slug);
+                    }
                 }
             }
         });
     });
+
+    const applyReadStatusOnLoad = () => {
+        const readSlugs = getReadSlugs();
+        document.querySelectorAll('section.entry').forEach(entry => {
+            const slug = entry.dataset.slug;
+            const markAsReadLink = entry.querySelector('.mark-as-read-link');
+
+            if (slug && readSlugs.includes(slug)) {
+                entry.classList.add('viewed');
+                if (markAsReadLink) {
+                    markAsReadLink.textContent = 'Mark as unread';
+                }
+            }
+        });
+    };
+
+    applyReadStatusOnLoad(); // Call on page load
 
     const entries = document.querySelectorAll('.grouped-digests .entry');
     entries.forEach(entry => {
@@ -27,6 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Find the main link and navigate to it
             const mainLink = entry.querySelector('a.entry-link');
             if (mainLink) {
+                const slug = entry.dataset.slug; // Get slug from the parent entry element
+                addReadSlug(slug); // Mark as read when navigating
                 mainLink.click();
             }
         });
