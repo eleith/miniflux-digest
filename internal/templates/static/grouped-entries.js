@@ -1,4 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const localStorageKey = 'readMinifluxEntryIDs';
+
+    const getReadEntryIDs = () => {
+        const ids = localStorage.getItem(localStorageKey);
+        return ids ? JSON.parse(ids) : [];
+    };
+
+    const addReadEntryID = (id) => {
+        const ids = getReadEntryIDs();
+        if (!ids.includes(id)) {
+            ids.push(id);
+            localStorage.setItem(localStorageKey, JSON.stringify(ids));
+        }
+    };
+
+    const removeReadEntryID = (id) => {
+        let ids = getReadEntryIDs();
+        ids = ids.filter(i => i !== id);
+        localStorage.setItem(localStorageKey, JSON.stringify(ids));
+    };
+
     const entries = Array.from(document.querySelectorAll('section.entry'));
     let activeEntry = null;
     let markAsReadTimer = null;
@@ -14,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const entryIndex = visibleEntries.indexOf(entry);
         for (let i = 0; i < entryIndex; i++) {
             visibleEntries[i].classList.add('viewed');
+            addReadEntryID(visibleEntries[i].dataset.entryId);
         }
     }
 
@@ -28,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (activeEntry) {
             activeEntry.classList.add('viewed'); // Mark as viewed immediately
+            addReadEntryID(activeEntry.dataset.entryId);
             activeEntry.classList.add('active');
             if (!preventScroll) { // Only focus if not preventing scroll
                 activeEntry.querySelector('summary')?.focus();
@@ -133,6 +156,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     entries.forEach(entry => observer.observe(entry));
+
+    // Restore read state from localStorage on page load
+    const readEntryIDsOnLoad = getReadEntryIDs();
+    entries.forEach(entry => {
+        const entryId = entry.dataset.entryId;
+        if (entryId && readEntryIDsOnLoad.includes(entryId)) {
+            entry.classList.add('viewed');
+        }
+    });
 
     if (entries.length) {
         setActiveEntry(getVisibleEntries()[0]);

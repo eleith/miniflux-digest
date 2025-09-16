@@ -44,7 +44,7 @@
     {{range .PrimaryGroup.SubGroups}}
     <h3 class="sub-group-title">{{.Title}}</h3>
         {{range .Entries}}
-        <section class="entry">
+        <section class="entry" data-entry-id="{{.ID}}">
             <details class="entry">
                 <summary class="entry">
                     {{.Title}}
@@ -82,7 +82,7 @@
 	</div>
 
 	<script>
-		{{include "static/script.js"}}
+		{{include "static/grouped-entries.js"}}
 	</script>
 </body>
 
