@@ -53,8 +53,8 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		rawGroups, groupedIDs, err := GroupAIEntries(context.Background(), entries, llmService)
-		assert.NoError(t, err)
+		rawGroups, groupedIDs, failedChunks := GroupAIEntries(context.Background(), entries, llmService)
+		assert.Empty(t, failedChunks)
 		assert.NotNil(t, rawGroups)
 		assert.Len(t, rawGroups, 2, "Expected 2 grouped")
 
@@ -77,8 +77,8 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		_, _, err := GroupAIEntries(context.Background(), entries, llmService)
-		assert.Error(t, err)
+		_, _, failedChunks := GroupAIEntries(context.Background(), entries, llmService)
+		assert.NotEmpty(t, failedChunks)
 	})
 
 	t.Run("llm returns invalid json", func(t *testing.T) {
@@ -88,8 +88,8 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		_, _, err := GroupAIEntries(context.Background(), entries, llmService)
-		assert.Error(t, err)
+		_, _, failedChunks := GroupAIEntries(context.Background(), entries, llmService)
+		assert.NotEmpty(t, failedChunks)
 	})
 
 	t.Run("handles chunking", func(t *testing.T) {
@@ -128,8 +128,8 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		rawGroups, groupedIDs, err := GroupAIEntries(context.Background(), largeEntries, llmService)
-		assert.NoError(t, err)
+		rawGroups, groupedIDs, failedChunks := GroupAIEntries(context.Background(), largeEntries, llmService)
+		assert.Empty(t, failedChunks)
 		assert.Equal(t, 2, callCount, "Expected LLM to be called 2 times for 205 entries with chunk size 200")
 
 		assert.Len(t, rawGroups, 2)

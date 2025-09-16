@@ -10,10 +10,9 @@ import (
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
 	"sort"
+	"strings"
 	"sync"
 	"text/template"
-
-	
 )
 
 const (
@@ -29,14 +28,14 @@ type llmEntry struct {
 	FeedTitle string `json:"feed_title"`
 }
 
-func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService) (map[string][]*models.Entry, map[int64]bool, error) {
+func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService) (map[string][]*models.Entry, map[int64]bool, map[string][]*models.Entry) {
 	const chunkSize = 200
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	errs := make(chan error, len(entries)/chunkSize+1)
 
 	rawGroups := make(map[string][]*models.Entry)
 	groupedEntryIDs := make(map[int64]bool)
+	failedChunks := make(map[string][]*models.Entry)
 	entryMap := make(map[int64]*models.Entry)
 	for _, entry := range entries {
 		entryMap[entry.ID] = entry
@@ -44,7 +43,10 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 
 	promptTemplate, err := template.New("grouping").Parse(initialGroupingPrompt)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse grouping prompt template: %w", err)
+		// This is a startup failure, not a runtime one, so we can't easily recover.
+		// We'll return it as a failed chunk.
+		failedChunks["Prompt template parsing failed"] = entries
+		return nil, nil, failedChunks
 	}
 
 	for i := 0; i < len(entries); i += chunkSize {
@@ -72,26 +74,42 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 
 			entriesJSON, err := json.MarshalIndent(llmEntries, "", "  ")
 			if err != nil {
-				errs <- fmt.Errorf("failed to marshal entries to JSON for chunk %d-%d: %w", i, end, err)
+				log.Printf("Failed to marshal entries to JSON for chunk %d-%d: %v", i, end, err)
+				mu.Lock()
+				failedChunks["JSON Marshal Error"] = append(failedChunks["JSON Marshal Error"], chunk...)
+				mu.Unlock()
 				return
 			}
 
 			var prompt bytes.Buffer
 			if err := promptTemplate.Execute(&prompt, nil); err != nil {
-				errs <- fmt.Errorf("failed to execute prompt template for chunk %d-%d: %w", i, end, err)
+				log.Printf("Failed to execute prompt template for chunk %d-%d: %v", i, end, err)
+				mu.Lock()
+				failedChunks["Prompt Execution Error"] = append(failedChunks["Prompt Execution Error"], chunk...)
+				mu.Unlock()
 				return
 			}
 			prompt.Write(entriesJSON)
 
 			llmResponse, err := llmService.GenerateContent(ctx, prompt.String(), InitialGroupingResponseSchema)
 			if err != nil {
-				errs <- fmt.Errorf("LLM service failed for chunk %d-%d: %w", i, end, err)
+				log.Printf("LLM service failed for chunk %d-%d: %v", i, end, err)
+				errorKey := "LLM Error"
+				if strings.Contains(err.Error(), "DEADLINE_EXCEEDED") {
+					errorKey = "Processing Timeout"
+				}
+				mu.Lock()
+				failedChunks[errorKey] = append(failedChunks[errorKey], chunk...)
+				mu.Unlock()
 				return
 			}
 
 			var response InitialGroupingResponse
 			if err := json.Unmarshal(llmResponse, &response); err != nil {
-				errs <- fmt.Errorf("failed to parse LLM response for chunk %d-%d: %w", i, end, err)
+				log.Printf("Failed to parse LLM response for chunk %d-%d: %v", i, end, err)
+				mu.Lock()
+				failedChunks["LLM Response Parse Error"] = append(failedChunks["LLM Response Parse Error"], chunk...)
+				mu.Unlock()
 				return
 			}
 
@@ -115,17 +133,8 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 	}
 
 	wg.Wait()
-	close(errs)
 
-	for err := range errs {
-		if err != nil {
-			// For now, we log the first error and return. A more robust solution could be to
-			// collect all errors or decide to proceed with partial data.
-			return nil, nil, err
-		}
-	}
-
-	return rawGroups, groupedEntryIDs, nil
+	return rawGroups, groupedEntryIDs, failedChunks
 }
 
 func consolidatePrimaryGroups(ctx context.Context, rawGroups map[string][]*models.Entry, llmService services.LLMService) ([]*models.PrimaryGroupDigestData, error) {
@@ -333,9 +342,11 @@ func getUniqueFeedIDs(entries []*models.Entry) int {
 }
 
 func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmService services.LLMService) []*models.PrimaryGroupDigestData {
-	rawGroups, groupedEntryIDs, err := GroupAIEntries(ctx, entries, llmService)
-	if err != nil {
-		log.Printf("AI grouping failed, falling back to category grouping: %v", err)
+	rawGroups, groupedEntryIDs, failedChunks := GroupAIEntries(ctx, entries, llmService)
+
+	// If all chunks failed and we have no raw groups, fall back to category grouping.
+	if len(rawGroups) == 0 && len(failedChunks) > 0 {
+		log.Printf("All AI grouping chunks failed, falling back to category grouping.")
 		categoryGroups := BuildDigestDataByCategory(entries)
 		if len(categoryGroups) == 1 && len(entries) > 1 {
 			return BuildDigestDataByDate(entries)
@@ -350,28 +361,56 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 		highLevelGroups = convertRawGroupsToDigestData(rawGroups)
 	}
 
-	// Handle entries that were not grouped by the initial LLM call
-	var ungroupedEntries []*models.Entry
-	for _, entry := range entries {
-		if !groupedEntryIDs[entry.ID] {
-			ungroupedEntries = append(ungroupedEntries, entry)
+	failedEntryIDs := make(map[int64]bool)
+	for reason, chunkEntries := range failedChunks {
+		title := fmt.Sprintf("Uncategorized - %s", reason)
+		highLevelGroups = append(highLevelGroups, &models.PrimaryGroupDigestData{
+			ID:    int64(len(highLevelGroups) + 1),
+			Title: title,
+			Slug:  utils.Slugify(title),
+			SubGroups: []*models.EntryGroup{
+				{
+					Title:        title,
+					Entries:      chunkEntries,
+					Slug:         utils.Slugify(title),
+					TotalEntries: len(chunkEntries),
+					TotalFeeds:   getUniqueFeedIDs(chunkEntries),
+				},
+			},
+			Summary:      "These entries could not be processed by the AI during the initial grouping.",
+			TotalEntries: len(chunkEntries),
+			TotalFeeds:   getUniqueFeedIDs(chunkEntries),
+		})
+		for _, entry := range chunkEntries {
+			failedEntryIDs[entry.ID] = true
 		}
 	}
-	if len(ungroupedEntries) > 0 {
+
+	// Handle entries that were not grouped by the initial LLM call
+	var otherUngroupedEntries []*models.Entry
+	for _, entry := range entries {
+		if !groupedEntryIDs[entry.ID] && !failedEntryIDs[entry.ID] {
+			otherUngroupedEntries = append(otherUngroupedEntries, entry)
+		}
+	}
+
+	if len(otherUngroupedEntries) > 0 {
 		highLevelGroups = append(highLevelGroups, &models.PrimaryGroupDigestData{
 			ID:    int64(len(highLevelGroups) + 1),
 			Title: "Uncategorized",
 			Slug:  "uncategorized",
 			SubGroups: []*models.EntryGroup{
 				{
-					Title:   "Uncategorized",
-					Entries: ungroupedEntries,
-					Slug:    "uncategorized",
+					Title:        "Uncategorized",
+					Entries:      otherUngroupedEntries,
+					Slug:         "uncategorized",
+					TotalEntries: len(otherUngroupedEntries),
+					TotalFeeds:   getUniqueFeedIDs(otherUngroupedEntries),
 				},
 			},
 			Summary:      "",
-			TotalEntries: len(ungroupedEntries),
-			TotalFeeds:   getUniqueFeedIDs(ungroupedEntries),
+			TotalEntries: len(otherUngroupedEntries),
+			TotalFeeds:   getUniqueFeedIDs(otherUngroupedEntries),
 		})
 	}
 
