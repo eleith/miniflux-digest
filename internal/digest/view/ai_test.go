@@ -20,6 +20,7 @@ import (
 // mockLLMService is a mock implementation of the LLMService for testing.
 type mockLLMService struct {
 	GenerateContentFunc func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
+	GenerateContentWithResponseFunc func(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error
 }
 
 func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
@@ -27,6 +28,22 @@ func (m *mockLLMService) GenerateContent(ctx context.Context, prompt string, sch
 		return m.GenerateContentFunc(ctx, prompt, schema)
 	}
 	return nil, errors.New("mockLLMService.GenerateContentFunc is not implemented")
+}
+
+func (m *mockLLMService) GenerateContentWithResponse(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error {
+	if m.GenerateContentWithResponseFunc != nil {
+		return m.GenerateContentWithResponseFunc(ctx, prompt, schema, response)
+	}
+	// Default implementation for GenerateContentWithResponse
+	// This will call GenerateContentFunc and then unmarshal the result
+	bytes, err := m.GenerateContent(ctx, prompt, schema)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(bytes, &response); err != nil {
+		return fmt.Errorf("failed to parse LLM response in mock: %w", err)
+	}
+	return nil
 }
 
 func TestGroupAIEntries(t *testing.T) {

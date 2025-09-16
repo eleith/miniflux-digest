@@ -12,4 +12,5 @@ import (
 
 type LLMService interface {
 	GenerateContent(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error)
+	GenerateContentWithResponse(ctx context.Context, prompt string, schema *genai.Schema, response interface{}) error
 }
