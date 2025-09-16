@@ -18,7 +18,7 @@ import (
 
 const (
 	MaxEntryContentLengthForLLM = 250
-	MaxEntriesForSummarization  = 150
+	MaxEntriesPerJob  = 150
 )
 
 type llmEntry struct {
@@ -343,7 +343,7 @@ func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*model
 		return summaryResponse.Summary, nil
 	}
 
-	partialSummaries, failedChunks := llm.ProcessInChunks(entries, MaxEntriesForSummarization, summaryWorker)
+	partialSummaries, failedChunks := llm.ProcessInChunks(entries, MaxEntriesPerJob, summaryWorker)
 
 	if len(partialSummaries) == 0 {
 		return "", fmt.Errorf("all summary chunks failed for group '%s'", groupTitle)
@@ -417,7 +417,7 @@ func getSubGroupsForGroup(ctx context.Context, groupTitle string, entries []*mod
 		return &subGroupingResponse, nil
 	}
 
-	partialSubGroupResponses, failedChunks := llm.ProcessInChunks(entries, MaxEntriesForSummarization, subGroupWorker)
+	partialSubGroupResponses, failedChunks := llm.ProcessInChunks(entries, MaxEntriesPerJob, subGroupWorker)
 
 	if len(partialSubGroupResponses) == 0 {
 		return nil, fmt.Errorf("all sub-grouping chunks failed for group '%s'", groupTitle)
@@ -511,7 +511,7 @@ func ProcessPrimaryGroupWithAI(ctx context.Context, pg *models.PrimaryGroup, llm
 	entriesToProcess := pg.Entries
 
 	// If the group is small, process it directly without chunking.
-	if len(entriesToProcess) <= MaxEntriesForSummarization {
+	if len(entriesToProcess) <= MaxEntriesPerJob {
 		return processSingleChunk(ctx, pg.Title, entriesToProcess, llmService)
 	}
 
