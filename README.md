@@ -11,24 +11,26 @@ Miniflux digests, an antidote to my doom scrolling.
 This tool creates digests from Miniflux RSS feed entries.
 
 The goal is to give you more control of when and how you consume updates and
-ongoings from the part of the web you care about.
+ongoings from the parts of the web you care about.
 
 Unread entries are fetched on a user defined schedule and delivered to the web
 and your inbox.
 
+Customize the digest view, schedule and more. Oh my.
+
 ## Features
 
 > [!NOTE]
-> many of the following features are optional
+> many of the following features are _optional_
 
-* ⏰ Automated scheduling via cron syntax
+* ⏰ Automated scheduling (ex: daily, weekly, ever third friday)
 * 🌞 Dark and light themes
 * 📥 Fetches all unread entries
 * 📧 Delivers personalized HTML digests via email
 * 🛜 Archives HTML digests for static web serving
-* 🤖 Summarize and group (ai) entries for faster skimming
+* 🤖 Summarize and group entries for faster skimming
 * ✅ Automatically marks entries as read
-* 🧹 Manages storage by purging old archives
+* 🧹 Manages storage by purging older digests
 * ♻️ Wash, rinse, repeat
 
 ## Installation
@@ -40,9 +42,8 @@ and your inbox.
 ### Prerequisites
 
 * [Docker](https://docs.docker.com/get-docker/)
-* An active [Miniflux](https://miniflux.app/) account
-* A Miniflux API Key (Settings > API Keys > Create a new API key)
-* An email account to optionally receive digests
+* A [Miniflux](https://miniflux.app/) API Key (Settings > API Keys > Create)
+* An email account
 
 ### Setup
 
@@ -69,7 +70,7 @@ and your inbox.
        user: "1001:1001" # Optional: Set to your user/group ID
        volumes:
          - ./config.yaml:/app/config.yaml:ro
-         - ./archive:/app/web/miniflux-archive
+         - ./archive:/app/web/archive
    ```
 
 3. **Create a Configuration File**
