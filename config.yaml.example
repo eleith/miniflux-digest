@@ -4,7 +4,7 @@ miniflux:
 
 smtp:
   host: "YOUR_SMTP_HOST"
-  port: 587 # Or your SMTP port
+  port: 587
   user: "YOUR_SMTP_USERNAME"
   password: "YOUR_SMTP_PASSWORD"
 
@@ -12,12 +12,25 @@ digest:
   email:
     to: "RECIPIENT@example.com"
     from: "SENDER@example.com"
+
+	# cron syntax also supported
   schedule: "@every 24h"
-  host: "https://your-digest-host.com" # URL where HTML archives will be served
+
+	# default http://localhost:8080, URL where HTML archives will be served
+  host: "https://your-digest-host.com"
+
+	# default true, compresses digest html
   compress: true
+
+	# default false | true
   mark_as_read: true
+
+	# default false | true
   run_on_startup: false
-  view: "date" # choices: date, category, ai
+
+	# default date | category | ai
+  view: date
 
 ai:
+	# gemini api key
   api_key: "YOUR_GEMINI_API_KEY"
