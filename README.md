@@ -112,6 +112,15 @@ This project is [licensed](LICENSE.md) under the [Apache License, Version
 2.0](https://www.apache.org/licenses/LICENSE-2.0), aligning with the Miniflux
 project's license.
 
+## Wishlist / Ideas / Roadmap / Todos
+
+* support more LLM providers
+* allow user to customize prompts
+* support explicit feed/category sources
+* support multiple digests
+* support text/html email content
+* fix web scrolling bug when selecting item content
+
 ## Contact
 
 You can find me on:
