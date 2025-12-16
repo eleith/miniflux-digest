@@ -60,6 +60,7 @@ func ProcessDigest(application *app.App, digestIndex int) (*os.File, []*os.File,
 		application.Config.Miniflux.Host,
 		digestConfig.Host,
 		digestConfig.Categories,
+		digestConfig.Title,
 	)
 
 	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, digestConfig.Compress)

@@ -42,6 +42,8 @@ type FeedIcon struct {
 }
 
 type OverviewTemplateData struct {
+	DigestTitle   string
+	DigestSlug    string
 	Entries       []*Entry
 	GeneratedDate time.Time
 	FeedIcons     []*FeedIcon

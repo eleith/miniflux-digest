@@ -65,7 +65,11 @@ func (s *ArchiveServiceImpl) makeGroupedEntriesArchiveFile(data *models.PrimaryG
 }
 
 func (s *ArchiveServiceImpl) makeOverviewArchiveFile(data *models.OverviewTemplateData) (*os.File, string, error) {
-	dateFolderPath := fmt.Sprintf("%s/%s", s.ArchiveBaseDir, data.GeneratedDate.Format("2006-01-02"))
+	digestSlug := data.DigestSlug
+	if digestSlug == "" {
+		digestSlug = "default"
+	}
+	dateFolderPath := fmt.Sprintf("%s/%s/%s", s.ArchiveBaseDir, digestSlug, data.GeneratedDate.Format("2006-01-02"))
 	filename := fmt.Sprintf("%s/index.html", dateFolderPath)
 	err := os.MkdirAll(dateFolderPath, 0755)
 

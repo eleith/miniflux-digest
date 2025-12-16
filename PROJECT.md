@@ -103,10 +103,10 @@ digests:
 ### Phase 5: Output & Presentation
 *Goal: New folder structure.*
 
-- [ ] **5.1 Folder Structure:** Update `internal/archive`.
+- [x] **5.1 Folder Structure:** Update `internal/archive`.
     -   Path: `archives/<digest-slug>/<date>.html`.
     -   **Test:** Verify file creation in correct subfolders.
-- [ ] **5.2 Cleanup:** Remove legacy code.
+- [x] **5.2 Cleanup:** Remove legacy code.
 
 ### Phase 6: End-to-End Verification
 - [ ] **6.1 Manual Dry Run:**

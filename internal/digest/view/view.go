@@ -5,11 +5,12 @@ import (
 	"miniflux-digest/internal/app/services"
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/models"
+	"miniflux-digest/internal/utils"
 	"sort"
 	"time"
 )
 
-func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, digestHost string, llmService services.LLMService, categories []config.ConfigCategory) *models.OverviewTemplateData {
+func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, digestHost string, llmService services.LLMService, categories []config.ConfigCategory, digestTitle string) *models.OverviewTemplateData {
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
 		iconsSlice = append(iconsSlice, icon)
@@ -61,6 +62,8 @@ func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.Fee
 	}
 
 	return &models.OverviewTemplateData{
+		DigestTitle:     digestTitle,
+		DigestSlug:      utils.Slugify(digestTitle),
 		Entries:         entries,
 		GeneratedDate:   time.Now(),
 		FeedIcons:       iconsSlice,
