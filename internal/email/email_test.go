@@ -11,20 +11,18 @@ import (
 )
 
 func TestSend(t *testing.T) {
-	cfg := &config.Config{
-		Smtp: config.ConfigSmtp{
-			Host:     "localhost",
-			Port:     1025,
-			User:     "test-user",
-			Password: "test-password",
+	smtpConfig := config.ConfigSmtp{
+		Host:     "localhost",
+		Port:     1025,
+		User:     "test-user",
+		Password: "test-password",
+	}
+	digestConfig := config.ConfigDigest{
+		Email: config.ConfigDigestEmail{
+			To:   "to@example.com",
+			From: "from@example.com",
 		},
-		Digest: config.ConfigDigest{
-			Email: config.ConfigDigestEmail{
-				To:   "to@example.com",
-				From: "from@example.com",
-			},
-			Host: "https://example.com",
-		},
+		Host: "https://example.com",
 	}
 
 	tmpFile, err := os.CreateTemp("", "test.html")
@@ -70,7 +68,7 @@ func TestSend(t *testing.T) {
 	emailService := &EmailServiceImpl{
 		EmailTemplate: templates.EmailTemplate,
 	}
-	err = emailService.Send(cfg, file, []*os.File{}, &data)
+	err = emailService.Send(smtpConfig, digestConfig, file, []*os.File{}, &data)
 	if err != nil {
 		// We expect an error because we are not running a real SMTP server.
 		// The important part is that the function attempts to connect.

@@ -92,10 +92,12 @@ func TestProcessDigest_Success(t *testing.T) {
 
 	mockApp := app.NewApp(
 		app.WithConfig(&config.Config{
-			Digest: config.ConfigDigest{
-				MarkAsRead: true,
-				Compress:   true,
-				View:       "category",
+			Digests: []config.ConfigDigest{
+				{
+					MarkAsRead: true,
+					Compress:   true,
+					View:       "category",
+				},
 			},
 			Miniflux: config.ConfigMiniflux{Host: "http://miniflux.test"},
 		}),
@@ -104,7 +106,7 @@ func TestProcessDigest_Success(t *testing.T) {
 		app.WithArchiveService(mockArchiveService),
 	)
 
-	overviewFile, groupedEntryFiles, data, err := ProcessDigest(mockApp)
+	overviewFile, groupedEntryFiles, data, err := ProcessDigest(mockApp, mockApp.Config.Digests[0])
 
 	if err != nil {
 		t.Fatalf("ProcessDigest returned an unexpected error: %v", err)

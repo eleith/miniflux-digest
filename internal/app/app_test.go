@@ -21,7 +21,7 @@ func (m *mockArchiveService) CleanArchive(maxAge time.Duration) {}
 
 type mockEmailService struct{}
 
-func (m *mockEmailService) Send(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
+func (m *mockEmailService) Send(smtpConfig config.ConfigSmtp, digestConfig config.ConfigDigest, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
 	return nil
 }
 

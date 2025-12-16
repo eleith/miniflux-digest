@@ -21,9 +21,12 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@daily",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 				"ai": map[string]any{
 					"api_key": "dummy-key",
 				},
@@ -36,9 +39,12 @@ func TestLoad(t *testing.T) {
 				"miniflux": map[string]any{
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@daily",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 			},
 			wantErr: true,
 		},
@@ -48,9 +54,12 @@ func TestLoad(t *testing.T) {
 				"miniflux": map[string]any{
 					"host": "miniflux.example.com",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@daily",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 			},
 			wantErr: true,
 		},
@@ -61,9 +70,12 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@daily",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 				"smtp": map[string]any{
 					"port": 65536,
 				},
@@ -77,9 +89,12 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@daily",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 				"smtp": map[string]any{
 					"port": 587,
 				},
@@ -96,12 +111,15 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
-					"schedule":  "@daily",
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
 					"email": map[string]any{
 						"to": "invalid-email",
 					},
-				},
+				}},
 			},
 			wantErr: true,
 		},
@@ -112,12 +130,15 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
-					"schedule":   "@daily",
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
 					"email": map[string]any{
 						"from": "another-invalid-email",
 					},
-				},
+				}},
 			},
 			wantErr: true,
 		},
@@ -128,13 +149,16 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
-					"schedule":   "@daily",
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
 					"email": map[string]any{
 						"to":   "test@example.com",
 						"from": "sender@example.com",
 					},
-				},
+				}},
 				"ai": map[string]any{
 					"api_key": "dummy-key",
 				},
@@ -148,9 +172,12 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "* * 1 * *",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 				"ai": map[string]any{
 					"api_key": "dummy-key",
 				},
@@ -164,9 +191,12 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "* * * * * * *",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 			},
 			wantErr: true,
 		},
@@ -177,9 +207,12 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@every 1h30m",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 				"ai": map[string]any{
 					"api_key": "dummy-key",
 				},
@@ -193,13 +226,16 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@every bad-duration",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
 			},
 			wantErr: true,
 		},
-		
+
 		{
 			name: "invalid view value",
 			config: map[string]any{
@@ -207,10 +243,12 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
 					"schedule": "@daily",
-					"view": "magic",
-				},
+					"host":     "http://localhost:8080",
+					"view":     "magic",
+				}},
 			},
 			wantErr: true,
 		},
@@ -221,10 +259,23 @@ func TestLoad(t *testing.T) {
 					"host":      "miniflux.example.com",
 					"api_token": "test-token",
 				},
-				"digest": map[string]any{
-					"schedule":     "@daily",
-					"view": "ai",
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "ai",
+				}},
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing digests",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
 				},
+				"digests": []map[string]any{},
 			},
 			wantErr: true,
 		},
@@ -252,19 +303,12 @@ func TestLoad(t *testing.T) {
 				t.Fatalf("Failed to write dummy config file: %v", err)
 			}
 
-			cfg, err := Load(configPath)
+			_, err = Load(configPath)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
-			if !tt.wantErr && tt.name == "default digest.schedule is @weekly" {
-				if cfg.Digest.Schedule != "@weekly" {
-					t.Errorf("Expected digest.schedule to be @weekly, got %s", cfg.Digest.Schedule)
-				}
-			}
 		})
 	}
-
 }

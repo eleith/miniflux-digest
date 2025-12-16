@@ -23,22 +23,23 @@ const (
 	ArchiveCleanupDays = 21
 )
 
-func digestJob(application *app.App, source string) {
-	log.Printf("Starting digest job from source: %s", source)
-	overviewFile, groupedEntryFiles, data, err := processor.ProcessDigest(application)
+func digestJob(application *app.App, digestConfig config.ConfigDigest, source string) {
+	log.Printf("Starting digest job for '%s' from source: %s", digestConfig.Title, source)
+	overviewFile, groupedEntryFiles, data, err := processor.ProcessDigest(application, digestConfig)
 	if err != nil {
-		log.Printf("Error processing digest: %v", err)
+		log.Printf("Error processing digest '%s': %v", digestConfig.Title, err)
 		return
 	}
 
 	emailSent := application.Config.Smtp.Host != ""
 	if emailSent {
-		if err := application.EmailService.Send(application.Config, overviewFile, groupedEntryFiles, data); err != nil {
-			log.Printf("Error sending digest email: %v", err)
+		if err := application.EmailService.Send(application.Config.Smtp, digestConfig, overviewFile, groupedEntryFiles, data); err != nil {
+			log.Printf("Error sending digest email for '%s': %v", digestConfig.Title, err)
 		}
 	}
 
-	log.Printf("Digest produced at %s: entries=%d, folder=%s, email_sent=%t, source=%s",
+	log.Printf("Digest '%s' produced at %s: entries=%d, folder=%s, email_sent=%t, source=%s",
+		digestConfig.Title,
 		data.GeneratedDate.Format(time.RFC3339),
 		len(data.Entries),
 		overviewFile.Name(),
@@ -47,20 +48,23 @@ func digestJob(application *app.App, source string) {
 	)
 }
 
-func registerDigestJob(application *app.App, scheduler gocron.Scheduler) {
-	_, err := scheduler.NewJob(
-		gocron.CronJob(application.Config.Digest.Schedule, true),
-		gocron.NewTask(func() {
-			digestJob(application, "scheduler")
-		}),
-	)
+func registerDigestJobs(application *app.App, scheduler gocron.Scheduler) {
+	for _, d := range application.Config.Digests {
+		digestConfig := d // Capture loop variable
+		_, err := scheduler.NewJob(
+			gocron.CronJob(digestConfig.Schedule, true),
+			gocron.NewTask(func() {
+				digestJob(application, digestConfig, "scheduler")
+			}),
+		)
 
-	if err != nil {
-		log.Fatalf("Error creating job: %v", err)
-	}
+		if err != nil {
+			log.Fatalf("Error creating job for digest '%s': %v", digestConfig.Title, err)
+		}
 
-	if application.Config.Digest.RunOnStartup {
-		go digestJob(application, "startup")
+		if digestConfig.RunOnStartup {
+			go digestJob(application, digestConfig, "startup")
+		}
 	}
 }
 
@@ -93,7 +97,7 @@ func main() {
 
 	scheduler.Start()
 
-	registerDigestJob(application, scheduler)
+	registerDigestJobs(application, scheduler)
 	registerArchiveCleanupJob(application, scheduler)
 
 	go webserver.ListenAndServe(webserver.ArchiveBasePath, webserver.Port)

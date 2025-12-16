@@ -5,12 +5,13 @@ import (
 	"os"
 
 	"miniflux-digest/internal/app"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/models"
 
 	miniflux "miniflux.app/v2/client"
 )
 
-func ProcessDigest(application *app.App) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
+func ProcessDigest(application *app.App, digestConfig config.ConfigDigest) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
 	entries, err := application.MinifluxClientService.GetAllUnreadEntries()
 	if err != nil {
 		log.Printf("Error getting all unread entries: %v", err)
@@ -35,18 +36,18 @@ func ProcessDigest(application *app.App) (*os.File, []*os.File, *models.Overview
 	data := application.DigestService.BuildDigestData(
 		entries,
 		icons,
-		application.Config.Digest.View,
+		digestConfig.View,
 		application.Config.Miniflux.Host,
-		application.Config.Digest.Host,
+		digestConfig.Host,
 	)
 
-	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, application.Config.Digest.Compress)
+	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, digestConfig.Compress)
 	if err != nil {
 		log.Printf("Error generating archive HTML: %v", err)
 		return nil, nil, nil, err
 	}
 
-	if application.Config.Digest.MarkAsRead {
+	if digestConfig.MarkAsRead {
 		var entryIDs []int64
 		for _, entry := range entries {
 			entryIDs = append(entryIDs, entry.ID)

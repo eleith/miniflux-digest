@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/yaml"
-	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 	"github.com/robfig/cron/v3"
@@ -41,14 +40,33 @@ type ConfigSmtp struct {
 	Password string `koanf:"password"`
 }
 
+type ConfigCategory struct {
+	Title       string `koanf:"title" validate:"required"`
+	Description string `koanf:"description"`
+}
+
+type ConfigFilters struct {
+	FeedTitles            []string `koanf:"feed_titles"`
+	CategoryTitles        []string `koanf:"category_titles"`
+	SiteURLs              []string `koanf:"site_urls"`
+	EntryURLs             []string `koanf:"entry_urls"`
+	FeedTitlePatterns     []string `koanf:"feed_title_patterns"`
+	CategoryTitlePatterns []string `koanf:"category_title_patterns"`
+	SiteURLPatterns       []string `koanf:"site_url_patterns"`
+	EntryURLPatterns      []string `koanf:"entry_url_patterns"`
+}
+
 type ConfigDigest struct {
+	Title        string            `koanf:"title" validate:"required"`
 	Email        ConfigDigestEmail `koanf:"email"`
-	Schedule     string            `koanf:"schedule" validate:"gocron"`
-	Host         string            `koanf:"host"`
-	Compress     bool   `koanf:"compress"`
-	View         string `koanf:"view" validate:"oneof=date category ai"`
-	MarkAsRead   bool   `koanf:"mark_as_read"`
+	Schedule     string            `koanf:"schedule" validate:"required,gocron"`
+	Host         string            `koanf:"host" validate:"required,url"`
+	Compress     bool              `koanf:"compress"`
+	View         string            `koanf:"view" validate:"required,oneof=date category ai"`
+	MarkAsRead   bool              `koanf:"mark_as_read"`
 	RunOnStartup bool              `koanf:"run_on_startup"`
+	Filters      ConfigFilters     `koanf:"filters"`
+	Categories   []ConfigCategory  `koanf:"categories"`
 }
 
 type ConfigAI struct {
@@ -58,7 +76,7 @@ type ConfigAI struct {
 type Config struct {
 	Miniflux ConfigMiniflux `koanf:"miniflux"`
 	Smtp     ConfigSmtp     `koanf:"smtp"`
-	Digest   ConfigDigest   `koanf:"digest"`
+	Digests  []ConfigDigest `koanf:"digests" validate:"min=1,dive"`
 	AI       ConfigAI       `koanf:"ai"`
 }
 
@@ -72,8 +90,10 @@ func (c *Config) Validate() error {
 
 	validate.RegisterStructValidation(func(sl validator.StructLevel) {
 		cfg := sl.Current().Interface().(Config)
-		if cfg.Digest.View == "ai" && cfg.AI.ApiKey == "" {
-			sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.View is 'ai'")
+		for _, digest := range cfg.Digests {
+			if digest.View == "ai" && cfg.AI.ApiKey == "" {
+				sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.View is 'ai'")
+			}
 		}
 	}, Config{})
 
@@ -94,9 +114,8 @@ func Load(path string) (*Config, error) {
 	k := koanf.New(".")
 	parser := yaml.Parser()
 
-	if err := setDefaultValues(k); err != nil {
-		return nil, err
-	}
+	// Default values are mostly relevant for single-digest setups which we've moved away from.
+	// We could re-implement them but for now, we rely on the user providing a valid config.
 
 	if err := k.Load(file.Provider(path), parser); err != nil {
 		return nil, err
@@ -112,15 +131,4 @@ func Load(path string) (*Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func setDefaultValues(k *koanf.Koanf) error {
-	return k.Load(confmap.Provider(map[string]any{
-		"digest.compress":       true,
-		"digest.view":           "date",
-		"digest.host":					 "http://localhost:8080",
-		"digest.schedule":       "@weekly",
-		"digest.mark_as_read":   true,
-		"digest.run_on_startup": false,
-	}, "."), nil)
 }

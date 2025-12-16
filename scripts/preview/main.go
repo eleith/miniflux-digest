@@ -79,12 +79,13 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	}
 
 	log.Println("generateDigestData: Building digest data...")
+	digestConfig := cfg.Digests[0]
 	data := digestSvc.BuildDigestData(
 		entries,
 		icons,
-		cfg.Digest.View,
+		digestConfig.View,
 		cfg.Miniflux.Host,
-		cfg.Digest.Host,
+		digestConfig.Host,
 	)
 
 	if len(data.PrimaryGroups) > 0 {
@@ -93,8 +94,6 @@ func generateMockDigest(cfg *config.Config) *models.OverviewTemplateData {
 	if len(data.PrimaryGroups) > 2 {
 		data.PrimaryGroups[2].Summary = "This is another mock summary for a different group, showing that not all groups have summaries."
 	}
-
-	
 
 	return data
 }
@@ -131,12 +130,13 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 	}
 
 	log.Println("generateDigestData: Building digest data...")
+	digestConfig := cfg.Digests[0]
 	return digestSvc.BuildDigestData(
 		entries,
 		icons,
-		cfg.Digest.View,
+		digestConfig.View,
 		cfg.Miniflux.Host,
-		cfg.Digest.Host,
+		digestConfig.Host,
 	)
 }
 
@@ -170,9 +170,9 @@ func generateAndArchiveHTML(cfg *config.Config, minifluxFlag bool) (*os.File, []
 
 	log.Println("main: Digest data generated.")
 
-
+	digestConfig := cfg.Digests[0]
 	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
-	overviewFile, groupedEntryFiles, err := archiveSvc.MakeArchiveHTML(data, cfg.Digest.Compress)
+	overviewFile, groupedEntryFiles, err := archiveSvc.MakeArchiveHTML(data, digestConfig.Compress)
 	if err != nil {
 		log.Fatalf("Failed to generate HTML: %v", err)
 	}
@@ -198,7 +198,8 @@ func handleEmail(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []
 		EmailTemplate: templates.EmailTemplate,
 	}
 
-	if err := emailSvc.Send(cfg, overviewFile, groupedEntryFiles, data); err != nil {
+	digestConfig := cfg.Digests[0]
+	if err := emailSvc.Send(cfg.Smtp, digestConfig, overviewFile, groupedEntryFiles, data); err != nil {
 		log.Fatalf("Failed to send email: %v", err)
 	}
 	log.Printf("Successfully generated and sent email.")
