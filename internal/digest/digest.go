@@ -2,6 +2,7 @@ package digest
 
 import (
 	"miniflux-digest/internal/app/services"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/digest/view"
 	"miniflux-digest/internal/models"
 )
@@ -14,6 +15,6 @@ type digestServiceImpl struct {
 	llmService services.LLMService
 }
 
-func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, digestHost string) *models.OverviewTemplateData {
-	return view.BuildDigestDataForView(entries, icons, viewType, minifluxHost, digestHost, s.llmService)
+func (s *digestServiceImpl) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, digestHost string, categories []config.ConfigCategory) *models.OverviewTemplateData {
+	return view.BuildDigestDataForView(entries, icons, viewType, minifluxHost, digestHost, s.llmService, categories)
 }

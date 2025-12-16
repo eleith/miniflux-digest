@@ -72,7 +72,7 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		rawGroups, groupedIDs, failedChunks := GroupAIEntries(context.Background(), entries, llmService)
+		rawGroups, groupedIDs, failedChunks := GroupAIEntries(context.Background(), entries, llmService, nil)
 		assert.Empty(t, failedChunks)
 		assert.NotNil(t, rawGroups)
 		assert.Len(t, rawGroups, 2, "Expected 2 grouped")
@@ -96,7 +96,7 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		_, _, failedChunks := GroupAIEntries(context.Background(), entries, llmService)
+		_, _, failedChunks := GroupAIEntries(context.Background(), entries, llmService, nil)
 		assert.NotEmpty(t, failedChunks)
 	})
 
@@ -107,7 +107,7 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		_, _, failedChunks := GroupAIEntries(context.Background(), entries, llmService)
+		_, _, failedChunks := GroupAIEntries(context.Background(), entries, llmService, nil)
 		assert.NotEmpty(t, failedChunks)
 	})
 
@@ -149,7 +149,7 @@ func TestGroupAIEntries(t *testing.T) {
 			},
 		}
 
-		rawGroups, groupedIDs, failedChunks := GroupAIEntries(context.Background(), largeEntries, llmService)
+		rawGroups, groupedIDs, failedChunks := GroupAIEntries(context.Background(), largeEntries, llmService, nil)
 		assert.Empty(t, failedChunks)
 		assert.Equal(t, 2, callCount, "Expected LLM to be called 2 times for 205 entries with chunk size 200")
 
@@ -450,7 +450,7 @@ func TestBuildDigestDataByAI(t *testing.T) {
 			},
 		}
 
-		groups := BuildDigestDataByAI(entries, context.Background(), llmService)
+		groups := BuildDigestDataByAI(entries, context.Background(), llmService, nil)
 		assert.Len(t, groups, 2, "Expected 1 consolidated group + 1 uncategorized")
 
 		techGroup := testutil.FindPrimaryGroup(groups, "Tech")
@@ -473,7 +473,7 @@ func TestBuildDigestDataByAI(t *testing.T) {
 			},
 		}
 
-		groups := BuildDigestDataByAI(entries, context.Background(), llmService)
+		groups := BuildDigestDataByAI(entries, context.Background(), llmService, nil)
 		assert.Len(t, groups, 3, "Should fall back to 3 categories")
 	})
 

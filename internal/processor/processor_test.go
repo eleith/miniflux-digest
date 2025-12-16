@@ -30,11 +30,11 @@ func (m *mockMinifluxClientService) UpdateEntries(entryIDs []int64, status strin
 }
 
 type mockDigestService struct {
-	buildDigestDataFunc func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string) *models.OverviewTemplateData
+	buildDigestDataFunc func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string, categories []config.ConfigCategory) *models.OverviewTemplateData
 }
 
-func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string) *models.OverviewTemplateData {
-	return m.buildDigestDataFunc(entries, icons, view, minifluxHost, digestHost)
+func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string, categories []config.ConfigCategory) *models.OverviewTemplateData {
+	return m.buildDigestDataFunc(entries, icons, view, minifluxHost, digestHost, categories)
 }
 
 type mockArchiveService struct {
@@ -78,7 +78,7 @@ func TestProcessDigest_Success(t *testing.T) {
 		},
 	}
 	mockDigestService := &mockDigestService{
-		buildDigestDataFunc: func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string) *models.OverviewTemplateData {
+		buildDigestDataFunc: func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string, categories []config.ConfigCategory) *models.OverviewTemplateData {
 			return expectedOverviewData
 		},
 	}
@@ -106,7 +106,7 @@ func TestProcessDigest_Success(t *testing.T) {
 		app.WithArchiveService(mockArchiveService),
 	)
 
-	overviewFile, groupedEntryFiles, data, err := ProcessDigest(mockApp, mockApp.Config.Digests[0])
+	overviewFile, groupedEntryFiles, data, err := ProcessDigest(mockApp, 0)
 
 	if err != nil {
 		t.Fatalf("ProcessDigest returned an unexpected error: %v", err)

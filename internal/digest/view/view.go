@@ -3,12 +3,13 @@ package view
 import (
 	"context"
 	"miniflux-digest/internal/app/services"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/models"
 	"sort"
 	"time"
 )
 
-func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, digestHost string, llmService services.LLMService) *models.OverviewTemplateData {
+func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.FeedIcon, viewType string, minifluxHost string, digestHost string, llmService services.LLMService, categories []config.ConfigCategory) *models.OverviewTemplateData {
 	iconsSlice := make([]*models.FeedIcon, 0, len(icons))
 	for _, icon := range icons {
 		iconsSlice = append(iconsSlice, icon)
@@ -23,7 +24,7 @@ func BuildDigestDataForView(entries []*models.Entry, icons map[int64]*models.Fee
 	case "category", "default":
 		resultPrimaryGroups = BuildDigestDataByCategory(entries)
 	case "ai":
-		resultPrimaryGroups = BuildDigestDataByAI(entries, context.Background(), llmService)
+		resultPrimaryGroups = BuildDigestDataByAI(entries, context.Background(), llmService, categories)
 	}
 
 	if viewType == "date" || viewType == "category" {

@@ -12,6 +12,14 @@ The nature of a good primary group can vary:
 - Sometimes it's based on the **source** (e.g., "Hacker News Discussions", "TechCrunch Articles").
 - Sometimes it's about the **type of content** (e.g., "Software Development Blogs", "Video Game Reviews").
 
+{{if .}}
+**Preferred Categories:**
+Use the following categories if they fit, but feel free to create new ones if necessary:
+{{range .}}
+- **{{.Title}}**: {{.Description}}
+{{end}}
+{{end}}
+
 Follow these instructions:
 - Create group titles that are concise and high-level (2-5 words).
 - An entry can only belong to one group.

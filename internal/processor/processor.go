@@ -5,21 +5,41 @@ import (
 	"os"
 
 	"miniflux-digest/internal/app"
-	"miniflux-digest/internal/config"
+	"miniflux-digest/internal/manager"
 	"miniflux-digest/internal/models"
 
 	miniflux "miniflux.app/v2/client"
 )
 
-func ProcessDigest(application *app.App, digestConfig config.ConfigDigest) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
+func ProcessDigest(application *app.App, digestIndex int) (*os.File, []*os.File, *models.OverviewTemplateData, error) {
+	digestConfig := application.Config.Digests[digestIndex]
+
 	entries, err := application.MinifluxClientService.GetAllUnreadEntries()
 	if err != nil {
 		log.Printf("Error getting all unread entries: %v", err)
 		return nil, nil, nil, err
 	}
 
-	icons := make(map[int64]*models.FeedIcon)
+	digestManager, err := manager.NewDigestManager(application.Config.Digests)
+	if err != nil {
+		log.Printf("Error creating digest manager: %v", err)
+		return nil, nil, nil, err
+	}
+
+	var digestEntries []*models.Entry
 	for _, entry := range entries {
+		if digestManager.GetOwningDigest(entry) == digestIndex {
+			digestEntries = append(digestEntries, entry)
+		}
+	}
+
+	// If no entries belong to this digest, we might still want to generate an empty report
+	// or just return early. The original logic continued even if empty?
+	// The original logic iterated over empty entries -> empty icons -> BuildDigestData -> MakeArchiveHTML.
+	// So we should continue with digestEntries.
+
+	icons := make(map[int64]*models.FeedIcon)
+	for _, entry := range digestEntries {
 		if _, ok := icons[entry.FeedID]; !ok {
 			icon, err := application.MinifluxClientService.FeedIcon(entry.FeedID)
 			if err != nil {
@@ -34,11 +54,12 @@ func ProcessDigest(application *app.App, digestConfig config.ConfigDigest) (*os.
 	}
 
 	data := application.DigestService.BuildDigestData(
-		entries,
+		digestEntries,
 		icons,
 		digestConfig.View,
 		application.Config.Miniflux.Host,
 		digestConfig.Host,
+		digestConfig.Categories,
 	)
 
 	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, digestConfig.Compress)
@@ -49,7 +70,7 @@ func ProcessDigest(application *app.App, digestConfig config.ConfigDigest) (*os.
 
 	if digestConfig.MarkAsRead {
 		var entryIDs []int64
-		for _, entry := range entries {
+		for _, entry := range digestEntries {
 			entryIDs = append(entryIDs, entry.ID)
 		}
 

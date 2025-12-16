@@ -55,18 +55,18 @@ digests:
 ### Phase 1: Configuration & Core Structures
 *Goal: Update data structures on a new branch `gemini/feature/multi-digest-architecture`.*
 
-- [ ] **1.1 Config Refactor:** Update `internal/config`.
+- [x] **1.1 Config Refactor:** Update `internal/config`.
     -   Update `Config` struct to hold `[]DigestConfig`.
     -   Define `FilterConfig` with fields: `FeedTitles`, `CategoryTitles`, `SiteURLs`, `EntryURLs` (Simple) and `*_Patterns` (Regex).
     -   Implement `Load` logic: Check for legacy `digest` (singular) and migrate it to `digests[0]`.
     -   **Test:** Unit tests for `LoadConfig` verifying legacy, new array, and mixed filter formats.
-- [ ] **1.2 Slugification:** Ensure `utils` has a robust slug generator (for file/folder naming based on titles).
+- [x] **1.2 Slugification:** Ensure `utils` has a robust slug generator (for file/folder naming based on titles).
     -   **Test:** Unit tests for slug generation with edge cases.
 
 ### Phase 2: The Filter Engine
 *Goal: Deterministic logic to assign items to digests.*
 
-- [ ] **2.1 Filter Logic:** Create `internal/filter`.
+- [x] **2.1 Filter Logic:** Create `internal/filter`.
     -   `Matcher` struct.
     -   `Matches(item, digestConfig) bool`.
     -   Logic:
@@ -74,7 +74,7 @@ digests:
         -   `SiteURLs`, `EntryURLs`: **String Prefix Match** (`strings.HasPrefix`).
         -   `*_Patterns`: **Regex Match**.
     -   **Test:** Unit tests with various inputs (simple vs regex, matches vs non-matches).
-- [ ] **2.2 Assignment Logic:** Create `internal/manager`.
+- [x] **2.2 Assignment Logic:** Create `internal/manager`.
     -   `GetOwningDigest(item, allDigests) digestIndex`.
     -   Iterates through the stack. Returns the index of the first match.
     -   **Test:** Unit tests mimicking the "stealing" scenario.
@@ -82,21 +82,21 @@ digests:
 ### Phase 3: Processor & Scheduler Refactor
 *Goal: Run specific jobs based on specific configs.*
 
-- [ ] **3.1 Processor Update:** Modify `internal/processor/processor.go`.
+- [x] **3.1 Processor Update:** Modify `internal/processor/processor.go`.
     -   Update `ProcessDigest` to accept `DigestConfig`.
     -   **Optimization:** If a digest *only* filters by specific Miniflux Category IDs (mapped from titles), pass that to `miniflux_client.UnreadEntries` to reduce fetch size. Otherwise, fetch all unread.
     -   **Crucial:** Inside the loop, check `GetOwningDigest`. If item owner != current digest, **skip** and **do not mark read**.
     -   **Test:** Mock Miniflux client to verify correct items are marked read/skipped.
-- [ ] **3.2 Main Loop:** Update `cmd/miniflux-digest/main.go`.
+- [x] **3.2 Main Loop:** Update `cmd/miniflux-digest/main.go`.
     -   Iterate `config.Digests`. Register a job for each unique schedule.
     -   **Test:** Verify (via log inspection or unit test) that multiple jobs are registered.
 
 ### Phase 4: LLM & Categorization
 *Goal: Make the AI respect user-defined buckets.*
 
-- [ ] **4.1 Default Handling:** Define `DefaultCategories` constant.
+- [x] **4.1 Default Handling:** Define `DefaultCategories` constant.
     -   In `Config` loading, if `digest.Categories` is empty, apply defaults.
-- [ ] **4.2 Prompt Update:** Update `internal/llm/prompts.go`.
+- [x] **4.2 Prompt Update:** Update `internal/llm/prompts.go`.
     -   Inject categories + descriptions into the system prompt.
     -   **Test:** Update `llm_test.go` to verify prompts are constructed correctly with custom categories.
 

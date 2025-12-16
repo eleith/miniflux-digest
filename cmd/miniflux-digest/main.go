@@ -23,9 +23,10 @@ const (
 	ArchiveCleanupDays = 21
 )
 
-func digestJob(application *app.App, digestConfig config.ConfigDigest, source string) {
+func digestJob(application *app.App, digestIndex int, source string) {
+	digestConfig := application.Config.Digests[digestIndex]
 	log.Printf("Starting digest job for '%s' from source: %s", digestConfig.Title, source)
-	overviewFile, groupedEntryFiles, data, err := processor.ProcessDigest(application, digestConfig)
+	overviewFile, groupedEntryFiles, data, err := processor.ProcessDigest(application, digestIndex)
 	if err != nil {
 		log.Printf("Error processing digest '%s': %v", digestConfig.Title, err)
 		return
@@ -49,12 +50,13 @@ func digestJob(application *app.App, digestConfig config.ConfigDigest, source st
 }
 
 func registerDigestJobs(application *app.App, scheduler gocron.Scheduler) {
-	for _, d := range application.Config.Digests {
+	for i, d := range application.Config.Digests {
 		digestConfig := d // Capture loop variable
+		digestIndex := i
 		_, err := scheduler.NewJob(
 			gocron.CronJob(digestConfig.Schedule, true),
 			gocron.NewTask(func() {
-				digestJob(application, digestConfig, "scheduler")
+				digestJob(application, digestIndex, "scheduler")
 			}),
 		)
 
@@ -63,7 +65,7 @@ func registerDigestJobs(application *app.App, scheduler gocron.Scheduler) {
 		}
 
 		if digestConfig.RunOnStartup {
-			go digestJob(application, digestConfig, "startup")
+			go digestJob(application, digestIndex, "startup")
 		}
 	}
 }

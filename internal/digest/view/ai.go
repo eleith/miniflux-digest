@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"miniflux-digest/internal/app/services"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/llm"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/utils"
@@ -33,7 +34,7 @@ type llmEntry struct {
 
 
 
-func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService) (map[string][]*models.Entry, map[int64]bool, map[string][]*models.Entry) {
+func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService services.LLMService, categories []config.ConfigCategory) (map[string][]*models.Entry, map[int64]bool, map[string][]*models.Entry) {
 	const chunkSize = 200
 
 	// Prepare for processing
@@ -51,6 +52,7 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 
 	workerConfig := llmWorkerConfig{
 		promptTemplate: promptTemplate,
+		promptData:     categories,
 		responseSchema: InitialGroupingResponseSchema,
 		prepareEntries: func(entries []*models.Entry) interface{} {
 			return prepareLLMEntries(entries)
@@ -389,8 +391,8 @@ func prepareLLMEntries(entries []*models.Entry) []llmEntry {
 	return llmEntries
 }
 
-func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmService services.LLMService) []*models.PrimaryGroupDigestData {
-	rawGroups, groupedEntryIDs, failedChunks, fallbackGroups := initialAIGGrouping(ctx, entries, llmService)
+func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmService services.LLMService, categories []config.ConfigCategory) []*models.PrimaryGroupDigestData {
+	rawGroups, groupedEntryIDs, failedChunks, fallbackGroups := initialAIGGrouping(ctx, entries, llmService, categories)
 	if fallbackGroups != nil {
 		return fallbackGroups
 	}
@@ -406,8 +408,8 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 	return allPrimaryGroups
 }
 
-func initialAIGGrouping(ctx context.Context, entries []*models.Entry, llmService services.LLMService) (map[string][]*models.Entry, map[int64]bool, map[string][]*models.Entry, []*models.PrimaryGroupDigestData) {
-	rawGroups, groupedEntryIDs, failedChunks := GroupAIEntries(ctx, entries, llmService)
+func initialAIGGrouping(ctx context.Context, entries []*models.Entry, llmService services.LLMService, categories []config.ConfigCategory) (map[string][]*models.Entry, map[int64]bool, map[string][]*models.Entry, []*models.PrimaryGroupDigestData) {
+	rawGroups, groupedEntryIDs, failedChunks := GroupAIEntries(ctx, entries, llmService, categories)
 
 	// If all chunks failed and we have no raw groups, fall back to category grouping.
 	if len(rawGroups) == 0 && len(failedChunks) > 0 {
@@ -544,6 +546,7 @@ func sortPrimaryGroups(allPrimaryGroups []*models.PrimaryGroupDigestData) {
 // llmWorkerConfig holds configuration for creating an LLM worker function.
 type llmWorkerConfig struct {
 	promptTemplate *template.Template
+	promptData     interface{} // Data to pass to template execution
 	promptFormat   string // For prompts that use Sprintf
 	responseSchema *genai.Schema
 	prepareEntries func([]*models.Entry) interface{} // Function to prepare entries for LLM
@@ -573,7 +576,7 @@ func createLLMWorker[R any](
 		// 2. Construct the prompt
 		var prompt bytes.Buffer
 		if config.promptTemplate != nil {
-			if err := config.promptTemplate.Execute(&prompt, nil); err != nil {
+			if err := config.promptTemplate.Execute(&prompt, config.promptData); err != nil {
 				return zero, fmt.Errorf("failed to execute prompt template: %w", err)
 			}
 		} else if config.promptFormat != "" {

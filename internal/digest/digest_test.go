@@ -89,7 +89,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 	}
 
 	t.Run("view=date", func(t *testing.T) {
-		overviewData := digestService.BuildDigestData(entries, icons, "date", "http://miniflux.test", "")
+		overviewData := digestService.BuildDigestData(entries, icons, "date", "http://miniflux.test", "", nil)
 		if overviewData == nil {
 			t.Fatal("overviewData is nil")
 		}
@@ -112,7 +112,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 	})
 
 	t.Run("view=category", func(t *testing.T) {
-		overviewData := digestService.BuildDigestData(entries, icons, "category", "http://miniflux.test", "")
+		overviewData := digestService.BuildDigestData(entries, icons, "category", "http://miniflux.test", "", nil)
 		if overviewData == nil {
 			t.Fatal("overviewData is nil")
 		}
@@ -133,7 +133,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 
 	t.Run("view=ai", func(t *testing.T) {
 		aiEntries := createLLMGrouperMockEntries()
-		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test", "")
+		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test", "", nil)
 		if overviewData == nil {
 			t.Fatal("overviewData is nil")
 		}
@@ -156,7 +156,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		}
 		digestService := NewDigestService(mockLLM)
 		aiEntries := createLLMGrouperMockEntries()
-		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test", "")
+		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test", "", nil)
 
 		if overviewData == nil {
 			t.Fatal("overviewData is nil")
@@ -200,7 +200,7 @@ func TestDigestService_BuildDigestData(t *testing.T) {
 		}
 		digestService := NewDigestService(mockLLM)
 		aiEntries := createLLMGrouperMockEntries()
-		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test", "")
+		overviewData := digestService.BuildDigestData(aiEntries, icons, "ai", "http://miniflux.test", "", nil)
 
 		if overviewData == nil {
 			t.Fatal("overviewData is nil")

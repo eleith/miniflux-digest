@@ -41,14 +41,17 @@ func (m *MinifluxClientWrapper) GetAllUnreadEntries() ([]*models.Entry, error) {
 			categoryTitle = entry.Feed.Category.Title
 		}
 		var feedTitle string
+		var siteURL string
 		if entry.Feed != nil {
 			feedTitle = entry.Feed.Title
+			siteURL = entry.Feed.SiteURL
 		}
 
 		entries = append(entries, &models.Entry{
 			ID:            entry.ID,
 			Title:         entry.Title,
 			URL:           entry.URL,
+			SiteURL:       siteURL,
 			Content:       entry.Content,
 			FeedID:        entry.FeedID,
 			FeedTitle:     feedTitle,

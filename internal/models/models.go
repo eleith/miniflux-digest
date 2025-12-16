@@ -14,6 +14,7 @@ type Entry struct {
 	ID         int64
 	Title      string
 	URL        string
+	SiteURL    string
 	Content    string
 	FeedID     int64
 	FeedTitle  string
