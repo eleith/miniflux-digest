@@ -3,6 +3,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"regexp"
+
+	"miniflux-digest/internal/utils"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/yaml"
@@ -66,7 +69,7 @@ type ConfigDigest struct {
 	MarkAsRead   bool              `koanf:"mark_as_read"`
 	RunOnStartup bool              `koanf:"run_on_startup"`
 	Filters      ConfigFilters     `koanf:"filters"`
-	Categories   []ConfigCategory  `koanf:"categories"`
+	Categories   []ConfigCategory  `koanf:"categories" validate:"dive"`
 }
 
 type ConfigAI struct {
@@ -90,10 +93,33 @@ func (c *Config) Validate() error {
 
 	validate.RegisterStructValidation(func(sl validator.StructLevel) {
 		cfg := sl.Current().Interface().(Config)
+		slugs := make(map[string]string)
+
 		for _, digest := range cfg.Digests {
 			if digest.View == "ai" && cfg.AI.ApiKey == "" {
 				sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.View is 'ai'")
 			}
+
+			slug := utils.Slugify(digest.Title)
+			if originalTitle, exists := slugs[slug]; exists {
+				sl.ReportError(digest.Title, "Digests.Title", "Title", "unique_slug", fmt.Sprintf("Digest title '%s' conflicts with '%s' (both slugify to '%s')", digest.Title, originalTitle, slug))
+			} else {
+				slugs[slug] = digest.Title
+			}
+
+			// Validate regex patterns
+			validatePatterns := func(patterns []string, fieldName string) {
+				for _, p := range patterns {
+					if _, err := regexp.Compile(p); err != nil {
+						sl.ReportError(digest.Filters, fieldName, fieldName, "regex", fmt.Sprintf("Invalid regex '%s': %v", p, err))
+					}
+				}
+			}
+
+			validatePatterns(digest.Filters.FeedTitlePatterns, "Filters.FeedTitlePatterns")
+			validatePatterns(digest.Filters.CategoryTitlePatterns, "Filters.CategoryTitlePatterns")
+			validatePatterns(digest.Filters.SiteURLPatterns, "Filters.SiteURLPatterns")
+			validatePatterns(digest.Filters.EntryURLPatterns, "Filters.EntryURLPatterns")
 		}
 	}, Config{})
 

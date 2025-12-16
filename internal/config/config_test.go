@@ -279,6 +279,71 @@ func TestLoad(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "duplicate digest slugs",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{
+					{
+						"title":    "My Digest",
+						"schedule": "@daily",
+						"host":     "http://localhost:8080",
+						"view":     "category",
+					},
+					{
+						"title":    "My-Digest",
+						"schedule": "@daily",
+						"host":     "http://localhost:8080",
+						"view":     "category",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid regex pattern",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
+					"filters": map[string]any{
+						"feed_title_patterns": []string{"(unclosed parenthesis"},
+					},
+				}},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid category missing title",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "ai",
+					"categories": []map[string]any{
+						{"description": "No title here"},
+					},
+				}},
+				"ai": map[string]any{
+					"api_key": "dummy-key",
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
