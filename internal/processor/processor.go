@@ -33,11 +33,6 @@ func ProcessDigest(application *app.App, digestIndex int) (*os.File, []*os.File,
 		}
 	}
 
-	// If no entries belong to this digest, we might still want to generate an empty report
-	// or just return early. The original logic continued even if empty?
-	// The original logic iterated over empty entries -> empty icons -> BuildDigestData -> MakeArchiveHTML.
-	// So we should continue with digestEntries.
-
 	icons := make(map[int64]*models.FeedIcon)
 	for _, entry := range digestEntries {
 		if _, ok := icons[entry.FeedID]; !ok {
