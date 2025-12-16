@@ -24,11 +24,12 @@ Customize the digest view, schedule and more. Oh my.
 > many of the following features are _optional_
 
 * ⏰ Automated scheduling (ex: daily, weekly, ever third friday)
+* 📚 **Multi-Digest Support:** Configure multiple digests (e.g., "Daily Tech", "Weekly Social") with unique schedules and content filters.
 * 🌞 Dark and light themes
 * 📥 Fetches all unread entries
 * 📧 Delivers personalized HTML digests via email
 * 🛜 Archives HTML digests for static web serving
-* 🤖 Summarize and group entries for faster skimming
+* 🤖 Summarize and group entries for faster skimming (AI view)
 * ✅ Automatically marks entries as read
 * 🧹 Manages storage by purging older digests
 * ♻️ Wash, rinse, repeat
@@ -77,10 +78,14 @@ Customize the digest view, schedule and more. Oh my.
 
    A `config.yaml` file is required for operation.
 
-   Create this file in the root of the project directory and edit it.
+   Create this file in the root of the project directory. You can start by copying the [example](config.yaml.example):
 
-   See the [config.yaml.example](config.yaml.example) to learn about
-   requirements, defaults and other options.
+   ```bash
+   cp config.yaml.example config.yaml
+   ```
+
+   **📚 Documentation:**
+   For a detailed reference of all available options, including how to configure multiple digests and filters, please read [docs/CONFIG.md](docs/CONFIG.md).
 
 ### Run
 
@@ -116,8 +121,6 @@ project's license.
 
 * support more LLM providers
 * allow user to customize prompts
-* support explicit feed/category sources
-* support multiple digests
 * support text/html email content
 * fix web scrolling bug when selecting item content
 

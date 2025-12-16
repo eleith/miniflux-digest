@@ -13,6 +13,21 @@ and delivered to the web and your inbox.
 These entries can be sorted, summarized and group to enable skimming and to
 decrease time spent catching up.
 
+## Architecture
+
+### Multi-Digest Engine
+
+The application is designed to support multiple, distinct digests running in
+parallel or on different schedules.
+
+-   **One Run, Many Outputs:** The system processes multiple defined digests.
+-   **Stack-Based Priority:** The order of digests in the configuration array
+    determines priority. The first digest (index 0) has the highest priority. If
+    an item matches Digest X (Index 0) and Digest Y (Index 1), it belongs to
+    Digest X.
+-   **Deterministic Filtering:** Inclusion is based on rules (Feed Title,
+    Category Title, Site URL, Entry URL) using Exact, Prefix, or Regex matching.
+
 ## Development Workflow
 
 ### Writing Code

@@ -1,36 +1,38 @@
 miniflux:
-  host: "YOUR_MINIFLUX_URL"
-  api_token: "YOUR_MINIFLUX_API_API_KEY"
+  host: "https://reader.miniflux.app"
+  api_token: "YOUR_MINIFLUX_API_TOKEN"
 
 smtp:
-  host: "YOUR_SMTP_HOST"
+  host: "smtp.example.com"
   port: 587
-  user: "YOUR_SMTP_USERNAME"
-  password: "YOUR_SMTP_PASSWORD"
-
-digest:
-  email:
-    to: "RECIPIENT@example.com"
-    from: "SENDER@example.com"
-
-	# cron syntax also supported
-  schedule: "@every 24h"
-
-	# default http://localhost:8080, URL where HTML archives will be served
-  host: "https://your-digest-host.com"
-
-	# default true, compresses digest html
-  compress: true
-
-	# default false | true
-  mark_as_read: true
-
-	# default false | true
-  run_on_startup: false
-
-	# default date | category | ai
-  view: date
+  user: "smtp_user"
+  password: "smtp_password"
 
 ai:
-	# gemini api key
   api_key: "YOUR_GEMINI_API_KEY"
+
+digests:
+  - title: "Daily Tech"
+    schedule: "0 8 * * *"
+    host: "https://digest.example.com"
+    view: "ai"
+    mark_as_read: true
+    email:
+      to: "recipient@example.com"
+      from: "sender@example.com"
+    filters:
+      feed_titles: ["Hacker News", "Ars Technica"]
+      category_titles: ["Technology"]
+    categories:
+      - title: "AI & LLMs"
+        description: "Artificial intelligence, machine learning, and LLM news."
+      - title: "Programming"
+        description: "Software development, languages, and tools."
+
+  - title: "Weekly Catch-All"
+    schedule: "@weekly"
+    host: "https://digest.example.com"
+    view: "date"
+    email:
+      to: "recipient@example.com"
+      from: "sender@example.com"
