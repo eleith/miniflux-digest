@@ -63,7 +63,7 @@ type ConfigDigest struct {
 	Title        string            `koanf:"title" validate:"required"`
 	Email        ConfigDigestEmail `koanf:"email"`
 	Schedule     string            `koanf:"schedule" validate:"required,gocron"`
-	Host         string            `koanf:"host" validate:"required,url"`
+	Host         string            `koanf:"host" validate:"omitempty,url"`
 	Compress     bool              `koanf:"compress"`
 	View         string            `koanf:"view" validate:"required,oneof=date category ai"`
 	MarkAsRead   bool              `koanf:"mark_as_read"`
