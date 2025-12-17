@@ -91,13 +91,5 @@ Conditions between different fields are **AND** (e.g., matching feed title *AND*
 
 Used only when `view: ai`. Provide a list of objects with `title` and `description` to help the AI categorize content.
 
-**Default Categories:**
-If you do not provide this block, the following defaults are injected:
-1.  **Technology & Engineering:** Software, hardware, internet, gadgets, and engineering breakthroughs.
-2.  **World News & Politics:** Global events, international relations, policy changes, and political discourse.
-3.  **Business & Finance:** Markets, companies, startups, economy, and financial advice.
-4.  **Science & Health:** Scientific discoveries, space, medicine, health tips, and environmental news.
-5.  **Arts & Culture:** Books, music, movies, history, philosophy, and cultural analysis.
-6.  **Entertainment & Lifestyle:** Celebrities, gaming, travel, food, fashion, and hobbies.
-7.  **Sports:** Sports news, scores, teams, and athletes.
-8.  **Other:** Anything that doesn't fit well into the other categories.
+If you do not provide this block, the AI will automatically determine the best primary groups for your content.
+

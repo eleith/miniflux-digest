@@ -65,7 +65,7 @@ type ConfigDigest struct {
 	Email        ConfigDigestEmail `koanf:"email"`
 	Schedule     string            `koanf:"schedule" validate:"required,gocron"`
 	Host         string            `koanf:"host" validate:"omitempty,url"`
-	Compress     bool              `koanf:"compress"`
+	Compress     *bool             `koanf:"compress"`
 	View         string            `koanf:"view" validate:"required,oneof=date category ai"`
 	MarkAsRead   bool              `koanf:"mark_as_read"`
 	RunOnStartup bool              `koanf:"run_on_startup"`
@@ -145,9 +145,6 @@ func Load(path string) (*Config, error) {
 	k := koanf.New(".")
 	parser := yaml.Parser()
 
-	// Default values are mostly relevant for single-digest setups which we've moved away from.
-	// We could re-implement them but for now, we rely on the user providing a valid config.
-
 	if err := k.Load(file.Provider(path), parser); err != nil {
 		return nil, err
 	}
@@ -162,6 +159,18 @@ func Load(path string) (*Config, error) {
 		},
 	}); err != nil {
 		return nil, err
+	}
+
+	// Apply defaults
+	if cfg.Smtp.Port == 0 {
+		cfg.Smtp.Port = 587
+	}
+
+	for i := range cfg.Digests {
+		if cfg.Digests[i].Compress == nil {
+			def := true
+			cfg.Digests[i].Compress = &def
+		}
 	}
 
 	if err := cfg.Validate(); err != nil {

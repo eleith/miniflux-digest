@@ -95,7 +95,7 @@ func TestProcessDigest_Success(t *testing.T) {
 			Digests: []config.ConfigDigest{
 				{
 					MarkAsRead: true,
-					Compress:   true,
+					Compress:   func() *bool { b := true; return &b }(),
 					View:       "category",
 				},
 			},

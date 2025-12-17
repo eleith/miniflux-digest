@@ -200,7 +200,7 @@ func generateAndArchiveHTML(cfg *config.Config, digestIndex int, minifluxFlag bo
 	log.Println("main: Digest data generated.")
 
 	archiveSvc := archive.NewArchiveService(webserver.ArchiveBasePath, templates.ArchiveTemplate, templates.OverviewTemplate)
-	overviewFile, groupedEntryFiles, err := archiveSvc.MakeArchiveHTML(data, digestConfig.Compress)
+	overviewFile, groupedEntryFiles, err := archiveSvc.MakeArchiveHTML(data, *digestConfig.Compress)
 	if err != nil {
 		log.Fatalf("Failed to generate HTML: %v", err)
 	}
