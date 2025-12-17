@@ -131,6 +131,7 @@ func TestMakeOverviewArchiveFile(t *testing.T) {
 	archiveService := NewArchiveService(tempDir, &mockHTMLTemplate{}, &mockHTMLTemplate{})
 
 	data := &models.OverviewTemplateData{
+		DigestSlug:    "test-digest",
 		GeneratedDate: time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC),
 	}
 
@@ -147,12 +148,12 @@ func TestMakeOverviewArchiveFile(t *testing.T) {
 		}
 	}()
 
-	expectedPath := filepath.Join(tempDir, "default", "2024-01-01", "index.html")
+	expectedPath := filepath.Join(tempDir, "test-digest", "2024-01-01", "index.html")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("Expected file %s to exist", expectedPath)
 	}
-	if dateFolderPath != filepath.Join(tempDir, "default", "2024-01-01") {
-		t.Errorf("Expected date folder path %s, got %s", filepath.Join(tempDir, "default", "2024-01-01"), dateFolderPath)
+	if dateFolderPath != filepath.Join(tempDir, "test-digest", "2024-01-01") {
+		t.Errorf("Expected date folder path %s, got %s", filepath.Join(tempDir, "test-digest", "2024-01-01"), dateFolderPath)
 	}
 }
 

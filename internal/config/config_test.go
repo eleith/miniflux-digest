@@ -363,6 +363,22 @@ func TestLoad(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "invalid digest title empty slug",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "!!!",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -102,6 +102,10 @@ func (c *Config) Validate() error {
 			}
 
 			slug := utils.Slugify(digest.Title)
+			if slug == "" {
+				sl.ReportError(digest.Title, "Digests.Title", "Title", "invalid_slug", fmt.Sprintf("Digest title '%s' results in an empty slug", digest.Title))
+			}
+
 			if originalTitle, exists := slugs[slug]; exists {
 				sl.ReportError(digest.Title, "Digests.Title", "Title", "unique_slug", fmt.Sprintf("Digest title '%s' conflicts with '%s' (both slugify to '%s')", digest.Title, originalTitle, slug))
 			} else {
