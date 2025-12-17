@@ -42,8 +42,40 @@ func TestLoad(t *testing.T) {
 				"digests": []map[string]any{{
 					"title":    "Daily Digest",
 					"schedule": "@daily",
+				}},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid config missing view defaults to date",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+				}},
+			},
+			wantErr: false,
+		},
+		{
+			name: "email configured but missing smtp host",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
 					"host":     "http://localhost:8080",
 					"view":     "category",
+					"email": map[string]any{
+						"to": "test@example.com",
+					},
 				}},
 			},
 			wantErr: true,
@@ -159,6 +191,9 @@ func TestLoad(t *testing.T) {
 						"from": "sender@example.com",
 					},
 				}},
+				"smtp": map[string]any{
+					"host": "smtp.example.com",
+				},
 				"ai": map[string]any{
 					"api_key": "dummy-key",
 				},

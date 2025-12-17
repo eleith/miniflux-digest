@@ -26,7 +26,7 @@ Required only if you want to receive digests via email.
 
 | Field | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `host` | String | - | The hostname of your SMTP server (e.g., `smtp.gmail.com`). |
+| `host` | String | No | The hostname of your SMTP server (e.g., `smtp.gmail.com`). **Required** if any digest has email configured. |
 | `port` | Int | `587` | The SMTP port (1-65535). |
 | `user` | String | - | SMTP username. |
 | `password` | String | - | SMTP password. |
@@ -55,8 +55,8 @@ The application processes digests in the order they appear in the configuration 
 | :--- | :--- | :--- | :--- |
 | `title` | String | **Yes** | The display title of the digest. Must be unique after "slugification" (e.g., "My Digest" and "My-Digest" conflict). |
 | `schedule` | String | **Yes** | When to run the digest. Supports Cron syntax (`0 8 * * *`) or Go-cron descriptors (`@daily`, `@weekly`, `@every 2h`). |
-| `host` | String | **Yes** | The base URL where the static HTML archives will be hosted (e.g., `https://digest.myserver.com`). Used for links in the email. |
-| `view` | String | **Yes** | One of: `date`, `category`, `ai`. Controls how entries are grouped and presented. |
+| `host` | String | No | The base URL where the static HTML archives will be hosted (e.g., `https://digest.myserver.com`). **Required** for correct links in emails. |
+| `view` | String | No | One of: `date`, `category`, `ai`. Controls how entries are grouped and presented. Default: `date`. |
 | `email` | Object | No | Email settings for this specific digest. |
 | `filters` | Object | No | Rules for including entries in this digest. |
 | `categories`| Array | No | **(AI View Only)** Custom categories to guide the LLM. |

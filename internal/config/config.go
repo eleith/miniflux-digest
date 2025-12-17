@@ -66,7 +66,7 @@ type ConfigDigest struct {
 	Schedule     string            `koanf:"schedule" validate:"required,gocron"`
 	Host         string            `koanf:"host" validate:"omitempty,url"`
 	Compress     *bool             `koanf:"compress"`
-	View         string            `koanf:"view" validate:"required,oneof=date category ai"`
+	View         string            `koanf:"view" validate:"oneof=date category ai"`
 	MarkAsRead   bool              `koanf:"mark_as_read"`
 	RunOnStartup bool              `koanf:"run_on_startup"`
 	Filters      ConfigFilters     `koanf:"filters"`
@@ -99,6 +99,16 @@ func (c *Config) Validate() error {
 		for _, digest := range cfg.Digests {
 			if digest.View == "ai" && cfg.AI.ApiKey == "" {
 				sl.ReportError(cfg.AI.ApiKey, "AI.ApiKey", "ApiKey", "required_if", "Digest.View is 'ai'")
+			}
+
+			// Email Validation dependencies
+			if digest.Email.To != "" {
+				if cfg.Smtp.Host == "" {
+					sl.ReportError(cfg.Smtp.Host, "Smtp.Host", "Host", "required_if_email", fmt.Sprintf("SMTP Host is required because digest '%s' has email configured", digest.Title))
+				}
+				if digest.Host == "" {
+					sl.ReportError(digest.Host, "Digests.Host", "Host", "required_if_email", fmt.Sprintf("Digest Host is required because digest '%s' has email configured (needed for links)", digest.Title))
+				}
 			}
 
 			slug := utils.Slugify(digest.Title)
@@ -170,6 +180,9 @@ func Load(path string) (*Config, error) {
 		if cfg.Digests[i].Compress == nil {
 			def := true
 			cfg.Digests[i].Compress = &def
+		}
+		if cfg.Digests[i].View == "" {
+			cfg.Digests[i].View = "date"
 		}
 	}
 
