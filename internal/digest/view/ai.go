@@ -54,7 +54,7 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 		promptTemplate: promptTemplate,
 		promptData:     categories,
 		responseSchema: InitialGroupingResponseSchema,
-		prepareEntries: func(entries []*models.Entry) interface{} {
+		prepareEntries: func(entries []*models.Entry) any {
 			return prepareLLMEntries(entries)
 		},
 	}
@@ -173,7 +173,7 @@ func getSummaryForGroup(ctx context.Context, groupTitle string, entries []*model
 	llmResponseWorker := createLLMWorker[SummaryResponse](ctx, llmService, llmWorkerConfig{
 		promptFormat:   summaryPrompt,
 		responseSchema: SummaryResponseSchema,
-		prepareEntries: func(entries []*models.Entry) interface{} {
+		prepareEntries: func(entries []*models.Entry) any {
 			return prepareLLMEntries(entries)
 		},
 	}, groupTitle)
@@ -222,7 +222,7 @@ func getSubGroupsForGroup(ctx context.Context, groupTitle string, entries []*mod
 	subGroupWorker := createLLMWorker[*SubGroupingResponse](ctx, llmService, llmWorkerConfig{
 		promptFormat:   subGroupingPrompt,
 		responseSchema: SubGroupingResponseSchema,
-		prepareEntries: func(entries []*models.Entry) interface{} {
+		prepareEntries: func(entries []*models.Entry) any {
 			return prepareLLMEntries(entries)
 		},
 	}, groupTitle)
@@ -546,10 +546,10 @@ func sortPrimaryGroups(allPrimaryGroups []*models.PrimaryGroupDigestData) {
 // llmWorkerConfig holds configuration for creating an LLM worker function.
 type llmWorkerConfig struct {
 	promptTemplate *template.Template
-	promptData     interface{} // Data to pass to template execution
+	promptData     any // Data to pass to template execution
 	promptFormat   string // For prompts that use Sprintf
 	responseSchema *genai.Schema
-	prepareEntries func([]*models.Entry) interface{} // Function to prepare entries for LLM
+	prepareEntries func([]*models.Entry) any // Function to prepare entries for LLM
 }
 
 // createLLMWorker creates a worker function for llm.ProcessInChunks.
