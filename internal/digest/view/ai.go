@@ -43,7 +43,14 @@ func GroupAIEntries(ctx context.Context, entries []*models.Entry, llmService ser
 		entryMap[entry.ID] = entry
 	}
 
-	promptTemplate, err := template.New("grouping").Parse(initialGroupingPrompt)
+	var promptTemplateStr string
+	if len(categories) > 0 {
+		promptTemplateStr = strictGroupingPrompt
+	} else {
+		promptTemplateStr = openGroupingPrompt
+	}
+
+	promptTemplate, err := template.New("grouping").Parse(promptTemplateStr)
 	if err != nil {
 		failedChunks := make(map[string][]*models.Entry)
 		failedChunks["Prompt template parsing failed"] = entries
@@ -397,7 +404,14 @@ func BuildDigestDataByAI(entries []*models.Entry, ctx context.Context, llmServic
 		return fallbackGroups
 	}
 
-	highLevelGroups := consolidateGroups(ctx, rawGroups, llmService)
+	var highLevelGroups []*models.PrimaryGroupDigestData
+	if len(categories) == 0 {
+		// Auto Mode: Consolidate the LLM's open-ended groups
+		highLevelGroups = consolidateGroups(ctx, rawGroups, llmService)
+	} else {
+		// User Mode: Use raw groups directly (strict adherence)
+		highLevelGroups = convertRawGroupsToDigestData(rawGroups)
+	}
 
 	highLevelGroups = handleFailedAndUngroupedEntries(highLevelGroups, entries, groupedEntryIDs, failedChunks)
 

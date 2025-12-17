@@ -137,17 +137,6 @@ func (c *Config) Validate() error {
 	return err
 }
 
-var DefaultCategories = []ConfigCategory{
-	{Title: "Technology & Engineering", Description: "Software, hardware, internet, gadgets, and engineering breakthroughs."},
-	{Title: "World News & Politics", Description: "Global events, international relations, policy changes, and political discourse."},
-	{Title: "Business & Finance", Description: "Markets, companies, startups, economy, and financial advice."},
-	{Title: "Science & Health", Description: "Scientific discoveries, space, medicine, health tips, and environmental news."},
-	{Title: "Arts & Culture", Description: "Books, music, movies, history, philosophy, and cultural analysis."},
-	{Title: "Entertainment & Lifestyle", Description: "Celebrities, gaming, travel, food, fashion, and hobbies."},
-	{Title: "Sports", Description: "Sports news, scores, teams, and athletes."},
-	{Title: "Uncategorized", Description: "Anything that doesn't fit well into the other categories."},
-}
-
 func Load(path string) (*Config, error) {
 	k := koanf.New(".")
 	parser := yaml.Parser()
@@ -169,12 +158,6 @@ func Load(path string) (*Config, error) {
 		},
 	}); err != nil {
 		return nil, err
-	}
-
-	for i := range cfg.Digests {
-		if len(cfg.Digests[i].Categories) == 0 {
-			cfg.Digests[i].Categories = DefaultCategories
-		}
 	}
 
 	if err := cfg.Validate(); err != nil {

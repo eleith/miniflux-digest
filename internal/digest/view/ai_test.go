@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/testutil"
 	"strings"
@@ -464,6 +465,66 @@ func TestBuildDigestDataByAI(t *testing.T) {
 		require.NotNil(t, uncategorized)
 		assert.Equal(t, 1, uncategorized.TotalEntries)
 		assert.Equal(t, int64(4), uncategorized.SubGroups[0].Entries[0].ID)
+	})
+
+	t.Run("strict user mode - no consolidation", func(t *testing.T) {
+		userCategories := []config.ConfigCategory{
+			{Title: "Strict Cat A"},
+			{Title: "Strict Cat B"},
+		}
+
+		// Entries 1 & 2 assigned to user categories
+		groupingResp := InitialGroupingResponse{
+			Groups: []struct {
+				Title    string  `json:"title"`
+				EntryIDs []int64 `json:"entry_ids"`
+			}{
+				{Title: "Strict Cat A", EntryIDs: []int64{1}},
+				{Title: "Strict Cat B", EntryIDs: []int64{2}},
+			},
+		}
+		groupingJSON, _ := json.Marshal(groupingResp)
+
+		llmService := &mockLLMService{
+			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+				if schema == ConsolidationResponseSchema {
+					t.Fatal("Consolidation should NOT be called in strict user mode")
+				}
+				if schema == InitialGroupingResponseSchema {
+					// Verify that strict prompt is used (implicitly via context of strict mode logic, 
+					// but strict prompt text check would require inspecting 'prompt' arg which we can do)
+					assert.Contains(t, prompt, "Sort the entries below into the following categories")
+					return groupingJSON, nil
+				}
+				
+				if schema == SummaryResponseSchema {
+					return json.Marshal(SummaryResponse{Summary: "Summary"})
+				}
+				if schema == SubGroupingResponseSchema {
+					// Return dummy subgroup
+					return json.Marshal(SubGroupingResponse{SubGroups: []struct {
+						Title    string  `json:"title"`
+						EntryIDs []int64 `json:"entry_ids"`
+					}{}})
+				}
+				return nil, nil
+			},
+		}
+
+		groups := BuildDigestDataByAI(entries, context.Background(), llmService, userCategories)
+		
+		// Expected: Strict Cat A, Strict Cat B, Uncategorized (for 3 & 4)
+		assert.Len(t, groups, 3) 
+		
+		catA := testutil.FindPrimaryGroup(groups, "Strict Cat A")
+		assert.NotNil(t, catA)
+		
+		catB := testutil.FindPrimaryGroup(groups, "Strict Cat B")
+		assert.NotNil(t, catB)
+		
+		uncat := testutil.FindPrimaryGroup(groups, "Uncategorized")
+		assert.NotNil(t, uncat)
+		assert.Equal(t, 2, uncat.TotalEntries) // Entries 3 and 4
 	})
 
 	t.Run("merges ungrouped into existing uncategorized", func(t *testing.T) {

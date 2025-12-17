@@ -2,7 +2,7 @@ package view
 
 import "google.golang.org/genai"
 
-const initialGroupingPrompt = `You are creating high-level primary groups for a digest.
+const openGroupingPrompt = `You are creating high-level primary groups for a digest.
 
 **Your Task:**
 Group the entries below into broad, high-level primary groups.
@@ -12,16 +12,26 @@ The nature of a good primary group can vary:
 - Sometimes it's based on the **source** (e.g., "Hacker News Discussions", "TechCrunch Articles").
 - Sometimes it's about the **type of content** (e.g., "Software Development Blogs", "Video Game Reviews").
 
-{{if .}}
-**Preferred Categories:**
-Use the following categories if they fit, but feel free to create new ones if necessary:
+Follow these instructions:
+- Create group titles that are concise and high-level (2-5 words).
+- An entry can only belong to one group.
+
+Below is the list of entries:
+----------------------------
+`
+
+const strictGroupingPrompt = `You are organizing a digest into specific categories.
+
+**Your Task:**
+Sort the entries below into the following categories:
 {{range .}}
 - **{{.Title}}**: {{.Description}}
 {{end}}
-{{end}}
 
-Follow these instructions:
-- Create group titles that are concise and high-level (2-5 words).
+**Rules:**
+- You MUST use ONLY the categories listed above.
+- Do NOT create new categories.
+- If an entry does not fit well into any category, do NOT include it in a group (it will be handled as uncategorized later).
 - An entry can only belong to one group.
 
 Below is the list of entries:
