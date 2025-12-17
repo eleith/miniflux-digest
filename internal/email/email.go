@@ -38,8 +38,8 @@ func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig confi
 		return err
 	}
 
-	subject := fmt.Sprintf("Your Miniflux Digest for %s", data.GeneratedDate.Format("January 2, 2006"))
-	overviewURL := fmt.Sprintf("%s/archive/%s/index.html", digestConfig.Host, data.GeneratedDate.Format("2006-01-02"))
+	subject := fmt.Sprintf("%s - %s", digestConfig.Title, data.GeneratedDate.Format("January 2, 2006"))
+	overviewURL := fmt.Sprintf("%s/archive/%s/%s/index.html", digestConfig.Host, data.DigestSlug, data.GeneratedDate.Format("2006-01-02"))
 
 	message.Subject(subject)
 

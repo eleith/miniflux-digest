@@ -224,13 +224,12 @@ func generateAndArchiveHTML(cfg *config.Config, digestIndex int, minifluxFlag bo
 	return overviewFile, groupedEntryFiles, overviewURL, data
 }
 
-func handleEmail(cfg *config.Config, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) {
+func handleEmail(cfg *config.Config, digestConfig config.ConfigDigest, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) {
 	log.Println("main: Email flag is true, sending email...")
 	emailSvc := &email.EmailServiceImpl{
 		EmailTemplate: templates.EmailTemplate,
 	}
 
-	digestConfig := cfg.Digests[0]
 	if err := emailSvc.Send(cfg.Smtp, digestConfig, overviewFile, groupedEntryFiles, data); err != nil {
 		log.Fatalf("Failed to send email: %v", err)
 	}
@@ -268,7 +267,7 @@ func main() {
 	if emailFlag {
 		for digestIndex := range numDigest {
 			overviewFile, groupedEntryFiles, _, data := generateAndArchiveHTML(cfg, digestIndex, minifluxFlag)
-			handleEmail(cfg, overviewFile, groupedEntryFiles, data)
+			handleEmail(cfg, cfg.Digests[digestIndex], overviewFile, groupedEntryFiles, data)
 		}
 	} else if htmlFlag {
 		for digestIndex := range numDigest {

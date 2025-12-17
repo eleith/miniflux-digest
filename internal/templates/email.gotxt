@@ -1,19 +1,18 @@
-Your digest for {{ .GeneratedDate.Format "Jan 2, 2006" }} is ready with {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.
+{{ if gt .TotalEntries 0 -}}
+Totals: {{.TotalEntries}} entries from {{.TotalFeeds}} feeds.
 
-----------------------------------------
-
+Breakdown by Topic:
 {{range .PrimaryGroups -}}
-{{ .Title }}
-{{ if .Summary -}}
-{{ .Summary }}
-{{- else -}}
-(no summary)
-{{- end }}
-
-{{end}}----------------------------------------
+{{ if gt .TotalEntries 0 -}}
+- {{ .Title }}: {{ .TotalEntries }} entries
+{{end -}}
+{{end}}
 
 {{ if .URL -}}
-The individual HTML digests for each group are attached, or you can view the full digest online: {{ .URL }}
+View the full digest online: {{ .URL }}
+{{- end }}
+
+(Individual group HTML files are attached)
 {{- else -}}
-The individual HTML digests for each group are attached.
+No new entries were found for this digest period.
 {{- end }}
