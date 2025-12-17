@@ -111,12 +111,17 @@ func generateMockDigest(cfg *config.Config, digestIndex int) *models.OverviewTem
 	return data
 }
 
-func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.MinifluxClientService) *models.OverviewTemplateData {
+func generateMinifluxDigest(cfg *config.Config, digestIndex int, minifluxClientService services.MinifluxClientService) *models.OverviewTemplateData {
 	log.Println("generateDigestData: Starting...")
 
 	llmService, err := llm.NewGeminiService(cfg.AI.ApiKey)
 	if err != nil {
 		log.Fatalf("Failed to create LLM service: %v", err)
+	}
+
+	digestManager, err := manager.NewDigestManager(cfg.Digests)
+	if err != nil {
+		log.Fatalf("Error creating digest manager: %v", err)
 	}
 
 	digestSvc := digest.NewDigestService(llmService)
@@ -130,8 +135,17 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 		log.Fatalf("Failed to fetch entries: %v", err)
 	}
 
-	icons := make(map[int64]*models.FeedIcon)
+	var digestEntries []*models.Entry
+	digestConfig := cfg.Digests[digestIndex]
+
 	for _, entry := range entries {
+		if digestManager.GetOwningDigest(entry) == digestIndex {
+			digestEntries = append(digestEntries, entry)
+		}
+	}
+
+	icons := make(map[int64]*models.FeedIcon)
+	for _, entry := range digestEntries {
 		if _, ok := icons[entry.FeedID]; !ok {
 			icon, err := minifluxClientService.FeedIcon(entry.FeedID)
 			if err != nil {
@@ -143,9 +157,8 @@ func generateMinifluxDigest(cfg *config.Config, minifluxClientService services.M
 	}
 
 	log.Println("generateDigestData: Building digest data...")
-	digestConfig := cfg.Digests[0]
 	return digestSvc.BuildDigestData(
-		entries,
+		digestEntries,
 		icons,
 		digestConfig.View,
 		cfg.Miniflux.Host,
@@ -179,7 +192,7 @@ func generateAndArchiveHTML(cfg *config.Config, digestIndex int, minifluxFlag bo
 	if minifluxFlag {
 		minifluxClient := miniflux.NewClient(cfg.Miniflux.Host, cfg.Miniflux.ApiToken)
 		clientWrapper := app.NewMinifluxClientWrapper(minifluxClient)
-		data = generateMinifluxDigest(cfg, clientWrapper)
+		data = generateMinifluxDigest(cfg, digestIndex, clientWrapper)
 	} else {
 		data = generateMockDigest(cfg, digestIndex)
 	}
@@ -203,7 +216,7 @@ func generateAndArchiveHTML(cfg *config.Config, digestIndex int, minifluxFlag bo
 	log.Printf("relativePath: %s", relativePath)
 
 	overviewURL := fmt.Sprintf("http://localhost%s/%s", webserver.Port, relativePath)
-	if (digestConfig.Host != "") {
+	if digestConfig.Host != "" {
 		overviewURL = fmt.Sprintf("%s/archive/%s", digestConfig.Host, relativePath)
 	}
 	log.Printf("overviewURL: %s", overviewURL)
@@ -253,16 +266,20 @@ func main() {
 	numDigest := len(cfg.Digests)
 
 	if emailFlag {
-		overviewFile, groupedEntryFiles, _, data := generateAndArchiveHTML(cfg, 0, minifluxFlag)
-		handleEmail(cfg, overviewFile, groupedEntryFiles, data)
+		for digestIndex := range numDigest {
+			overviewFile, groupedEntryFiles, _, data := generateAndArchiveHTML(cfg, digestIndex, minifluxFlag)
+			handleEmail(cfg, overviewFile, groupedEntryFiles, data)
+		}
 	} else if htmlFlag {
 		for digestIndex := range numDigest {
 			_, _, overviewURL, _ := generateAndArchiveHTML(cfg, digestIndex, minifluxFlag)
 			handleOpenUrl(overviewURL)
 		}
 	} else if minifluxFlag {
-		_, _, overviewURL, _ := generateAndArchiveHTML(cfg, 0, minifluxFlag)
-		handleOpenUrl(overviewURL)
+		for digestIndex := range numDigest {
+			_, _, overviewURL, _ := generateAndArchiveHTML(cfg, digestIndex, minifluxFlag)
+			handleOpenUrl(overviewURL)
+		}
 	} else {
 		log.Println("main: Starting web server")
 		handleWebServer()
