@@ -81,24 +81,28 @@ type feedTemplate struct {
 	GroupTitle string
 }
 
+func createHardcodedMockEntries() []*models.Entry {
+	return []*models.Entry{
+		// Category A
+		{ID: 1, Title: "Entry 1", Date: time.Date(2024, 1, 2, 10, 0, 0, 0, time.UTC), FeedID: 100, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example.com", URL: "www.example.com/1"},
+		{ID: 3, Title: "Entry 3", Date: time.Date(2024, 1, 2, 11, 0, 0, 0, time.UTC), FeedID: 100, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example2.com", URL: "www.example2.com/1"},
+		{ID: 5, Title: "Entry 5", Date: time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC), FeedID: 300, FeedTitle: "Feed C", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example3.com", URL: "www.example3.com/1"},
+		{ID: 6, Title: "Entry 6", Date: time.Date(2024, 1, 2, 13, 0, 0, 0, time.UTC), FeedID: 400, FeedTitle: "Feed D", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example4.com", URL: "www.example4.com/1"},
+
+		// Category B
+		{ID: 2, Title: "Entry 2", Date: time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC), FeedID: 200, FeedTitle: "Feed B", GroupID: 2, GroupTitle: "Category B", SiteURL: "www.example5.com", URL: "www.example.com/1"},
+		{ID: 4, Title: "Entry 4", Content: "Content of entry 4", Date: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC), FeedID: 200, FeedTitle: "Feed B", GroupID: 2, GroupTitle: "Category B", SiteURL: "www.example5.com", URL: "www.example5.com/2"},
+		{ID: 7, Title: "Entry 7", Date: time.Date(2024, 1, 1, 14, 0, 0, 0, time.UTC), FeedID: 500, FeedTitle: "Feed E", GroupID: 2, GroupTitle: "Category B", SiteURL: "www.example5.com", URL: "www.example5.com/3"},
+
+		// Category C
+		{ID: 8, Title: "Entry 8", Date: time.Date(2024, 1, 3, 10, 0, 0, 0, time.UTC), FeedID: 600, FeedTitle: "Feed F", GroupID: 3, GroupTitle: "Category C", SiteURL: "www.example6.com", URL: "www.example7.com/1"},
+		{ID: 9, Title: "Entry 9", Date: time.Date(2024, 1, 3, 11, 0, 0, 0, time.UTC), FeedID: 700, FeedTitle: "Feed G", GroupID: 3, GroupTitle: "Category C", SiteURL: "www.example7.com", URL: "www.example7.com/1"},
+	}
+}
+
 func CreateMockEntries(n int) []*models.Entry {
 	if n == 0 {
-		return []*models.Entry{
-			// Category A
-			{ID: 1, Title: "Entry 1", Date: time.Date(2024, 1, 2, 10, 0, 0, 0, time.UTC), FeedID: 100, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example.com", URL: "www.example.com/1"},
-			{ID: 3, Title: "Entry 3", Date: time.Date(2024, 1, 2, 11, 0, 0, 0, time.UTC), FeedID: 100, FeedTitle: "Feed A", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example2.com", URL: "www.example2.com/1"},
-			{ID: 5, Title: "Entry 5", Date: time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC), FeedID: 300, FeedTitle: "Feed C", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example3.com", URL: "www.example3.com/1"},
-			{ID: 6, Title: "Entry 6", Date: time.Date(2024, 1, 2, 13, 0, 0, 0, time.UTC), FeedID: 400, FeedTitle: "Feed D", GroupID: 1, GroupTitle: "Category A", SiteURL: "www.example4.com", URL: "www.example4.com/1"},
-
-			// Category B
-			{ID: 2, Title: "Entry 2", Date: time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC), FeedID: 200, FeedTitle: "Feed B", GroupID: 2, GroupTitle: "Category B", SiteURL: "www.example5.com", URL: "www.example.com/1"},
-			{ID: 4, Title: "Entry 4", Content: "Content of entry 4", Date: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC), FeedID: 200, FeedTitle: "Feed B", GroupID: 2, GroupTitle: "Category B", SiteURL: "www.example5.com", URL: "www.example5.com/2"},
-			{ID: 7, Title: "Entry 7", Date: time.Date(2024, 1, 1, 14, 0, 0, 0, time.UTC), FeedID: 500, FeedTitle: "Feed E", GroupID: 2, GroupTitle: "Category B", SiteURL: "www.example5.com", URL: "www.example5.com/3"},
-
-			// Category C
-			{ID: 8, Title: "Entry 8", Date: time.Date(2024, 1, 3, 10, 0, 0, 0, time.UTC), FeedID: 600, FeedTitle: "Feed F", GroupID: 3, GroupTitle: "Category C", SiteURL: "www.example6.com", URL: "www.example7.com/1"},
-			{ID: 9, Title: "Entry 9", Date: time.Date(2024, 1, 3, 11, 0, 0, 0, time.UTC), FeedID: 700, FeedTitle: "Feed G", GroupID: 3, GroupTitle: "Category C", SiteURL: "www.example7.com", URL: "www.example7.com/1"},
-		}
+		return createHardcodedMockEntries()
 	}
 
 	titleTemplates := []string{
@@ -134,10 +138,13 @@ func CreateMockEntries(n int) []*models.Entry {
 			commentsURL = fmt.Sprintf("https://example.com/comments/%d", i)
 		}
 
+		siteURL := fmt.Sprintf("https://www.example%d.com", template.FeedID)
+		entryURL := fmt.Sprintf("%s/item/%d", siteURL, i)
+
 		entry := &models.Entry{
 			ID:          int64(i),
 			Title:       fmt.Sprintf("Entry %d - %s", i, title),
-			URL:         fmt.Sprintf("https://example.com/%d", i),
+			URL:         entryURL,
 			CommentsURL: commentsURL,
 			Date:        time.Now().Add(time.Duration(-i) * time.Hour),
 			Content:     content,
@@ -145,6 +152,7 @@ func CreateMockEntries(n int) []*models.Entry {
 			FeedTitle:   template.FeedTitle,
 			GroupID:     template.GroupID,
 			GroupTitle:  template.GroupTitle,
+			SiteURL:     siteURL,
 		}
 		entries = append(entries, entry)
 	}
