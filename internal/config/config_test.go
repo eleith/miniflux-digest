@@ -344,6 +344,25 @@ func TestLoad(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "unknown filter field",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
+					"filters": map[string]any{
+						"feed_title": []string{"Some Feed"}, // Incorrect field name
+					},
+				}},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

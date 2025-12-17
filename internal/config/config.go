@@ -8,6 +8,7 @@ import (
 	"miniflux-digest/internal/utils"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
@@ -51,11 +52,11 @@ type ConfigCategory struct {
 type ConfigFilters struct {
 	FeedTitles            []string `koanf:"feed_titles"`
 	CategoryTitles        []string `koanf:"category_titles"`
-	SiteURLs              []string `koanf:"site_urls"`
+	FeedURLs              []string `koanf:"feed_urls"`
 	EntryURLs             []string `koanf:"entry_urls"`
 	FeedTitlePatterns     []string `koanf:"feed_title_patterns"`
 	CategoryTitlePatterns []string `koanf:"category_title_patterns"`
-	SiteURLPatterns       []string `koanf:"site_url_patterns"`
+	FeedURLPatterns       []string `koanf:"feed_url_patterns"`
 	EntryURLPatterns      []string `koanf:"entry_url_patterns"`
 }
 
@@ -118,7 +119,7 @@ func (c *Config) Validate() error {
 
 			validatePatterns(digest.Filters.FeedTitlePatterns, "Filters.FeedTitlePatterns")
 			validatePatterns(digest.Filters.CategoryTitlePatterns, "Filters.CategoryTitlePatterns")
-			validatePatterns(digest.Filters.SiteURLPatterns, "Filters.SiteURLPatterns")
+			validatePatterns(digest.Filters.FeedURLPatterns, "Filters.FeedURLPatterns")
 			validatePatterns(digest.Filters.EntryURLPatterns, "Filters.EntryURLPatterns")
 		}
 	}, Config{})
@@ -144,7 +145,7 @@ var DefaultCategories = []ConfigCategory{
 	{Title: "Arts & Culture", Description: "Books, music, movies, history, philosophy, and cultural analysis."},
 	{Title: "Entertainment & Lifestyle", Description: "Celebrities, gaming, travel, food, fashion, and hobbies."},
 	{Title: "Sports", Description: "Sports news, scores, teams, and athletes."},
-	{Title: "Other", Description: "Anything that doesn't fit well into the other categories."},
+	{Title: "Uncategorized", Description: "Anything that doesn't fit well into the other categories."},
 }
 
 func Load(path string) (*Config, error) {
@@ -159,7 +160,14 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg := &Config{}
-	if err := k.Unmarshal("", &cfg); err != nil {
+	if err := k.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{
+		DecoderConfig: &mapstructure.DecoderConfig{
+			ErrorUnused: true,
+			TagName:     "koanf",
+			ZeroFields:  true,
+			Result:      &cfg,
+		},
+	}); err != nil {
 		return nil, err
 	}
 

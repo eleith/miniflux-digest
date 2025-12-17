@@ -43,7 +43,7 @@ func TestMatcher_Matches(t *testing.T) {
 				URL: "http://example.com/post/1",
 			},
 			filters: config.ConfigFilters{
-				SiteURLs: []string{"https://github.com"},
+				FeedURLs: []string{"https://github.com"},
 			},
 			wantMatch: true,
 		},
@@ -54,7 +54,7 @@ func TestMatcher_Matches(t *testing.T) {
 				URL: "http://example.com/post/1",
 			},
 			filters: config.ConfigFilters{
-				SiteURLs: []string{"https://github.com"},
+				FeedURLs: []string{"https://github.com"},
 			},
 			wantMatch: false,
 		},
