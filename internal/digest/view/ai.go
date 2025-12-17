@@ -468,23 +468,60 @@ func handleFailedAndUngroupedEntries(highLevelGroups []*models.PrimaryGroupDiges
 	}
 
 	if len(otherUngroupedEntries) > 0 {
-		highLevelGroups = append(highLevelGroups, &models.PrimaryGroupDigestData{
-			ID:    int64(len(highLevelGroups) + 1),
-			Title: "Uncategorized",
-			Slug:  "uncategorized",
-			SubGroups: []*models.EntryGroup{
-				{
-					Title:        "Uncategorized",
-					Entries:      otherUngroupedEntries,
-					Slug:         "uncategorized",
-					TotalEntries: len(otherUngroupedEntries),
-					TotalFeeds:   getUniqueFeedIDs(otherUngroupedEntries),
+		var merged bool
+		for _, group := range highLevelGroups {
+			if group.Title == "Uncategorized" {
+				merged = true
+				// Find or create the "Uncategorized" subgroup
+				var subGroup *models.EntryGroup
+				for _, sg := range group.SubGroups {
+					if sg.Title == "Uncategorized" {
+						subGroup = sg
+						break
+					}
+				}
+				if subGroup == nil {
+					subGroup = &models.EntryGroup{
+						Title: "Uncategorized",
+						Slug:  "uncategorized",
+					}
+					group.SubGroups = append(group.SubGroups, subGroup)
+				}
+				
+				subGroup.Entries = append(subGroup.Entries, otherUngroupedEntries...)
+				subGroup.TotalEntries = len(subGroup.Entries)
+				subGroup.TotalFeeds = getUniqueFeedIDs(subGroup.Entries)
+
+				// Update primary group totals
+				var allEntries []*models.Entry
+				for _, sg := range group.SubGroups {
+					allEntries = append(allEntries, sg.Entries...)
+				}
+				group.TotalEntries = len(allEntries)
+				group.TotalFeeds = getUniqueFeedIDs(allEntries)
+				break
+			}
+		}
+
+		if !merged {
+			highLevelGroups = append(highLevelGroups, &models.PrimaryGroupDigestData{
+				ID:    int64(len(highLevelGroups) + 1),
+				Title: "Uncategorized",
+				Slug:  "uncategorized",
+				SubGroups: []*models.EntryGroup{
+					{
+						Title:        "Uncategorized",
+						Entries:      otherUngroupedEntries,
+						Slug:         "uncategorized",
+						TotalEntries: len(otherUngroupedEntries),
+						TotalFeeds:   getUniqueFeedIDs(otherUngroupedEntries),
+					},
 				},
-			},
-			Summary:      "",
-			TotalEntries: len(otherUngroupedEntries),
-			TotalFeeds:   getUniqueFeedIDs(otherUngroupedEntries),
-		})
+				Summary:      "",
+				TotalEntries: len(otherUngroupedEntries),
+				TotalFeeds:   getUniqueFeedIDs(otherUngroupedEntries),
+			})
+		}
 	}
 	return highLevelGroups
 }

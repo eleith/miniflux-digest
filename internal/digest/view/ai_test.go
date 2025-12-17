@@ -466,6 +466,68 @@ func TestBuildDigestDataByAI(t *testing.T) {
 		assert.Equal(t, int64(4), uncategorized.SubGroups[0].Entries[0].ID)
 	})
 
+	t.Run("merges ungrouped into existing uncategorized", func(t *testing.T) {
+		// Entry 1 & 2 -> "Uncategorized" via LLM
+		// Entry 3 -> Ungrouped (should be merged)
+		entries := []*models.Entry{
+			{ID: 1, Title: "E1"},
+			{ID: 2, Title: "E2"},
+			{ID: 3, Title: "E3"},
+		}
+
+		groupingResp := InitialGroupingResponse{
+			Groups: []struct {
+				Title    string  `json:"title"`
+				EntryIDs []int64 `json:"entry_ids"`
+			}{
+				{Title: "Uncategorized", EntryIDs: []int64{1, 2}},
+			},
+		}
+		groupingJSON, _ := json.Marshal(groupingResp)
+
+		// Mock Summary/Sub-grouping for the "Uncategorized" group
+		summaryResp := SummaryResponse{Summary: "Uncategorized stuff"}
+		summaryJSON, _ := json.Marshal(summaryResp)
+		subGroupingResp := SubGroupingResponse{
+			SubGroups: []struct {
+				Title    string  `json:"title"`
+				EntryIDs []int64 `json:"entry_ids"`
+			}{{Title: "Uncategorized", EntryIDs: []int64{1, 2}}},
+		}
+		subGroupingJSON, _ := json.Marshal(subGroupingResp)
+
+		llmService := &mockLLMService{
+			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
+				switch schema {
+				case InitialGroupingResponseSchema:
+					return groupingJSON, nil
+				case ConsolidationResponseSchema:
+					// Should not be called if < 10 groups, but handle just in case
+					return nil, nil 
+				case SummaryResponseSchema:
+					return summaryJSON, nil
+				case SubGroupingResponseSchema:
+					return subGroupingJSON, nil
+				default:
+					return nil, errors.New("unexpected schema")
+				}
+			},
+		}
+
+		groups := BuildDigestDataByAI(entries, context.Background(), llmService, nil)
+		
+		require.Len(t, groups, 1, "Expected exactly 1 group (merged Uncategorized)")
+		uncatGroup := groups[0]
+		assert.Equal(t, "Uncategorized", uncatGroup.Title)
+		
+		// Check that it contains all 3 entries (2 from LLM + 1 ungrouped)
+		var totalEntries int
+		for _, sg := range uncatGroup.SubGroups {
+			totalEntries += len(sg.Entries)
+		}
+		assert.Equal(t, 3, totalEntries, "Should contain all 3 entries")
+	})
+
 	t.Run("fallback to category grouping", func(t *testing.T) {
 		llmService := &mockLLMService{
 			GenerateContentFunc: func(ctx context.Context, prompt string, schema *genai.Schema) ([]byte, error) {
