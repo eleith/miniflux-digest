@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"miniflux-digest/internal/utils"
 
@@ -50,6 +51,7 @@ type ConfigCategory struct {
 }
 
 type ConfigFilters struct {
+	Logic                 string   `koanf:"logic" validate:"omitempty,oneof=AND OR"`
 	FeedTitles            []string `koanf:"feed_titles"`
 	CategoryTitles        []string `koanf:"category_titles"`
 	FeedURLs              []string `koanf:"feed_urls"`
@@ -183,6 +185,11 @@ func Load(path string) (*Config, error) {
 		}
 		if cfg.Digests[i].View == "" {
 			cfg.Digests[i].View = "date"
+		}
+		
+		cfg.Digests[i].Filters.Logic = strings.ToUpper(cfg.Digests[i].Filters.Logic)
+		if cfg.Digests[i].Filters.Logic == "" {
+			cfg.Digests[i].Filters.Logic = "OR"
 		}
 	}
 

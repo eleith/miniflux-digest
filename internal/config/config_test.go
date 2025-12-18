@@ -34,6 +34,44 @@ func TestLoad(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid lowercase filter logic",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
+					"filters": map[string]any{
+						"logic": "and", // lowercase should be valid
+					},
+				}},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid filter logic",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
+					"filters": map[string]any{
+						"logic": "XOR", // invalid logic
+					},
+				}},
+			},
+			wantErr: true,
+		},
+		{
 			name: "invalid config missing miniflux.host",
 			config: map[string]any{
 				"miniflux": map[string]any{

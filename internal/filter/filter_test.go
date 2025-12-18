@@ -70,24 +70,65 @@ func TestMatcher_Matches(t *testing.T) {
 			wantMatch: true,
 		},
 		{
-			name: "Mixed AND logic (Feed Title AND Category)",
+			name: "Mixed OR logic match (Feed Title AND Category match)",
 			entry: &models.Entry{
 				FeedTitle: "Tech News", GroupTitle: "Programming", SiteURL: "http://example.com",
 				URL: "http://example.com/post/1",
 			},
 			filters: config.ConfigFilters{
+				Logic:          "OR",
 				FeedTitles:     []string{"Tech News"},
 				CategoryTitles: []string{"Programming"},
 			},
 			wantMatch: true,
 		},
 		{
-			name: "Mixed AND logic fail (Feed Title match, Category mismatch)",
+			name: "Mixed OR logic match (Feed Title match, Category mismatch)",
 			entry: &models.Entry{
 				FeedTitle: "Tech News", GroupTitle: "Cooking", SiteURL: "http://example.com",
 				URL: "http://example.com/post/1",
 			},
 			filters: config.ConfigFilters{
+				Logic:          "OR",
+				FeedTitles:     []string{"Tech News"},
+				CategoryTitles: []string{"Programming"},
+			},
+			wantMatch: true,
+		},
+		{
+			name: "Mixed OR logic fail (Feed Title mismatch, Category mismatch)",
+			entry: &models.Entry{
+				FeedTitle: "Gaming", GroupTitle: "Cooking", SiteURL: "http://example.com",
+				URL: "http://example.com/post/1",
+			},
+			filters: config.ConfigFilters{
+				Logic:          "OR",
+				FeedTitles:     []string{"Tech News"},
+				CategoryTitles: []string{"Programming"},
+			},
+			wantMatch: false,
+		},
+		{
+			name: "AND logic match (Feed Title AND Category match)",
+			entry: &models.Entry{
+				FeedTitle: "Tech News", GroupTitle: "Programming", SiteURL: "http://example.com",
+				URL: "http://example.com/post/1",
+			},
+			filters: config.ConfigFilters{
+				Logic:          "AND",
+				FeedTitles:     []string{"Tech News"},
+				CategoryTitles: []string{"Programming"},
+			},
+			wantMatch: true,
+		},
+		{
+			name: "AND logic fail (Feed Title match, Category mismatch)",
+			entry: &models.Entry{
+				FeedTitle: "Tech News", GroupTitle: "Cooking", SiteURL: "http://example.com",
+				URL: "http://example.com/post/1",
+			},
+			filters: config.ConfigFilters{
+				Logic:          "AND",
 				FeedTitles:     []string{"Tech News"},
 				CategoryTitles: []string{"Programming"},
 			},

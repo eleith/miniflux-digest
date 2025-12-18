@@ -73,19 +73,21 @@ The application processes digests in the order they appear in the configuration 
 
 ### Filters Object (`filters`)
 
-All conditions within a list are **OR** (e.g., matching *any* feed title).
-Conditions between different fields are **AND** (e.g., matching feed title *AND* site URL).
+This section defines which entries are included in the digest.
 
-| Field | Type | Matching Logic | Description |
+| Field | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `feed_titles` | String[] | Exact | Matches the exact title of the RSS feed. |
-| `category_titles` | String[] | Exact | Matches the exact title of the Miniflux category. |
-| `site_urls` | String[] | Prefix | Matches if the feed's site URL starts with this string. |
-| `entry_urls` | String[] | Prefix | Matches if the entry's URL starts with this string. |
-| `feed_title_patterns` | String[] | Regex | Go-flavor Regex match against feed title. |
-| `category_title_patterns` | String[] | Regex | Go-flavor Regex match against category title. |
-| `site_url_patterns` | String[] | Regex | Go-flavor Regex match against site URL. |
-| `entry_url_patterns` | String[] | Regex | Go-flavor Regex match against entry URL. |
+| `logic` | String | `OR` | Logic for combining different field conditions. <br> - `OR`: Match if *any* field condition is met.<br> - `AND`: Match only if *all* defined field conditions are met. |
+| `feed_titles` | String[] | - | Exact matches for the RSS feed title. |
+| `category_titles` | String[] | - | Exact matches for the Miniflux category title. |
+| `site_urls` | String[] | - | Prefix matches for the feed's site URL. |
+| `entry_urls` | String[] | - | Prefix matches for the entry's URL. |
+| `feed_title_patterns` | String[] | - | Regex matches for the feed title. |
+| `category_title_patterns` | String[] | - | Regex matches for the category title. |
+| `site_url_patterns` | String[] | - | Regex matches for the site URL. |
+| `entry_url_patterns` | String[] | - | Regex matches for the entry URL. |
+
+**Note:** Conditions *within* a single list (e.g., multiple `feed_titles`) are always treated as **OR**.
 
 ### Categories Object (`categories`)
 
