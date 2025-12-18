@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = event.target;
         const entry = target.closest('section.entry');
 
-        if (entry) {
+        if (entry && entry !== activeEntry) {
             setActiveEntry(entry);
         }
     });
