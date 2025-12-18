@@ -121,8 +121,7 @@ project's license.
 
 * support more LLM providers
 * allow user to customize prompts
-* support text/html email content
-* fix web scrolling bug when selecting item content
+* support text+html email content
 
 ## Contact
 
