@@ -58,7 +58,7 @@ type ConfigFilters struct {
 	EntryURLs             []string `koanf:"entry_urls"`
 	FeedTitlePatterns     []string `koanf:"feed_title_patterns"`
 	CategoryTitlePatterns []string `koanf:"category_title_patterns"`
-	FeedURLPatterns       []string `koanf:"feed_url_patterns"`
+	SiteURLPatterns       []string `koanf:"site_url_patterns"`
 	EntryURLPatterns      []string `koanf:"entry_url_patterns"`
 }
 
@@ -135,7 +135,7 @@ func (c *Config) Validate() error {
 
 			validatePatterns(digest.Filters.FeedTitlePatterns, "Filters.FeedTitlePatterns")
 			validatePatterns(digest.Filters.CategoryTitlePatterns, "Filters.CategoryTitlePatterns")
-			validatePatterns(digest.Filters.FeedURLPatterns, "Filters.FeedURLPatterns")
+			validatePatterns(digest.Filters.SiteURLPatterns, "Filters.SiteURLPatterns")
 			validatePatterns(digest.Filters.EntryURLPatterns, "Filters.EntryURLPatterns")
 		}
 	}, Config{})

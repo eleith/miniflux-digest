@@ -30,7 +30,7 @@ func NewMatcher(cfg config.ConfigFilters) (*Matcher, error) {
 		return nil, err
 	}
 
-	m.siteURLRegex, err = compileRegexes(cfg.FeedURLPatterns)
+	m.siteURLRegex, err = compileRegexes(cfg.SiteURLPatterns)
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +159,6 @@ func isEmpty(cfg config.ConfigFilters) bool {
 		len(cfg.EntryURLs) == 0 &&
 		len(cfg.FeedTitlePatterns) == 0 &&
 		len(cfg.CategoryTitlePatterns) == 0 &&
-		len(cfg.FeedURLPatterns) == 0 &&
+		len(cfg.SiteURLPatterns) == 0 &&
 		len(cfg.EntryURLPatterns) == 0
 }
