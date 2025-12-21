@@ -30,7 +30,7 @@ func NewMatcher(cfg config.ConfigFilters) (*Matcher, error) {
 		return nil, err
 	}
 
-	m.siteURLRegex, err = compileRegexes(cfg.SiteURLPatterns)
+	m.siteURLRegex, err = compileRegexes(append(cfg.SiteURLPatterns, cfg.FeedURLPatterns...))
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +80,8 @@ func (m *Matcher) Matches(entry *models.Entry, cfg config.ConfigFilters) bool {
 			return false
 		}
 
-		if (len(cfg.FeedURLs) > 0 || len(m.siteURLRegex) > 0) &&
-			!matchString(entry.SiteURL, cfg.FeedURLs, m.siteURLRegex, false) {
+		if (len(cfg.SiteURLs) > 0 || len(cfg.FeedURLs) > 0 || len(m.siteURLRegex) > 0) &&
+			!matchString(entry.SiteURL, append(cfg.SiteURLs, cfg.FeedURLs...), m.siteURLRegex, false) {
 			return false
 		}
 
@@ -107,8 +107,8 @@ func (m *Matcher) Matches(entry *models.Entry, cfg config.ConfigFilters) bool {
 		return true
 	}
 
-	if (len(cfg.FeedURLs) > 0 || len(m.siteURLRegex) > 0) &&
-		matchString(entry.SiteURL, cfg.FeedURLs, m.siteURLRegex, false) {
+	if (len(cfg.SiteURLs) > 0 || len(cfg.FeedURLs) > 0 || len(m.siteURLRegex) > 0) &&
+		matchString(entry.SiteURL, append(cfg.SiteURLs, cfg.FeedURLs...), m.siteURLRegex, false) {
 		return true
 	}
 
@@ -155,10 +155,12 @@ func matchString(value string, exacts []string, patterns []*regexp.Regexp, exact
 func isEmpty(cfg config.ConfigFilters) bool {
 	return len(cfg.FeedTitles) == 0 &&
 		len(cfg.CategoryTitles) == 0 &&
+		len(cfg.SiteURLs) == 0 &&
 		len(cfg.FeedURLs) == 0 &&
 		len(cfg.EntryURLs) == 0 &&
 		len(cfg.FeedTitlePatterns) == 0 &&
 		len(cfg.CategoryTitlePatterns) == 0 &&
 		len(cfg.SiteURLPatterns) == 0 &&
+		len(cfg.FeedURLPatterns) == 0 &&
 		len(cfg.EntryURLPatterns) == 0
 }

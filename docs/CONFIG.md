@@ -80,11 +80,11 @@ This section defines which entries are included in the digest.
 | `logic` | String | `OR` | Logic for combining different field conditions. <br> - `OR`: Match if *any* field condition is met.<br> - `AND`: Match only if *all* defined field conditions are met. |
 | `feed_titles` | String[] | - | Exact matches for the RSS feed title. |
 | `category_titles` | String[] | - | Exact matches for the Miniflux category title. |
-| `site_urls` | String[] | - | Prefix matches for the feed's site URL. |
+| `site_urls` | String[] | - | Prefix matches for the site URL. (Legacy: `feed_urls`) |
 | `entry_urls` | String[] | - | Prefix matches for the entry's URL. |
 | `feed_title_patterns` | String[] | - | Regex matches for the feed title. |
 | `category_title_patterns` | String[] | - | Regex matches for the category title. |
-| `site_url_patterns` | String[] | - | Regex matches for the site URL. |
+| `site_url_patterns` | String[] | - | Regex matches for the site URL. (Legacy: `feed_url_patterns`) |
 | `entry_url_patterns` | String[] | - | Regex matches for the entry URL. |
 
 **Note:** Conditions *within* a single list (e.g., multiple `feed_titles`) are always treated as **OR**.
