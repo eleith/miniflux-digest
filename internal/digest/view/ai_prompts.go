@@ -83,9 +83,8 @@ Your task is to create smaller, more granular sub-groups to help a user navigate
 
 - Create sub-groups that represent a specific **story, product, or discussion thread**.
 - The sub-group titles should be very specific and descriptive (3-7 words). For example, instead of "AI News", a good sub-group title might be "Gemini 1.5 Pro Announcement" or "Discussion on AI Safety".
-- Aim for smaller, tight-knit groups of 2 to 15 entries.
+- Aim to categorize as many entries as possible into specific story-based groups.
 - An entry can only belong to one sub-group.
-- If an entry doesn't fit into a specific sub-group, leave it out of your response.
 `
 
 const summaryOfSummariesPrompt = `You are an expert at creating overviews of large swaths of web updates and web content.
