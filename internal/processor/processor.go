@@ -58,6 +58,10 @@ func ProcessDigest(application *app.App, digestIndex int) (*os.File, []*os.File,
 		digestConfig.Title,
 	)
 
+	if len(digestEntries) == 0 {
+		return nil, nil, data, nil
+	}
+
 	overviewFile, groupedEntryFiles, err := application.ArchiveService.MakeArchiveHTML(data, *digestConfig.Compress)
 	if err != nil {
 		log.Printf("Error generating HTML: %v", err)

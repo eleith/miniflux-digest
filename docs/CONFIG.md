@@ -15,10 +15,10 @@ The `miniflux-digest` application is configured via a YAML file (default: `confi
 
 ## Miniflux (`miniflux`)
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `host` | String | **Required.** The full URL to your Miniflux instance (e.g., `https://reader.miniflux.app`). |
-| `api_token` | String | **Required.** Your Miniflux API Key. Create one in Miniflux under **Settings > API Keys**. |
+| Field | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `host` | String | - | **Required.** The full URL to your Miniflux instance (e.g., `https://reader.miniflux.app`). |
+| `api_token` | String | - | **Required.** Your Miniflux API Key. Create one in Miniflux under **Settings > API Keys**. |
 
 ## SMTP (`smtp`)
 
@@ -26,16 +26,16 @@ Required only if you want to receive digests via email.
 
 | Field | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `host` | String | No | The hostname of your SMTP server (e.g., `smtp.gmail.com`). **Required** if any digest has email configured. |
+| `host` | String | - | The hostname of your SMTP server (e.g., `smtp.gmail.com`). **Required** if any digest has email configured. |
 | `port` | Int | `587` | The SMTP port (1-65535). |
 | `user` | String | - | SMTP username. |
 | `password` | String | - | SMTP password. |
 
 ## AI (`ai`)
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `api_key` | String | **Required if using AI View.** Your Google Gemini API Key. |
+| Field | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `api_key` | String | - | **Required if using AI View.** Your Google Gemini API Key. |
 
 ---
 
@@ -51,27 +51,28 @@ The application processes digests in the order they appear in the configuration 
 
 ### Digest Object
 
-| Field | Type | Required | Description |
+| Field | Type | Default | Required | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `title` | String | - | **Yes** | The display title of the digest. Must be unique after "slugification" (e.g., "My Digest" and "My-Digest" conflict). |
+| `schedule` | String | - | **Yes** | When to run the digest. Supports Cron syntax (`0 8 * * *`) or Go-cron descriptors (`@daily`, `@weekly`, `@every 2h`). |
+| `host` | String | - | No | The base URL where the static HTML archives will be hosted (e.g., `https://digest.myserver.com`). **Required** for correct links in emails. |
+| `view` | String | `date` | No | One of: `date`, `category`, `ai`. Controls how entries are grouped and presented. |
+| `email` | Object | - | No | Email settings for this specific digest. |
+| `filters` | Object | - | No | Rules for including entries in this digest. |
+| `categories`| Array | - | No | **(AI View Only)** Custom categories to guide the LLM. |
+| `compress` | Bool | `true` | No | If `true`, minifies the generated HTML. |
+| `mark_as_read`| Bool | `false` | No | If `true`, marks entries as read in Miniflux *after* processing. |
+| `run_on_startup`| Bool | `false` | No | If `true`, runs the digest job immediately when the application starts. |
+| `send_if_empty` | Bool | `true` | No | If `true`, sends an email (saying "No new entries") even if the digest is empty. If `false`, skips email sending for empty digests. |
+
+### Email Object (`digests[].email`)
+
+| Field | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `title` | String | **Yes** | The display title of the digest. Must be unique after "slugification" (e.g., "My Digest" and "My-Digest" conflict). |
-| `schedule` | String | **Yes** | When to run the digest. Supports Cron syntax (`0 8 * * *`) or Go-cron descriptors (`@daily`, `@weekly`, `@every 2h`). |
-| `host` | String | No | The base URL where the static HTML archives will be hosted (e.g., `https://digest.myserver.com`). **Required** for correct links in emails. |
-| `view` | String | No | One of: `date`, `category`, `ai`. Controls how entries are grouped and presented. Default: `date`. |
-| `email` | Object | No | Email settings for this specific digest. |
-| `filters` | Object | No | Rules for including entries in this digest. |
-| `categories`| Array | No | **(AI View Only)** Custom categories to guide the LLM. |
-| `compress` | Bool | No | If `true` (default), minifies the generated HTML. |
-| `mark_as_read`| Bool | No | If `true`, marks entries as read in Miniflux *after* processing. Default: `false`. |
-| `run_on_startup`| Bool | No | If `true`, runs the digest job immediately when the application starts. Default: `false`. |
+| `to` | String | - | Recipient email address. |
+| `from` | String | - | Sender email address. |
 
-### Email Object (`email`)
-
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `to` | String | Recipient email address. |
-| `from` | String | Sender email address. |
-
-### Filters Object (`filters`)
+### Filters Object (`digests[].filters`)
 
 This section defines which entries are included in the digest.
 
@@ -89,9 +90,8 @@ This section defines which entries are included in the digest.
 
 **Note:** Conditions *within* a single list (e.g., multiple `feed_titles`) are always treated as **OR**.
 
-### Categories Object (`categories`)
+### Categories Object (`digests[].categories`)
 
 Used only when `view: ai`. Provide a list of objects with `title` and `description` to help the AI categorize content.
 
 If you do not provide this block, the AI will automatically determine the best primary groups for your content.
-

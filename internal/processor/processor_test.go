@@ -128,3 +128,66 @@ func TestProcessDigest_Success(t *testing.T) {
 		_ = os.Remove(f.Name())
 	}
 }
+
+func TestProcessDigest_Empty(t *testing.T) {
+	log.SetOutput(os.Stdout)
+	defer log.SetOutput(os.Stderr)
+
+	mockMinifluxClient := &mockMinifluxClientService{
+		getAllUnreadEntriesFunc: func() ([]*models.Entry, error) {
+			return []*models.Entry{}, nil // Return empty list
+		},
+		feedIconFunc: func(feedID int64) (*models.FeedIcon, error) {
+			return nil, nil
+		},
+		updateEntriesFunc: func(entryIDs []int64, status string) error {
+			return nil
+		},
+	}
+
+	mockDigestService := &mockDigestService{
+		buildDigestDataFunc: func(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string, categories []config.ConfigCategory, digestTitle string) *models.OverviewTemplateData {
+			return &models.OverviewTemplateData{Entries: entries}
+		},
+	}
+
+	mockArchiveService := &mockArchiveService{
+		makeArchiveHTMLFunc: func(data *models.OverviewTemplateData, compress bool) (*os.File, []*os.File, error) {
+			t.Fatal("MakeArchiveHTML should not be called for empty digest")
+			return nil, nil, nil
+		},
+	}
+
+	mockApp := app.NewApp(
+		app.WithConfig(&config.Config{
+			Digests: []config.ConfigDigest{
+				{
+					MarkAsRead: true,
+					Compress:   func() *bool { b := true; return &b }(),
+					View:       "category",
+				},
+			},
+			Miniflux: config.ConfigMiniflux{Host: "http://miniflux.test"},
+		}),
+		app.WithMinifluxClientService(mockMinifluxClient),
+		app.WithDigestService(mockDigestService),
+		app.WithArchiveService(mockArchiveService),
+	)
+
+	overviewFile, groupedEntryFiles, data, err := ProcessDigest(mockApp, 0)
+
+	if err != nil {
+		t.Fatalf("ProcessDigest returned an unexpected error: %v", err)
+	}
+	if overviewFile != nil {
+		t.Error("Overview file should be nil for empty digest")
+	}
+	if groupedEntryFiles != nil {
+		t.Error("Grouped entry files should be nil for empty digest")
+	}
+	if data == nil {
+		t.Error("Data should not be nil")
+	} else if len(data.Entries) != 0 {
+		t.Errorf("Expected 0 entries, got %d", len(data.Entries))
+	}
+}

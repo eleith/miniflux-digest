@@ -543,19 +543,17 @@ digests:
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	err = os.Remove(tmpfile.Name())
-	if err != nil {
-		t.Fatalf("Failed to remove temp file: %v", err)
-	}
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			t.Logf("Failed to remove temp file: %v", err)
+		}
+	}()
 
 	if _, err := tmpfile.Write([]byte(yamlContent)); err != nil {
 		t.Fatal(err)
 	}
-
-	err = tmpfile.Close()
-	if err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
+	if err := tmpfile.Close(); err != nil {
+		t.Fatal(err)
 	}
 
 	cfg, err := Load(tmpfile.Name())
@@ -595,5 +593,90 @@ digests:
 	}
 	if len(d2.Filters.FeedTitles) != 1 || d2.Filters.FeedTitles[0] != "TechCrunch" {
 		t.Errorf("Expected feed titles ['TechCrunch'], got %v", d2.Filters.FeedTitles)
+	}
+}
+
+func TestSendIfEmpty(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   string
+		expected bool
+	}{
+		{
+			name: "default should be true",
+			config: `
+miniflux:
+  host: http://miniflux.app
+  api_token: secret
+digests:
+  - title: "Default Digest"
+    schedule: "@daily"
+`,
+			expected: true,
+		},
+		{
+			name: "explicitly false",
+			config: `
+miniflux:
+  host: http://miniflux.app
+  api_token: secret
+digests:
+  - title: "Silent Digest"
+    schedule: "@daily"
+    send_if_empty: false
+`,
+			expected: false,
+		},
+		{
+			name: "explicitly true",
+			config: `
+miniflux:
+  host: http://miniflux.app
+  api_token: secret
+digests:
+  - title: "Loud Digest"
+    schedule: "@daily"
+    send_if_empty: true
+`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpfile, err := os.CreateTemp("", "config_empty_*.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := os.Remove(tmpfile.Name()); err != nil {
+					t.Logf("Failed to remove temp file: %v", err)
+				}
+			}()
+
+			if _, err := tmpfile.Write([]byte(tt.config)); err != nil {
+				t.Fatal(err)
+			}
+			if err := tmpfile.Close(); err != nil {
+				t.Fatal(err)
+			}
+
+			cfg, err := Load(tmpfile.Name())
+			if err != nil {
+				t.Fatalf("Load() unexpected error: %v", err)
+			}
+
+			if len(cfg.Digests) != 1 {
+				t.Fatalf("Expected 1 digest, got %d", len(cfg.Digests))
+			}
+
+			if cfg.Digests[0].SendIfEmpty == nil {
+				t.Fatal("SendIfEmpty should not be nil")
+			}
+
+			if *cfg.Digests[0].SendIfEmpty != tt.expected {
+				t.Errorf("Expected SendIfEmpty to be %v, got %v", tt.expected, *cfg.Digests[0].SendIfEmpty)
+			}
+		})
 	}
 }

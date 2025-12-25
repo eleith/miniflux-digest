@@ -73,6 +73,7 @@ type ConfigDigest struct {
 	View         string            `koanf:"view" validate:"oneof=date category ai"`
 	MarkAsRead   bool              `koanf:"mark_as_read"`
 	RunOnStartup bool              `koanf:"run_on_startup"`
+	SendIfEmpty  *bool             `koanf:"send_if_empty"`
 	Filters      ConfigFilters     `koanf:"filters"`
 	Categories   []ConfigCategory  `koanf:"categories" validate:"dive"`
 }
@@ -202,6 +203,10 @@ func Load(path string) (*Config, error) {
 		if cfg.Digests[i].Compress == nil {
 			def := true
 			cfg.Digests[i].Compress = &def
+		}
+		if cfg.Digests[i].SendIfEmpty == nil {
+			def := true
+			cfg.Digests[i].SendIfEmpty = &def
 		}
 		if cfg.Digests[i].View == "" {
 			cfg.Digests[i].View = "date"

@@ -7,9 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"miniflux-digest/internal/app"
 	"miniflux-digest/internal/config"
 	"miniflux-digest/internal/email"
+	"miniflux-digest/internal/models"
 	"miniflux-digest/internal/webserver"
 )
 
@@ -272,5 +275,100 @@ func TestInitServices(t *testing.T) {
 
 	if emailServiceImpl.EmailTemplate == nil {
 		t.Error("EmailTemplate should not be nil")
+	}
+}
+
+type mockMinifluxClient struct {
+	getAllUnreadEntriesFunc func() ([]*models.Entry, error)
+}
+
+func (m *mockMinifluxClient) FeedIcon(feedID int64) (*models.FeedIcon, error) { return nil, nil }
+func (m *mockMinifluxClient) GetAllUnreadEntries() ([]*models.Entry, error) {
+	return m.getAllUnreadEntriesFunc()
+}
+func (m *mockMinifluxClient) UpdateEntries(entryIDs []int64, status string) error { return nil }
+
+type mockEmailService struct {
+	sendCalled bool
+}
+
+func (m *mockEmailService) Send(smtpConfig config.ConfigSmtp, digestConfig config.ConfigDigest, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
+	m.sendCalled = true
+	return nil
+}
+
+type mockDigestService struct{}
+
+func (m *mockDigestService) BuildDigestData(entries []*models.Entry, icons map[int64]*models.FeedIcon, view string, minifluxHost string, digestHost string, categories []config.ConfigCategory, digestTitle string) *models.OverviewTemplateData {
+	return &models.OverviewTemplateData{Entries: entries}
+}
+
+type mockArchiveService struct{}
+
+func (m *mockArchiveService) MakeArchiveHTML(data *models.OverviewTemplateData, compress bool) (*os.File, []*os.File, error) {
+	return nil, nil, nil
+}
+func (m *mockArchiveService) CleanArchive(maxAge time.Duration) {}
+
+func TestDigestJob_EmptyDigest(t *testing.T) {
+	tests := []struct {
+		name         string
+		sendIfEmpty  bool
+		expectSend   bool
+		smtpHost     string
+	}{
+		{
+			name:        "send_if_empty=false, no email sent",
+			sendIfEmpty: false,
+			expectSend:  false,
+			smtpHost:    "smtp.test.com",
+		},
+		{
+			name:        "send_if_empty=true, email sent",
+			sendIfEmpty: true,
+			expectSend:  true,
+			smtpHost:    "smtp.test.com",
+		},
+		{
+			name:        "send_if_empty=true, but no SMTP configured, no email sent",
+			sendIfEmpty: true,
+			expectSend:  false,
+			smtpHost:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockEmail := &mockEmailService{}
+			mockMiniflux := &mockMinifluxClient{
+				getAllUnreadEntriesFunc: func() ([]*models.Entry, error) {
+					return []*models.Entry{}, nil
+				},
+			}
+
+			cfg := &config.Config{
+				Smtp: config.ConfigSmtp{Host: tt.smtpHost},
+				Digests: []config.ConfigDigest{
+					{
+						Title:       "Test Digest",
+						SendIfEmpty: &tt.sendIfEmpty,
+					},
+				},
+			}
+
+			mockApp := app.NewApp(
+				app.WithConfig(cfg),
+				app.WithEmailService(mockEmail),
+				app.WithMinifluxClientService(mockMiniflux),
+				app.WithDigestService(&mockDigestService{}),
+				app.WithArchiveService(&mockArchiveService{}),
+			)
+
+			digestJob(mockApp, 0, "test")
+
+			if mockEmail.sendCalled != tt.expectSend {
+				t.Errorf("Expected sendCalled to be %v, got %v", tt.expectSend, mockEmail.sendCalled)
+			}
+		})
 	}
 }

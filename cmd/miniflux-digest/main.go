@@ -32,6 +32,11 @@ func digestJob(application *app.App, digestIndex int, source string) {
 		return
 	}
 
+	if len(data.Entries) == 0 && !*digestConfig.SendIfEmpty {
+		log.Printf("Skipping empty digest '%s' (send_if_empty=false)", digestConfig.Title)
+		return
+	}
+
 	emailSent := application.Config.Smtp.Host != ""
 	if emailSent {
 		if err := application.EmailService.Send(application.Config.Smtp, digestConfig, overviewFile, groupedEntryFiles, data); err != nil {
@@ -39,11 +44,16 @@ func digestJob(application *app.App, digestIndex int, source string) {
 		}
 	}
 
+	folder := "(none)"
+	if overviewFile != nil {
+		folder = overviewFile.Name()
+	}
+
 	log.Printf("Digest '%s' produced at %s: entries=%d, folder=%s, email_sent=%t, source=%s",
 		digestConfig.Title,
 		data.GeneratedDate.Format(time.RFC3339),
 		len(data.Entries),
-		overviewFile.Name(),
+		folder,
 		emailSent,
 		source,
 	)

@@ -39,7 +39,11 @@ func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig confi
 	}
 
 	subject := fmt.Sprintf("%s - %s", digestConfig.Title, data.GeneratedDate.Format("January 2, 2006"))
-	overviewURL := fmt.Sprintf("%s/archive/%s/%s/index.html", digestConfig.Host, data.DigestSlug, data.GeneratedDate.Format("2006-01-02"))
+	
+	var overviewURL string
+	if len(data.Entries) > 0 {
+		overviewURL = fmt.Sprintf("%s/archive/%s/%s/index.html", digestConfig.Host, data.DigestSlug, data.GeneratedDate.Format("2006-01-02"))
+	}
 
 	message.Subject(subject)
 
