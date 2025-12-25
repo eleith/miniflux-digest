@@ -165,15 +165,32 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg := &Config{}
+	var md mapstructure.Metadata
+
 	if err := k.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{
 		DecoderConfig: &mapstructure.DecoderConfig{
-			ErrorUnused: true,
+			ErrorUnused: false,
 			TagName:     "koanf",
 			ZeroFields:  true,
 			Result:      &cfg,
+			Metadata:    &md,
 		},
 	}); err != nil {
 		return nil, err
+	}
+
+	// Check for unused keys, but allow top-level keys (often used for YAML anchors)
+	var unusedErrors []string
+	for _, key := range md.Unused {
+		// key with "." or "[", it implies unused nested keys (possibly typos)
+		// top level keys are allowed to support YAML anchors/aliases.
+		if strings.Contains(key, ".") || strings.Contains(key, "[") {
+			unusedErrors = append(unusedErrors, key)
+		}
+	}
+
+	if len(unusedErrors) > 0 {
+		return nil, fmt.Errorf("configuration has invalid keys: %s", strings.Join(unusedErrors, ", "))
 	}
 
 	// Apply defaults

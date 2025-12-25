@@ -452,6 +452,28 @@ func TestLoad(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "valid config with top-level unknown key (anchor)",
+			config: map[string]any{
+				"miniflux": map[string]any{
+					"host":      "miniflux.example.com",
+					"api_token": "test-token",
+				},
+				"common_settings": map[string]any{ // This should be ignored
+					"schedule": "@daily",
+				},
+				"digests": []map[string]any{{
+					"title":    "Daily Digest",
+					"schedule": "@daily",
+					"host":     "http://localhost:8080",
+					"view":     "category",
+				}},
+				"ai": map[string]any{
+					"api_key": "dummy-key",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -483,5 +505,95 @@ func TestLoad(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+func TestYamlAnchors(t *testing.T) {
+	yamlContent := `
+miniflux:
+  host: http://miniflux.app
+  api_token: secret
+
+smtp:
+  host: smtp.example.com
+
+# Define an anchor for common digest settings
+common_digest: &common_digest
+  schedule: "@daily"
+  view: date
+  host: http://example.com
+  filters:
+    feed_titles:
+      - "TechCrunch"
+
+digests:
+  - title: "Daily Digest"
+    <<: *common_digest
+    email:
+      to: user@example.com
+
+  - title: "Weekly Digest"
+    <<: *common_digest
+    schedule: "@weekly"
+    email:
+      to: user@example.com
+`
+
+	tmpfile, err := os.CreateTemp("", "config_anchor_*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Remove(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Failed to remove temp file: %v", err)
+	}
+
+	if _, err := tmpfile.Write([]byte(yamlContent)); err != nil {
+		t.Fatal(err)
+	}
+
+	err = tmpfile.Close()
+	if err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	cfg, err := Load(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Load() unexpected error: %v", err)
+	}
+
+	if len(cfg.Digests) != 2 {
+		t.Fatalf("Expected 2 digests, got %d", len(cfg.Digests))
+	}
+
+	// Check Daily Digest (inherits schedule)
+	d1 := cfg.Digests[0]
+	if d1.Title != "Daily Digest" {
+		t.Errorf("Expected title 'Daily Digest', got '%s'", d1.Title)
+	}
+	if d1.Schedule != "@daily" {
+		t.Errorf("Expected schedule '@daily', got '%s'", d1.Schedule)
+	}
+	if d1.View != "date" {
+		t.Errorf("Expected view 'date', got '%s'", d1.View)
+	}
+	if len(d1.Filters.FeedTitles) != 1 || d1.Filters.FeedTitles[0] != "TechCrunch" {
+		t.Errorf("Expected feed titles ['TechCrunch'], got %v", d1.Filters.FeedTitles)
+	}
+
+	// Check Weekly Digest (overrides schedule)
+	d2 := cfg.Digests[1]
+	if d2.Title != "Weekly Digest" {
+		t.Errorf("Expected title 'Weekly Digest', got '%s'", d2.Title)
+	}
+	if d2.Schedule != "@weekly" {
+		t.Errorf("Expected schedule '@weekly', got '%s'", d2.Schedule)
+	}
+	if d2.View != "date" {
+		t.Errorf("Expected view 'date', got '%s'", d2.View)
+	}
+	if len(d2.Filters.FeedTitles) != 1 || d2.Filters.FeedTitles[0] != "TechCrunch" {
+		t.Errorf("Expected feed titles ['TechCrunch'], got %v", d2.Filters.FeedTitles)
 	}
 }
