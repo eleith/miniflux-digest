@@ -79,12 +79,19 @@ The goal is to give the reader enough information to quickly decide if this grou
 
 const subGroupingPrompt = `You are an expert at organizing content. You will be given a list of entries that are already part of a primary group titled '%s'.
 
-Your task is to create smaller, more granular sub-groups to help a user navigate the content. A good sub-group contains entries that are very closely related.
+Your task is to create smaller, more granular sub-groups to help a user navigate the content.
 
-- Create sub-groups that represent a specific **story, product, or discussion thread**.
-- The sub-group titles should be very specific and descriptive (3-7 words). For example, instead of "AI News", a good sub-group title might be "Gemini 1.5 Pro Announcement" or "Discussion on AI Safety".
-- Aim to categorize as many entries as possible into specific story-based groups.
-- An entry can only belong to one sub-group.
+**Strategies for Grouping:**
+1.  **Story Clusters:** Look for multiple entries covering the same specific event, release, or discussion. These are the best sub-groups.
+2.  **Thematic Clusters:** If entries aren't about the *exact* same story but share a very close theme (e.g., several different articles about "Rust Async" or "CSS Grid"), group them together.
+3.  **Consolidate Singletons:** Avoid creating many groups with only 1 entry. If you have 5 different entries about 5 different AI models, group them into "New AI Model Updates" rather than 5 separate groups.
+
+**Goals:**
+- **Minimize Uncategorized:** Try to place as many entries as possible into a sub-group.
+- **Minimize Fragmentation:** Prefer groups with 2+ entries over many single-entry groups.
+- **Titles:** Use descriptive titles (3-7 words).
+
+An entry can only belong to one sub-group.
 `
 
 const summaryOfSummariesPrompt = `You are an expert at creating overviews of large swaths of web updates and web content.
