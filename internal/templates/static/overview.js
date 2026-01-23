@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const digestDate = document.body.dataset.digestDate;
     const localStorageKey = `readSubgroupSlugs_${digestDate}`;
 
-    // Helper functions for localStorage
     const getReadSlugs = () => {
         const slugs = localStorage.getItem(localStorageKey);
         return slugs ? JSON.parse(slugs) : [];
@@ -22,12 +21,38 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(localStorageKey, JSON.stringify(slugs));
     };
 
+    const applyReadStatus = () => {
+        const readSlugs = getReadSlugs();
+        document.querySelectorAll('section.entry').forEach(entry => {
+            const slug = entry.dataset.slug;
+            const markAsReadLink = entry.querySelector('.mark-as-read-link');
+
+            if (slug && readSlugs.includes(slug)) {
+                entry.classList.add('viewed');
+                if (markAsReadLink) {
+                    markAsReadLink.textContent = 'Mark as unread';
+                }
+            } else {
+                entry.classList.remove('viewed');
+                if (markAsReadLink) {
+                    markAsReadLink.textContent = 'Mark as read';
+                }
+            }
+        });
+    };
+
+    applyReadStatus();
+
+    window.addEventListener('pageshow', () => {
+        applyReadStatus();
+    });
 
     const markAsReadLinks = document.querySelectorAll('.mark-as-read-link');
-
     markAsReadLinks.forEach(link => {
         link.addEventListener('click', (event) => {
             event.preventDefault();
+            event.stopPropagation();
+            
             const entry = event.target.closest('section.entry');
             if (entry) {
                 const slug = entry.dataset.slug;
@@ -48,44 +73,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const applyReadStatusOnLoad = () => {
-        const readSlugs = getReadSlugs();
-        document.querySelectorAll('section.entry').forEach(entry => {
-            const slug = entry.dataset.slug;
-            const markAsReadLink = entry.querySelector('.mark-as-read-link');
-
-            if (slug && readSlugs.includes(slug)) {
-                entry.classList.add('viewed');
-                if (markAsReadLink) {
-                    markAsReadLink.textContent = 'Mark as unread';
-                }
-            }
-        });
-    };
-
-    applyReadStatusOnLoad(); // Call on page load
-
     const entries = document.querySelectorAll('.grouped-digests .entry');
     entries.forEach(entry => {
         entry.addEventListener('click', (event) => {
-            // Don't do anything if a link in the meta section was clicked
-            if (event.target.closest('.entry-meta')) {
+            if (event.target.closest('.mark-as-read-link')) {
                 return;
             }
 
-            // Find the main link and navigate to it
+            const slug = entry.dataset.slug;
             const mainLink = entry.querySelector('a.entry-link');
+
+            if (slug) {
+                addReadSlug(slug);
+                entry.classList.add('viewed');
+                const markBtn = entry.querySelector('.mark-as-read-link');
+                if (markBtn) markBtn.textContent = 'Mark as unread';
+            }
+
             if (mainLink) {
-                const slug = entry.dataset.slug; // Get slug from the parent entry element
-                addReadSlug(slug); // Mark as read when navigating
-                mainLink.click();
+                if (event.target.closest('a.entry-link')) {
+                    return;
+                }
+
+                window.location.href = mainLink.href;
             }
         });
-        // Add a cursor pointer to the whole card except the meta section
+
         entry.style.cursor = 'pointer';
     });
 
-    // Remove cursor pointer from the meta section
     const metaSections = document.querySelectorAll('.entry-meta');
     metaSections.forEach(meta => {
         meta.style.cursor = 'auto';
