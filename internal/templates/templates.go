@@ -10,8 +10,8 @@ import (
 
 type EmailTemplateData struct {
 	models.OverviewTemplateData
-	URL     string
-	
+	URL            string
+	AttachmentHint bool
 }
 
 //go:embed *.gohtml *.gotxt

@@ -34,8 +34,9 @@ type ConfigMiniflux struct {
 }
 
 type ConfigDigestEmail struct {
-	To   string `koanf:"to" validate:"omitempty,email"`
-	From string `koanf:"from" validate:"omitempty,email"`
+	To          string `koanf:"to" validate:"omitempty,email"`
+	From        string `koanf:"from" validate:"omitempty,email"`
+	AttachFiles *bool  `koanf:"attach_files"`
 }
 
 type ConfigSmtp struct {
@@ -211,7 +212,11 @@ func Load(path string) (*Config, error) {
 		if cfg.Digests[i].View == "" {
 			cfg.Digests[i].View = "date"
 		}
-		
+		if cfg.Digests[i].Email.AttachFiles == nil {
+			def := true
+			cfg.Digests[i].Email.AttachFiles = &def
+		}
+
 		cfg.Digests[i].Filters.Logic = strings.ToUpper(cfg.Digests[i].Filters.Logic)
 		if cfg.Digests[i].Filters.Logic == "" {
 			cfg.Digests[i].Filters.Logic = "OR"

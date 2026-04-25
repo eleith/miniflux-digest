@@ -50,7 +50,7 @@ func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig confi
 	emailData := templates.EmailTemplateData{
 		OverviewTemplateData: *data,
 		URL:                  overviewURL,
-		
+		AttachmentHint:       *digestConfig.Email.AttachFiles,
 	}
 
 	var body bytes.Buffer
@@ -59,8 +59,10 @@ func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig confi
 	}
 	message.SetBodyString(mail.TypeTextPlain, body.String())
 
-	for _, f := range groupedEntryFiles {
-		message.AttachFile(f.Name(), mail.WithFileContentType("text/html"))
+	if *digestConfig.Email.AttachFiles {
+		for _, f := range groupedEntryFiles {
+			message.AttachFile(f.Name(), mail.WithFileContentType("text/html"))
+		}
 	}
 
 	return client.DialAndSend(message)

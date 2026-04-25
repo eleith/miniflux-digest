@@ -12,7 +12,9 @@ Breakdown by Topic:
 View the full digest online: {{ .URL }}
 {{- end }}
 
+{{ if .AttachmentHint -}}
 (Individual group HTML files are attached)
+{{- end }}
 {{- else -}}
 No new entries were found for this digest period.
 {{- end }}

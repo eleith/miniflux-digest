@@ -67,10 +67,11 @@ The application processes digests in the order they appear in the configuration 
 
 ### Email Object (`digests[].email`)
 
-| Field | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `to` | String | - | Recipient email address. |
-| `from` | String | - | Sender email address. |
+| Field | Type | Default | Required | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `to` | String | - | Yes | Recipient email address. |
+| `from` | String | - | Yes | Sender email address. |
+| `attach_files` | Bool | true | No |  If `true`, attaches generated HTML files to email. |
 
 ### Filters Object (`digests[].filters`)
 
