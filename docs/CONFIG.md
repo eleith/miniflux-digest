@@ -71,7 +71,7 @@ The application processes digests in the order they appear in the configuration 
 | :--- | :--- | :--- | :--- | :--- |
 | `to` | String | - | Yes | Recipient email address. |
 | `from` | String | - | Yes | Sender email address. |
-| `attach_files` | Bool | true | No |  If `true`, attaches generated HTML files to email. |
+| `attach_files` | Bool | true | No |  If `true`, attaches generated HTML files to email. Disable if you just want to use the links to the archived files. |
 
 ### Filters Object (`digests[].filters`)
 
