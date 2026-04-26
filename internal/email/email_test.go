@@ -17,10 +17,12 @@ func TestSend(t *testing.T) {
 		User:     "test-user",
 		Password: "test-password",
 	}
+	attachFiles := true
 	digestConfig := config.ConfigDigest{
 		Email: config.ConfigDigestEmail{
-			To:   "to@example.com",
-			From: "from@example.com",
+			To:          "to@example.com",
+			From:        "from@example.com",
+			AttachFiles: &attachFiles,
 		},
 		Host: "https://example.com",
 	}

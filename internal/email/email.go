@@ -47,10 +47,15 @@ func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig confi
 
 	message.Subject(subject)
 
+	attachmentsEnabled := true
+	if digestConfig.Email.AttachFiles != nil {
+		attachmentsEnabled = *digestConfig.Email.AttachFiles
+	}
+
 	emailData := templates.EmailTemplateData{
 		OverviewTemplateData: *data,
 		URL:                  overviewURL,
-		AttachmentHint:       *digestConfig.Email.AttachFiles,
+		AttachmentHint:       attachmentsEnabled,
 	}
 
 	var body bytes.Buffer
@@ -59,7 +64,7 @@ func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig confi
 	}
 	message.SetBodyString(mail.TypeTextPlain, body.String())
 
-	if *digestConfig.Email.AttachFiles {
+	if attachmentsEnabled {
 		for _, f := range groupedEntryFiles {
 			message.AttachFile(f.Name(), mail.WithFileContentType("text/html"))
 		}
