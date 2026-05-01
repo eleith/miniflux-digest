@@ -3,6 +3,7 @@ package email
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"text/template"
 
@@ -19,12 +20,16 @@ type EmailServiceImpl struct{
 
 func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig config.ConfigDigest, overviewFile *os.File, groupedEntryFiles []*os.File, data *models.OverviewTemplateData) error {
 	message := mail.NewMsg()
-	client, err := mail.NewClient(
-		smtpConfig.Host,
+	clientOpts := []mail.Option{
 		mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
 		mail.WithPort(smtpConfig.Port),
 		mail.WithUsername(smtpConfig.User),
-		mail.WithPassword(smtpConfig.Password))
+		mail.WithPassword(smtpConfig.Password),
+	}
+	if smtpConfig.SSL {
+		clientOpts = append(clientOpts, mail.WithSSL())
+	}
+	client, err := mail.NewClient(smtpConfig.Host, clientOpts...)
 
 	if err != nil {
 		return err
@@ -70,5 +75,11 @@ func (s *EmailServiceImpl) Send(smtpConfig config.ConfigSmtp, digestConfig confi
 		}
 	}
 
-	return client.DialAndSend(message)
+	log.Printf("SMTP: connecting to %s:%d (ssl=%v)...", smtpConfig.Host, smtpConfig.Port, smtpConfig.SSL)
+	err = client.DialAndSend(message)
+	if err != nil {
+		return err
+	}
+	log.Printf("SMTP: email sent successfully to %s", digestConfig.Email.To)
+	return nil
 }

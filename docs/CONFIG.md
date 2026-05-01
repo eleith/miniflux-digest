@@ -30,6 +30,7 @@ Required only if you want to receive digests via email.
 | `port` | Int | `587` | The SMTP port (1-65535). |
 | `user` | String | - | SMTP username. |
 | `password` | String | - | SMTP password. |
+| `ssl` | Bool | `false` | If `true`, uses implicit SSL/TLS. Enable for port 465 (SMTPS); leave off for ports 25/587 (STARTTLS). |
 
 ## AI (`ai`)
 

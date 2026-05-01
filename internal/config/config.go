@@ -44,6 +44,7 @@ type ConfigSmtp struct {
 	Port     int    `koanf:"port" validate:"omitempty,min=1,max=65535"`
 	User     string `koanf:"user"`
 	Password string `koanf:"password"`
+	SSL      bool   `koanf:"ssl"`
 }
 
 type ConfigCategory struct {
